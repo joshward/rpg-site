@@ -1,0 +1,25 @@
+# dependencies
+node_modules
+
+# builds and caches
+.next
+out
+dist
+build
+coverage
+.tmp
+.cache
+
+# env and config artifacts
+.env*
+*.log
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# editor/IDE
+.idea
+.vscode
+
+# misc
+public
