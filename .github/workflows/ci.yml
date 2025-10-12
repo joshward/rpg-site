@@ -45,7 +45,7 @@ jobs:
 
       - name: Build
         env:
-          DATABASE_URL: "postgresql://fake.test.url.dev/fake"
+          DATABASE_URL: "postgresql://fake.dev/fake"
         run: npm run build
 
   test:
