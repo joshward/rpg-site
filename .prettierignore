@@ -23,3 +23,11 @@ pnpm-lock.yaml
 
 # misc
 public
+
+# generated files
+drizzle
+
+# ignore some types for now
+*.md
+*.css
+*.yml
