@@ -1,8 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import SignInButton from '../SignInButton';
+import { authClient } from '@/lib/authClient';
 
-// Mock the better-auth client used by the component
 vi.mock('@/lib/authClient', () => {
   const mockUseSession = vi.fn();
   const mockSignInSocial = vi.fn();
@@ -16,10 +17,6 @@ vi.mock('@/lib/authClient', () => {
     },
   };
 });
-
-// Import after mock is set up
-import SignInButton from '../SignInButton';
-import { authClient } from '@/lib/authClient';
 
 describe('SignInButton', () => {
   beforeEach(() => {
