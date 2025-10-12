@@ -44,6 +44,8 @@ jobs:
         run: npm ci
 
       - name: Build
+        env:
+          DATABASE_URL: "fake.test.url"
         run: npm run build
 
   test:
