@@ -45,7 +45,7 @@ jobs:
 
       - name: Build
         env:
-          DATABASE_URL: "postgresql://fake.dev/fake"
+          DATABASE_URL: "postgresql://fake:fake@fake.aws.neon.tech/fake?sslmode=require&channel_binding=require"
         run: npm run build
 
   test:
