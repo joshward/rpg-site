@@ -3,13 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "op": "op run --env-file=.env.local --",
     "dev": "next dev --turbopack",
-    "dev:op": "op run --env-file=.env.local -- next dev --turbopack",
+    "dev!": "npm run op next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "db!": "npm run op drizzle-kit --",
+    "db:gen!": "npm run op drizzle-kit -- generate --name",
+    "db:migrate!": "npm run db! migrate",
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
