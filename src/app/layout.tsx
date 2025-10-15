@@ -44,8 +44,6 @@ export default function RootLayout({
           <div className="grow flex flex-col items-center px-2 md:px-6">
             <div className="w-full md:max-w-[80rem]">{children}</div>
           </div>
-
-          <footer>FOOTER TODO</footer>
         </ThemeProvider>
       </body>
     </html>

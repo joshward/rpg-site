@@ -16,24 +16,22 @@ export function HeaderActions() {
 
   useEffect(() => setMounted(true), []);
 
+  const toTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
+
   return (
     <div>
       {mounted ? (
         <button
-          onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          onClick={() => setTheme(toTheme)}
           className={twMerge(
             DefaultTransitionStyles,
             FocusResetStyles,
             ShowFocusOnKeyboardStyles,
             'bg-sage-5 hover:bg-sage-7 text-sage-12 cursor-pointer rounded-xl p-3 shadow shadow-black-a5',
           )}
-          aria-label={`Toggle to ${resolvedTheme} mode`}
+          aria-label={`Toggle to ${toTheme} mode`}
         >
-          {resolvedTheme === 'dark' ? (
-            <SunIcon className="size-4" />
-          ) : (
-            <MoonIcon className="size-4" />
-          )}
+          {toTheme === 'light' ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
         </button>
       ) : (
         <div className="size-10 bg-sage-5 rounded-xl shadow shadow-black-a5 animate-pulse" />
