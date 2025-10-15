@@ -3,6 +3,7 @@ import { nextCookies } from 'better-auth/next-js';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '@/db/db';
 import * as authSchema from '@/db/schema/auth';
+import { config } from '@/lib/config';
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -12,8 +13,8 @@ export const auth = betterAuth({
   plugins: [nextCookies()],
   socialProviders: {
     discord: {
-      clientId: process.env.DISCORD_CLIENT_ID!,
-      clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+      clientId: config.discord.clientId,
+      clientSecret: config.discord.clientSecret,
     },
   },
 });

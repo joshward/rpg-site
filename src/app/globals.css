@@ -1,26 +1,121 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import "@radix-ui/colors/white-alpha.css";
+@import "@radix-ui/colors/black-alpha.css";
+@import "@radix-ui/colors/slate.css";
+@import "@radix-ui/colors/slate-dark.css";
+@import "@radix-ui/colors/mauve.css";
+@import "@radix-ui/colors/mauve-dark.css";
+@import "@radix-ui/colors/plum.css";
+@import "@radix-ui/colors/plum-dark.css";
+@import "@radix-ui/colors/violet.css";
+@import "@radix-ui/colors/violet-dark.css";
+@import "@radix-ui/colors/sage.css";
+@import "@radix-ui/colors/sage-dark.css";
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* ---- Fonts ---- */
+  --font-*: initial;
   /*noinspection CssUnresolvedCustomProperty*/
   --font-sans: var(--font-inter-sans);
-}
+  /*noinspection CssUnresolvedCustomProperty*/
+  --font-serif: var(--font-fraunces-serif);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+  /* ---- Colors ---- */
+  --color-*: initial;
+  --color-white: rgb(255, 255, 255);
+  --color-white-a1: var(--white-a1);
+  --color-white-a2: var(--white-a2);
+  --color-white-a3: var(--white-a3);
+  --color-white-a4: var(--white-a4);
+  --color-white-a5: var(--white-a5);
+  --color-white-a6: var(--white-a6);
+  --color-white-a7: var(--white-a7);
+  --color-white-a8: var(--white-a8);
+  --color-white-a9: var(--white-a9);
+  --color-white-a10: var(--white-a10);
+  --color-white-a11: var(--white-a11);
+  --color-white-a12: var(--white-a12);
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  --color-black: rgb(0, 0, 0);
+  --color-black-a1: var(--black-a1);
+  --color-black-a2: var(--black-a2);
+  --color-black-a3: var(--black-a3);
+  --color-black-a4: var(--black-a4);
+  --color-black-a5: var(--black-a5);
+  --color-black-a6: var(--black-a6);
+  --color-black-a7: var(--black-a7);
+  --color-black-a8: var(--black-a8);
+  --color-black-a9: var(--black-a9);
+  --color-black-a10: var(--black-a10);
+  --color-black-a11: var(--black-a11);
+  --color-black-a12: var(--black-a12);
+
+  --color-slate-1: var(--slate-1);
+  --color-slate-2: var(--slate-2);
+  --color-slate-3: var(--slate-3);
+  --color-slate-4: var(--slate-4);
+  --color-slate-5: var(--slate-5);
+  --color-slate-6: var(--slate-6);
+  --color-slate-7: var(--slate-7);
+  --color-slate-8: var(--slate-8);
+  --color-slate-9: var(--slate-9);
+  --color-slate-10: var(--slate-10);
+  --color-slate-11: var(--slate-11);
+  --color-slate-12: var(--slate-12);
+
+  --color-mauve-1: var(--mauve-1);
+  --color-mauve-2: var(--mauve-2);
+  --color-mauve-3: var(--mauve-3);
+  --color-mauve-4: var(--mauve-4);
+  --color-mauve-5: var(--mauve-5);
+  --color-mauve-6: var(--mauve-6);
+  --color-mauve-7: var(--mauve-7);
+  --color-mauve-8: var(--mauve-8);
+  --color-mauve-9: var(--mauve-9);
+  --color-mauve-10: var(--mauve-10);
+  --color-mauve-11: var(--mauve-11);
+  --color-mauve-12: var(--mauve-12);
+
+  --color-plum-1: var(--plum-1);
+  --color-plum-2: var(--plum-2);
+  --color-plum-3: var(--plum-3);
+  --color-plum-4: var(--plum-4);
+  --color-plum-5: var(--plum-5);
+  --color-plum-6: var(--plum-6);
+  --color-plum-7: var(--plum-7);
+  --color-plum-8: var(--plum-8);
+  --color-plum-9: var(--plum-9);
+  --color-plum-10: var(--plum-10);
+  --color-plum-11: var(--plum-11);
+  --color-plum-12: var(--plum-12);
+
+  --color-violet-1: var(--violet-1);
+  --color-violet-2: var(--violet-2);
+  --color-violet-3: var(--violet-3);
+  --color-violet-4: var(--violet-4);
+  --color-violet-5: var(--violet-5);
+  --color-violet-6: var(--violet-6);
+  --color-violet-7: var(--violet-7);
+  --color-violet-8: var(--violet-8);
+  --color-violet-9: var(--violet-9);
+  --color-violet-10: var(--violet-10);
+  --color-violet-11: var(--violet-11);
+  --color-violet-12: var(--violet-12);
+
+  --color-sage-1: var(--sage-1);
+  --color-sage-2: var(--sage-2);
+  --color-sage-3: var(--sage-3);
+  --color-sage-4: var(--sage-4);
+  --color-sage-5: var(--sage-5);
+  --color-sage-6: var(--sage-6);
+  --color-sage-7: var(--sage-7);
+  --color-sage-8: var(--sage-8);
+  --color-sage-9: var(--sage-9);
+  --color-sage-10: var(--sage-10);
+  --color-sage-11: var(--sage-11);
+  --color-sage-12: var(--sage-12);
 }
