@@ -14,4 +14,5 @@ export const config = {
     botToken: requireEnvVar('DISCORD_BOT_TOKEN'),
   },
   databaseUrl: requireEnvVar('DATABASE_URL'),
+  siteUrl: requireEnvVar('SITE_URL'),
 } as const;
