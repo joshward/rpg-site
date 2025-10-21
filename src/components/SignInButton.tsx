@@ -1,21 +1,19 @@
 'use client';
 
 import { authClient } from '@/lib/authClient';
+import Button from '@/components/Button';
+import { DiscordLogoIcon, PersonIcon } from '@radix-ui/react-icons';
+import { useEffect } from 'react';
 
 export default function SignInButton() {
   const { data, isPending, error } = authClient.useSession();
 
-  if (isPending) {
-    return <p>Loading...</p>;
-  }
-
-  if (error) {
-    return <p>Error: {error.message}</p>;
-  }
-
-  if (data) {
-    return <p>Logged in: {data.user.name}</p>;
-  }
+  useEffect(() => {
+    if (error) {
+      // TODO - handle error properly
+      console.error('Error signing in:', error);
+    }
+  }, [error]);
 
   const signIn = async () => {
     await authClient.signIn.social({
@@ -23,5 +21,25 @@ export default function SignInButton() {
     });
   };
 
-  return <button onClick={signIn}>Sign In</button>;
+  const handleClick = async () => {
+    if (!data) {
+      await signIn();
+    }
+  };
+
+  return (
+    <Button asLoader={isPending} size="lg" onClick={handleClick}>
+      {data ? (
+        <>
+          <PersonIcon />
+          {data.user.name}
+        </>
+      ) : (
+        <>
+          <DiscordLogoIcon />
+          Log In
+        </>
+      )}
+    </Button>
+  );
 }
