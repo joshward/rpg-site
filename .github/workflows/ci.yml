@@ -47,9 +47,9 @@ jobs:
         env:
           DATABASE_URL: "postgresql://fake:fake@fake.aws.neon.tech/fake?sslmode=require&channel_binding=require"
           BETTER_AUTH_URL: "http://localhost:3000"
-          DISCORD_CLIENT_ID: 'build-client-id';
-          DISCORD_CLIENT_SECRET: 'build-secret';
-          DISCORD_BOT_TOKEN: 'build-token';
+          DISCORD_CLIENT_ID: 'build-client-id'
+          DISCORD_CLIENT_SECRET: 'build-secret'
+          DISCORD_BOT_TOKEN: 'build-token'
         run: npm run build
 
   test:
