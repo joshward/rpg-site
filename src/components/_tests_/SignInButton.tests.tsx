@@ -27,6 +27,7 @@ describe('SignInButton', () => {
       isPending: false,
       error: null,
       refetch: vi.fn(),
+      isRefetching: false,
     });
   });
 
@@ -48,6 +49,7 @@ describe('SignInButton', () => {
       isPending: true,
       error: null,
       refetch: vi.fn(),
+      isRefetching: false,
     });
 
     render(<SignInButton />);
@@ -61,6 +63,7 @@ describe('SignInButton', () => {
       isPending: false,
       error: null,
       refetch: vi.fn(),
+      isRefetching: false,
     });
 
     render(<SignInButton />);
