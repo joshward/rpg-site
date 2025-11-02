@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
@@ -46,10 +46,10 @@ jobs:
       - name: Build
         env:
           DATABASE_URL: "postgresql://fake:fake@fake.aws.neon.tech/fake?sslmode=require&channel_binding=require"
-          SITE_URL: "http://localhost:3000"
-          DISCORD_CLIENT_ID: 'build-client-id';
-          DISCORD_CLIENT_SECRET: 'build-secret';
-          DISCORD_BOT_TOKEN: 'build-token';
+          BETTER_AUTH_URL: "http://localhost:3000"
+          DISCORD_CLIENT_ID: 'build-client-id'
+          DISCORD_CLIENT_SECRET: 'build-secret'
+          DISCORD_BOT_TOKEN: 'build-token'
         run: npm run build
 
   test:
@@ -60,7 +60,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
