@@ -1,9 +1,9 @@
-import SignInButton from '@/components/SignInButton';
+import LandingPage from '@/app/LandingPage';
 
 export default function Home() {
   return (
     <div>
-      <SignInButton />
+      <LandingPage />
     </div>
   );
 }
