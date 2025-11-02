@@ -3,9 +3,11 @@ import { config } from '@/lib/config';
 import {
   ErrorSchema,
   GuildMemberSchema,
+  GuildMembersResponseSchema,
   GuildsResponseSchema,
   RolesResponseSchema,
 } from '@/lib/discord/models';
+import * as v from 'valibot';
 
 type HeaderOverrides = { userTokenOverride?: string };
 
@@ -39,6 +41,13 @@ const $fetch = createFetch({
     '/guilds/:guildId/members/:userId': {
       output: GuildMemberSchema,
     },
+    '/guilds/:guildId/members': {
+      output: GuildMembersResponseSchema,
+      query: v.object({
+        limit: v.optional(v.number()),
+        after: v.optional(v.string()),
+      }),
+    },
   }),
   defaultError: ErrorSchema,
 });
@@ -62,6 +71,17 @@ export function getGuildMember(guildId: string, userId: string) {
     params: {
       guildId,
       userId,
+    },
+  });
+}
+
+export function getGuildMembers(guildId: string) {
+  return $fetch('/guilds/:guildId/members', {
+    params: {
+      guildId,
+    },
+    query: {
+      limit: 1000,
     },
   });
 }
