@@ -8,12 +8,14 @@ import {
 
 export type ButtonProps = ComponentPropsWithRef<'button'> & {
   asLoader?: boolean;
+  loadingLabel?: string;
   loaderClassName?: string;
   size?: 'sm' | 'md' | 'lg';
 };
 
 export default function Button({
   asLoader,
+  loadingLabel,
   loaderClassName,
   children,
   className,
@@ -30,6 +32,7 @@ export default function Button({
           className,
           loaderClassName,
         )}
+        aria-label={loadingLabel || 'loading'}
       >
         &nbsp;
       </div>

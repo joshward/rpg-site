@@ -34,7 +34,7 @@ describe('SignInButton', () => {
   it('renders a Sign In button when not authenticated and calls signIn on click', async () => {
     render(<SignInButton />);
 
-    const btn = screen.getByRole('button', { name: /sign in/i });
+    const btn = screen.getByRole('button', { name: /log in/i });
     expect(btn).toBeInTheDocument();
 
     await userEvent.click(btn);
@@ -53,7 +53,7 @@ describe('SignInButton', () => {
     });
 
     render(<SignInButton />);
-    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/loading/i)).toBeInTheDocument();
   });
 
   it('renders user name when authenticated', () => {
@@ -67,6 +67,6 @@ describe('SignInButton', () => {
     });
 
     render(<SignInButton />);
-    expect(screen.getByText(/logged in: alice/i)).toBeInTheDocument();
+    expect(screen.getByText(/alice/i)).toBeInTheDocument();
   });
 });

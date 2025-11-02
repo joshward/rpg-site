@@ -28,7 +28,12 @@ export default function SignInButton() {
   };
 
   return (
-    <Button asLoader={isPending} size="lg" onClick={handleClick}>
+    <Button
+      asLoader={isPending}
+      loadingLabel="Loading Login Button"
+      size="lg"
+      onClick={handleClick}
+    >
       {data ? (
         <>
           <PersonIcon />
