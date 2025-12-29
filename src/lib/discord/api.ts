@@ -8,8 +8,12 @@ import {
   RolesResponseSchema,
 } from '@/lib/discord/models';
 import * as v from 'valibot';
+import { TimeSpan } from 'timespan-ts';
 
-type HeaderOverrides = { userTokenOverride?: string };
+export interface Options {
+  userAuth?: string;
+  cacheFor?: TimeSpan;
+}
 
 const defaultHeaders = {
   'Content-Type': 'application/json',
@@ -17,18 +21,70 @@ const defaultHeaders = {
   Authorization: `Bot ${config.discord.botToken}`,
 } as const;
 
-function getHeaders({ userTokenOverride }: HeaderOverrides = {}): Record<string, string> {
-  return {
-    ...defaultHeaders,
-    ...(userTokenOverride
-      ? {
-          Authorization: `Bearer ${userTokenOverride}`,
-        }
-      : undefined),
+function handleOptions(options: Options): RequestInit {
+  const requestInit: RequestInit = {};
+
+  if (options.userAuth) {
+    requestInit.headers = {
+      ...defaultHeaders,
+      Authorization: `Bearer ${options.userAuth}`,
+    };
+  }
+
+  if (options.cacheFor) {
+    requestInit.cache = 'force-cache';
+    requestInit.next = {
+      revalidate: options.cacheFor.totalSeconds,
+    };
+  }
+
+  return requestInit;
+}
+
+function record(args: Parameters<typeof fetch>) {
+  const startTime = Date.now();
+
+  return async () => {
+    const endTime = Date.now();
+    const input = args[0];
+    const init = args[1];
+    const headers = init?.headers;
+    let authType = '';
+
+    if (headers) {
+      const authHeader =
+        headers instanceof Headers
+          ? headers.get('Authorization')
+          : Array.isArray(headers)
+            ? undefined
+            : (headers as Record<string, string>)?.['Authorization'];
+
+      if (authHeader) {
+        const match = authHeader.match(/^(Bearer|Bot)\s/);
+        authType = match ? ` [${match[1]}]` : '';
+      }
+    }
+
+    let cache: string;
+    const requestTime = endTime - startTime;
+    if (init?.cache === 'force-cache') {
+      cache = `Cache ${init.next?.revalidate ? `(${init.next?.revalidate}s ttl)` : ''} `;
+
+      if (endTime - startTime < 50) {
+        cache += `[Hit (${requestTime}ms)]`;
+      } else {
+        cache = `[Miss (${requestTime}ms)]`;
+      }
+    } else {
+      cache = `No Cache (${requestTime}ms)`;
+    }
+
+    console.log(`API request${authType} (${input}) | ${cache}`);
   };
 }
 
 const $fetch = createFetch({
+  customFetchImpl: (...args) => fetch(...args).finally(record(args)),
   baseURL: config.discord.apiUrl,
   headers: defaultHeaders,
   schema: createSchema({
@@ -52,36 +108,32 @@ const $fetch = createFetch({
   defaultError: ErrorSchema,
 });
 
-export function getGuilds(headerOverrides: HeaderOverrides = {}) {
+export function getGuilds(options: Options = {}) {
   return $fetch('/users/@me/guilds', {
-    headers: getHeaders(headerOverrides),
+    ...handleOptions(options),
   });
 }
 
-export function getGuildRoles(guildId: string) {
+export function getGuildRoles(params: { guildId: string }, options: Options = {}) {
   return $fetch('/guilds/:guildId/roles', {
-    params: {
-      guildId,
-    },
+    params,
+    ...handleOptions(options),
   });
 }
 
-export function getGuildMember(guildId: string, userId: string) {
+export function getGuildMember(params: { guildId: string; userId: string }, options: Options = {}) {
   return $fetch('/guilds/:guildId/members/:userId', {
-    params: {
-      guildId,
-      userId,
-    },
+    params,
+    ...handleOptions(options),
   });
 }
 
-export function getGuildMembers(guildId: string) {
+export function getGuildMembers(params: { guildId: string }, options: Options = {}) {
   return $fetch('/guilds/:guildId/members', {
-    params: {
-      guildId,
-    },
+    params,
     query: {
       limit: 1000,
     },
+    ...handleOptions(options),
   });
 }
