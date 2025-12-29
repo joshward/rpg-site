@@ -117,6 +117,18 @@ describe('cacheService', () => {
       const result = await cacheService.get('test-key');
       expect(result).toEqual({ foo: 'bar' });
     });
+
+    it('returns value when valid entry is found with compound key', async () => {
+      const mockSelect = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue([{ key: 'user:123', value: { name: 'Alice' } }]),
+      };
+      vi.mocked(db.select).mockReturnValue(mockSelect as any);
+
+      const result = await cacheService.get(['user', '123']);
+      expect(result).toEqual({ name: 'Alice' });
+    });
   });
 
   describe('set', () => {
@@ -148,6 +160,41 @@ describe('cacheService', () => {
       vi.mocked(db.delete).mockReturnValue(mockDelete as any);
 
       await cacheService.delete('test-key');
+
+      expect(db.delete).toHaveBeenCalledWith(cache);
+    });
+
+    it('deletes the entry by compound key', async () => {
+      const mockDelete = {
+        where: vi.fn().mockResolvedValue({}),
+      };
+      vi.mocked(db.delete).mockReturnValue(mockDelete as any);
+
+      await cacheService.delete(['user', '123']);
+
+      expect(db.delete).toHaveBeenCalledWith(cache);
+    });
+  });
+
+  describe('deletePrefix', () => {
+    it('deletes entries by prefix string', async () => {
+      const mockDelete = {
+        where: vi.fn().mockResolvedValue({}),
+      };
+      vi.mocked(db.delete).mockReturnValue(mockDelete as any);
+
+      await cacheService.deletePrefix('user');
+
+      expect(db.delete).toHaveBeenCalledWith(cache);
+    });
+
+    it('deletes entries by compound prefix', async () => {
+      const mockDelete = {
+        where: vi.fn().mockResolvedValue({}),
+      };
+      vi.mocked(db.delete).mockReturnValue(mockDelete as any);
+
+      await cacheService.deletePrefix(['account', '456']);
 
       expect(db.delete).toHaveBeenCalledWith(cache);
     });
