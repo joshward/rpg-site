@@ -1,11 +1,9 @@
 import { betterAuth, GenericEndpointContext } from 'better-auth';
 import { nextCookies } from 'better-auth/next-js';
-import { customSession } from 'better-auth/plugins';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from '@/db/db';
 import * as authSchema from '@/db/schema/auth';
 import { config } from '@/lib/config';
-import { getUsersRoles } from './authn';
 
 async function getUsersDiscordAccount(
   userId: string,
@@ -32,18 +30,18 @@ export const auth = betterAuth({
   },
   plugins: [
     nextCookies(),
-    customSession(async ({ user, session }, ctx) => {
-      const discordAccount = await getUsersDiscordAccount(user.id, ctx);
-      const roles = discordAccount
-        ? await getUsersRoles(discordAccount.userId, discordAccount.accessToken)
-        : [];
-
-      return {
-        roles,
-        user,
-        session,
-      };
-    }),
+    // customSession(async ({ user, session }, ctx) => {
+    //   const discordAccount = await getUsersDiscordAccount(user.id, ctx);
+    //   const roles = discordAccount
+    //     ? await getUsersRoles(discordAccount.userId, discordAccount.accessToken)
+    //     : [];
+    //
+    //   return {
+    //     roles,
+    //     user,
+    //     session,
+    //   };
+    // }),
   ],
   socialProviders: {
     discord: {

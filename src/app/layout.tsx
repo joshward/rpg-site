@@ -32,19 +32,21 @@ export default function RootLayout({
     >
       <body
         className={twJoin(
-          'relative flex flex-col gap-4 min-h-screen min-w-[300px]',
+          'relative',
           'bg-mauve-1 text-slate-11 selection:bg-plum-9 selection:text-white',
           'font-sans antialiased',
         )}
       >
-        <ThemeProvider attribute="class" enableSystem>
-          <div className="from-violet-8 dark:from-violet-4 absolute top-0 right-0 left-0 -z-50 h-[300px] w-full bg-gradient-to-b to-transparent" />
-          <MainHeader />
+        <div className="flex flex-col gap-4 min-h-screen min-w-75 isolate">
+          <ThemeProvider attribute="class" enableSystem>
+            <div className="from-violet-8 dark:from-violet-4 absolute top-0 right-0 left-0 -z-50 h-75 w-full bg-linear-to-b to-transparent" />
+            <MainHeader />
 
-          <div className="grow flex flex-col items-center px-2 md:px-6">
-            <div className="w-full md:max-w-[80rem]">{children}</div>
-          </div>
-        </ThemeProvider>
+            <div className="grow flex flex-col items-center px-2 md:px-6">
+              <div className="w-full md:max-w-7xl">{children}</div>
+            </div>
+          </ThemeProvider>
+        </div>
       </body>
     </html>
   );

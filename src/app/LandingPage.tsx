@@ -1,21 +1,14 @@
-'use client';
+import { headers } from 'next/headers';
+import { auth } from '@/lib/auth';
 
-import { authClient } from '@/lib/authClient';
+export default async function LandingPage() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
-export default function LandingPage() {
-  const { data } = authClient.useSession();
-
-  // for now in the code we are assuming that the user is assigned to a single guild
-  const role = data?.roles[0];
-
-  // placeholder code - this will provide custom menu logic based on user's roles
-  if (!role) {
-    return <p>You are not assigned to any guilds in this site.</p>;
+  if (!session) {
+    return <p>You are not logged in.</p>;
   }
 
-  return (
-    <p>
-      You are assigned to guild {role.guildId} ({role.role})
-    </p>
-  );
+  return <p>You are logged in.</p>;
 }

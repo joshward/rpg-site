@@ -11,12 +11,11 @@ export default function ThemeToggle() {
 
   useEffect(() => setMounted(true), []);
 
-  const toTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
+  const toTheme = !mounted || resolvedTheme === 'light' ? 'dark' : 'light';
 
   return (
     <Button
-      asLoader={!mounted}
-      loaderClassName="w-1"
+      loading={!mounted}
       onClick={() => setTheme(toTheme)}
       aria-label={`Toggle to ${toTheme} mode`}
       size="lg"
