@@ -50,7 +50,7 @@ async function resolveRoleForGuild(roles: string[], guildId: string): Promise<Ro
   return 'none';
 }
 
-export async function getUsersRoles(userId: string, accessToken: string): Promise<Role[]> {
+export async function fetchUsersRoles(userId: string, accessToken: string): Promise<Role[]> {
   const userGuilds = await getGuilds({ userAuth: accessToken, cacheFor: TimeSpan.fromMinutes(30) });
   if (userGuilds.error) {
     console.error(`Failed to fetch user (${userId}) guilds`, userGuilds.error);
@@ -81,4 +81,16 @@ export async function getUsersRoles(userId: string, accessToken: string): Promis
   }
 
   return roles;
+}
+
+export async function fetchUsersGuilds(userId: string, accessToken: string): Promise<GuildModel[]> {
+  const userGuilds = await getGuilds({ userAuth: accessToken, cacheFor: TimeSpan.fromMinutes(30) });
+  if (userGuilds.error) {
+    console.error(`Failed to fetch user (${userId}) guilds`, userGuilds.error);
+    return [];
+  }
+
+  const serverGuilds = await getServerGuildLookup();
+
+  return userGuilds.data.filter((guild) => guild.id in serverGuilds);
 }

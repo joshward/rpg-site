@@ -7,7 +7,11 @@ import { Menu } from '@base-ui/react/menu';
 import { authClient } from '@/lib/authClient';
 import Button from '@/components/Button';
 
-export default function SignInButton() {
+interface SignInButtonProps {
+  signInText?: string;
+}
+
+export default function SignInButton({ signInText = 'Log In' }: SignInButtonProps) {
   const { data, isPending, error } = authClient.useSession();
   const router = useRouter();
 
@@ -49,7 +53,7 @@ export default function SignInButton() {
         onClick={handleClick}
       >
         <DiscordLogoIcon />
-        Log In
+        {signInText}
       </Button>
     );
   }

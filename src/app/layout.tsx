@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import type { Metadata } from 'next';
 import { Inter, Fraunces } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
@@ -16,13 +17,13 @@ const frauncesSerif = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: 'RPG Tavern',
+  title: 'Tavern Master',
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <html
