@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { redirect, RedirectType } from 'next/navigation';
 import { getUsersGuilds } from '@/actions/guilds';
 import { Avatar } from '@base-ui/react/avatar';
 import Link from 'next/link';
@@ -7,13 +7,10 @@ import { FocusResetStyles, ShowFocusOnKeyboardStyles } from '@/styles/common';
 import SignInButton from '@/components/SignInButton';
 import { isFailure } from '@/actions/result';
 import Alert from '@/components/Alert';
+import Paper from '@/components/Paper';
 
-function Paper({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-4 p-6 bg-sage-5/30 rounded-md items-center shadow">
-      {children}
-    </div>
-  );
+function makeGuildLink(guildId: string) {
+  return `/g/${guildId}`;
 }
 
 export default async function GuildPicker() {
@@ -21,7 +18,7 @@ export default async function GuildPicker() {
 
   if (isFailure(guildsResult)) {
     return (
-      <Paper>
+      <Paper className="items-center">
         <Alert type="error">{guildsResult.error}</Alert>
       </Paper>
     );
@@ -31,7 +28,7 @@ export default async function GuildPicker() {
 
   if (!guilds) {
     return (
-      <Paper>
+      <Paper className="items-center">
         <p>Welcome to Tavern Master. Log in to continue.</p>
         <SignInButton signInText="Log in with Discord" />
       </Paper>
@@ -40,18 +37,22 @@ export default async function GuildPicker() {
 
   if (guilds.length === 0) {
     return (
-      <Paper>
+      <Paper className="items-center">
         <p>Looks like you're not in any Discord guilds using this app. Join one to get started!</p>
       </Paper>
     );
   }
 
+  if (guilds.length === 1) {
+    redirect(makeGuildLink(guilds[0].id), RedirectType.replace);
+  }
+
   return (
-    <Paper>
+    <Paper className="items-center">
       <h2>Select a guild</h2>
       {guilds.map((guild) => (
         <Link
-          href={`/g/${guild.id}`}
+          href={makeGuildLink(guild.id)}
           key={guild.id}
           className={twMerge(
             FocusResetStyles,

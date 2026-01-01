@@ -1,3 +1,5 @@
+import Paper from '@/components/Paper';
+
 export default function GuildPage() {
-  return null;
+  return <Paper>Here</Paper>;
 }
