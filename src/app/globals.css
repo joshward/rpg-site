@@ -12,6 +12,8 @@
 @import "@radix-ui/colors/violet-dark.css";
 @import "@radix-ui/colors/sage.css";
 @import "@radix-ui/colors/sage-dark.css";
+@import "@radix-ui/colors/ruby.css";
+@import "@radix-ui/colors/ruby-dark.css";
 
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -118,4 +120,46 @@
   --color-sage-10: var(--sage-10);
   --color-sage-11: var(--sage-11);
   --color-sage-12: var(--sage-12);
+
+  --color-ruby-1: var(--ruby-1);
+  --color-ruby-2: var(--ruby-2);
+  --color-ruby-3: var(--ruby-3);
+  --color-ruby-4: var(--ruby-4);
+  --color-ruby-5: var(--ruby-5);
+  --color-ruby-6: var(--ruby-6);
+  --color-ruby-7: var(--ruby-7);
+  --color-ruby-8: var(--ruby-8);
+  --color-ruby-9: var(--ruby-9);
+  --color-ruby-10: var(--ruby-10);
+  --color-ruby-11: var(--ruby-11);
+  --color-ruby-12: var(--ruby-12);
+
+}
+
+@layer components {
+  .loader {
+    width: 65px;
+    height: 30px;
+    position: relative;
+  }
+
+  .loader:before {
+    content: "";
+    position: absolute;
+    border-radius: 50px;
+    box-shadow: 0 0 0 3px inset currentColor;
+    animation: l3 0.75s infinite alternate;
+  }
+
+  @keyframes l3 {
+    0% {
+      inset: 0 35px 0 0;
+    }
+    50% {
+      inset: 0 0 0 0;
+    }
+    100% {
+      inset: 0 0 0 35px;
+    }
+  }
 }

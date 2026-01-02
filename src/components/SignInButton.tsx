@@ -1,12 +1,19 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { DiscordLogoIcon, PersonIcon } from '@radix-ui/react-icons';
+import { Menu } from '@base-ui/react/menu';
 import { authClient } from '@/lib/authClient';
 import Button from '@/components/Button';
-import { DiscordLogoIcon, PersonIcon } from '@radix-ui/react-icons';
-import { useEffect } from 'react';
 
-export default function SignInButton() {
+interface SignInButtonProps {
+  signInText?: string;
+}
+
+export default function SignInButton({ signInText = 'Log In' }: SignInButtonProps) {
   const { data, isPending, error } = authClient.useSession();
+  const router = useRouter();
 
   useEffect(() => {
     if (error) {
@@ -18,6 +25,17 @@ export default function SignInButton() {
   const signIn = async () => {
     await authClient.signIn.social({
       provider: 'discord',
+      callbackURL: window.location.pathname,
+    });
+  };
+
+  const signOut = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push('/');
+        },
+      },
     });
   };
 
@@ -27,24 +45,43 @@ export default function SignInButton() {
     }
   };
 
+  if (!data) {
+    return (
+      <Button
+        loading={isPending}
+        loadingLabel="Loading Login Button"
+        size="lg"
+        onClick={handleClick}
+      >
+        <DiscordLogoIcon />
+        {signInText}
+      </Button>
+    );
+  }
+
   return (
-    <Button
-      asLoader={isPending}
-      loadingLabel="Loading Login Button"
-      size="lg"
-      onClick={handleClick}
-    >
-      {data ? (
-        <>
-          <PersonIcon />
-          {data.user.name}
-        </>
-      ) : (
-        <>
-          <DiscordLogoIcon />
-          Log In
-        </>
-      )}
-    </Button>
+    <Menu.Root>
+      <Menu.Trigger
+        render={
+          <Button size="lg">
+            <PersonIcon />
+            {data.user.name}
+          </Button>
+        }
+      />
+      <Menu.Portal>
+        <Menu.Positioner sideOffset={5}>
+          <Menu.Popup>
+            <Menu.Item
+              nativeButton
+              render={<Button size="md" variant="danger" />}
+              onClick={signOut}
+            >
+              Log Out
+            </Menu.Item>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   );
 }
