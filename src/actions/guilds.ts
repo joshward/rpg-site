@@ -41,10 +41,10 @@ export const getUsersGuilds = cache(
         ? await fetchUsersGuilds(discordAccount.userId, discordAccount.accessToken)
         : [];
 
-      return userGuilds.map((role) => ({
-        id: role.id,
-        name: role.name,
-        icon: role.icon,
+      return userGuilds.map((guild) => ({
+        id: guild.id,
+        name: guild.name,
+        icon: guild.icon,
       }));
     },
     'Something went wrong while fetching your guilds. Please try again later.',
