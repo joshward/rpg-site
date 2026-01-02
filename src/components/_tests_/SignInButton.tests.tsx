@@ -18,6 +18,8 @@ vi.mock('@/lib/authClient', () => {
   };
 });
 
+vi.mock('next/navigation');
+
 describe('SignInButton', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -40,7 +42,10 @@ describe('SignInButton', () => {
     await userEvent.click(btn);
 
     expect(authClient.signIn.social).toHaveBeenCalledTimes(1);
-    expect(authClient.signIn.social).toHaveBeenCalledWith({ provider: 'discord' });
+    expect(authClient.signIn.social).toHaveBeenCalledWith({
+      callbackURL: '/',
+      provider: 'discord',
+    });
   });
 
   it('renders loading state when pending', () => {
