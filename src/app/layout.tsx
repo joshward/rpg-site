@@ -5,6 +5,7 @@ import { ThemeProvider } from 'next-themes';
 import { twJoin } from 'tailwind-merge';
 import { MainHeader } from './MainHeader';
 import './globals.css';
+import { getDefaultMetadata } from '@/lib/metadata';
 
 const interSans = Inter({
   variable: '--font-inter-sans',
@@ -16,9 +17,7 @@ const frauncesSerif = Fraunces({
   subsets: ['latin'],
 });
 
-export const metadata: Metadata = {
-  title: 'Tavern Master',
-};
+export const metadata: Metadata = getDefaultMetadata();
 
 export default function RootLayout({
   children,

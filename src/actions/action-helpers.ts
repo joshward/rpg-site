@@ -1,5 +1,12 @@
 import { Result } from './result';
 
+export class ActionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ActionError';
+  }
+}
+
 export function asResult<T, Args extends any[]>(
   methodName: string,
   action: (...args: Args) => Promise<T>,
@@ -11,7 +18,18 @@ export function asResult<T, Args extends any[]>(
       return { type: 'success', data };
     } catch (error: unknown) {
       console.error(`Error calling ${methodName}:`, error);
+
+      if (error instanceof ActionError) {
+        return { type: 'failure', error: error.message };
+      }
+
       return { type: 'failure', error: errorMessage };
     }
   };
+}
+
+export function unwrapData<T>(result: Result<T>): T | undefined {
+  if (result.type === 'success') {
+    return result.data;
+  }
 }

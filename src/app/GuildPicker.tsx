@@ -1,13 +1,13 @@
 import { redirect, RedirectType } from 'next/navigation';
-import { getUsersGuilds } from '@/actions/guilds';
-import { Avatar } from '@base-ui/react/avatar';
-import Link from 'next/link';
 import { twMerge } from 'tailwind-merge';
+import Link from 'next/link';
 import { FocusResetStyles, ShowFocusOnKeyboardStyles } from '@/styles/common';
+import { getUsersGuilds } from '@/actions/guilds';
 import SignInButton from '@/components/SignInButton';
 import { isFailure } from '@/actions/result';
 import Alert from '@/components/Alert';
 import Paper from '@/components/Paper';
+import GuildIcon from '@/components/GuildIcon';
 
 function makeGuildLink(guildId: string) {
   return `/g/${guildId}`;
@@ -29,7 +29,7 @@ export default async function GuildPicker() {
   if (!guilds) {
     return (
       <Paper className="items-center">
-        <p>Welcome to Tavern Master. Log in to continue.</p>
+        <h2>Welcome to Tavern Master. Log in to continue.</h2>
         <SignInButton signInText="Log in with Discord" />
       </Paper>
     );
@@ -62,17 +62,7 @@ export default async function GuildPicker() {
             'self-stretch',
           )}
         >
-          <Avatar.Root className="inline-flex size-8 md:size-12 items-center justify-center overflow-hidden rounded-full align-middle select-none bg-sage-5">
-            {guild.icon && (
-              <Avatar.Image
-                src={`https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=48`}
-                className="size-full object-cover"
-                height={48}
-                width={48}
-              />
-            )}
-            <Avatar.Fallback>{guild.name[0]}</Avatar.Fallback>
-          </Avatar.Root>
+          <GuildIcon guild={guild} />
 
           <p className="text-xl md:text-2xl">{guild.name}</p>
         </Link>

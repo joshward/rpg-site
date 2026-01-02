@@ -25,6 +25,7 @@ export default function SignInButton({ signInText = 'Log In' }: SignInButtonProp
   const signIn = async () => {
     await authClient.signIn.social({
       provider: 'discord',
+      callbackURL: window.location.pathname,
     });
   };
 

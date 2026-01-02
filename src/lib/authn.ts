@@ -3,10 +3,7 @@ import { getGuildMember, getGuildRoles, getGuilds } from '@/lib/discord/api';
 import { GuildModel, RoleModel } from '@/lib/discord/models';
 import { hasPermission, Permissions } from '@/lib/discord/permissions';
 
-export interface Role {
-  guildId: string;
-  role: 'admin' | 'member' | 'none';
-}
+type Role = 'admin' | 'member' | 'none';
 
 async function getServerGuildLookup(): Promise<Record<string, GuildModel>> {
   const serverGuilds = await getGuilds({ cacheFor: TimeSpan.fromHours(1) });
@@ -28,7 +25,7 @@ async function getGuildRoleLookup(guildId: string): Promise<Map<string, RoleMode
   return new Map(roles.data?.map((role) => [role.id, role]) ?? []);
 }
 
-async function resolveRoleForGuild(roles: string[], guildId: string): Promise<Role['role']> {
+async function resolveRoleForGuild(roles: string[], guildId: string): Promise<Role> {
   const guildRoles = await getGuildRoleLookup(guildId);
   if (!guildRoles) {
     return 'none';
@@ -45,48 +42,39 @@ async function resolveRoleForGuild(roles: string[], guildId: string): Promise<Ro
     if (hasPermission(guildRole.permissions, Permissions.Administrator)) {
       return 'admin';
     }
+
+    // TODO - match app role based on Discord role
   }
 
   return 'none';
 }
 
-export async function fetchUsersRoles(userId: string, accessToken: string): Promise<Role[]> {
-  const userGuilds = await getGuilds({ userAuth: accessToken, cacheFor: TimeSpan.fromMinutes(30) });
-  if (userGuilds.error) {
-    console.error(`Failed to fetch user (${userId}) guilds`, userGuilds.error);
-    return [];
-  }
-
+export async function fetchUserRole(discordUserId: string, guildId: string): Promise<Role> {
   const serverGuilds = await getServerGuildLookup();
-
-  const roles: Role[] = [];
-  for (const userGuild of userGuilds.data) {
-    const guild = serverGuilds[userGuild.id];
-    if (!guild) {
-      continue;
-    }
-
-    const member = await getGuildMember({ guildId: guild.id, userId });
-    if (member.error) {
-      console.error(
-        `Failed to fetch guild (${guild.id}) member info for user (${userId})`,
-        member.error,
-      );
-      continue;
-    }
-
-    const role = await resolveRoleForGuild(member.data.roles, guild.id);
-
-    roles.push({ guildId: guild.id, role });
+  if (!(guildId in serverGuilds)) {
+    throw new Error(`Guild (${guildId}) not found in server guilds`);
   }
 
-  return roles;
+  const member = await getGuildMember({ guildId: guildId, userId: discordUserId });
+  if (member.error) {
+    throw new Error(
+      `Failed to fetch guild (${guildId}) member info for discord user (${discordUserId})`,
+    );
+  }
+
+  return await resolveRoleForGuild(member.data.roles, guildId);
 }
 
-export async function fetchUsersGuilds(userId: string, accessToken: string): Promise<GuildModel[]> {
-  const userGuilds = await getGuilds({ userAuth: accessToken, cacheFor: TimeSpan.fromMinutes(30) });
+export async function fetchUsersGuilds(
+  discordUserId: string,
+  discordAccessToken: string,
+): Promise<GuildModel[]> {
+  const userGuilds = await getGuilds({
+    userAuth: discordAccessToken,
+    cacheFor: TimeSpan.fromMinutes(30),
+  });
   if (userGuilds.error) {
-    console.error(`Failed to fetch user (${userId}) guilds`, userGuilds.error);
+    console.error(`Failed to fetch discord user (${discordUserId}) guilds`, userGuilds.error);
     return [];
   }
 
