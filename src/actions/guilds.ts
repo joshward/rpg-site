@@ -1,3 +1,5 @@
+'use server';
+
 import { cache } from 'react';
 import { headers } from 'next/headers';
 import { eq } from 'drizzle-orm';

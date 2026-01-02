@@ -19,10 +19,12 @@ const frauncesSerif = Fraunces({
 
 export const metadata: Metadata = getDefaultMetadata();
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
+  guildBadge,
 }: Readonly<{
   children: ReactNode;
+  guildBadge: ReactNode;
 }>) {
   return (
     <html
@@ -40,7 +42,7 @@ export default function RootLayout({
         <div className="flex flex-col gap-4 min-h-screen min-w-75 isolate">
           <ThemeProvider attribute="class" enableSystem>
             <div className="from-violet-8 dark:from-violet-4 absolute top-0 right-0 left-0 -z-50 h-75 w-full bg-linear-to-b to-transparent" />
-            <MainHeader />
+            <MainHeader guildBadge={guildBadge} />
 
             <div className="grow flex flex-col items-center px-2 md:px-6">
               <div className="w-full md:max-w-7xl">{children}</div>
