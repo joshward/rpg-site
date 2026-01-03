@@ -8,6 +8,7 @@ import { account } from '@/db/schema/auth';
 import { auth } from '@/lib/auth';
 import { fetchUserRole, fetchUsersGuilds } from '@/lib/authn';
 import { ActionError, asResult } from '@/actions/action-helpers';
+import { guild } from '@/db/schema/guild';
 
 const getUsersDiscordAccount = cache(
   async (userId: string): Promise<{ accessToken: string; userId: string } | undefined> => {
@@ -66,9 +67,16 @@ export const getGuildInfo = cache(
         throw new Error(`No Discord account linked for ${session.user.id}`);
       }
 
-      const role = await fetchUserRole(discordAccount.userId, guildId);
+      const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
+
+      const role = await fetchUserRole(
+        discordAccount.userId,
+        guildId,
+        guildData?.allowedRoles ?? [],
+      );
 
       return {
+        isConfigured: Boolean(guildData),
         role,
       };
     },
