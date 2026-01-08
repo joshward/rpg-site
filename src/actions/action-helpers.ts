@@ -1,4 +1,5 @@
 import { Result } from './result';
+import { DiscordApiError, RateLimitError } from '@/lib/discord/api';
 
 export class ActionError extends Error {
   constructor(message: string) {
@@ -17,7 +18,24 @@ export function asResult<T, Args extends any[]>(
       const data = await action(...args);
       return { type: 'success', data };
     } catch (error: unknown) {
-      console.error(`Error calling ${methodName}:`, error);
+      if (error instanceof RateLimitError) {
+        console.warn(
+          `Error calling ${methodName}: Discord API rate limit exceeded. [${error.route}]`,
+        );
+        return {
+          type: 'failure',
+          error: 'Discord API rate limit exceeded. Please try again later.',
+        };
+      }
+
+      if (error instanceof DiscordApiError) {
+        console.error(
+          `Error calling ${methodName} - Discord API error [${error.route}] (${error.code}):`,
+          error.message,
+        );
+      } else {
+        console.error(`Error calling ${methodName}:`, error);
+      }
 
       if (error instanceof ActionError) {
         return { type: 'failure', error: error.message };

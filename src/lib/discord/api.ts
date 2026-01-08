@@ -1,4 +1,9 @@
-import { createFetch, createSchema } from '@better-fetch/fetch';
+import {
+  createFetch,
+  createSchema,
+  type BetterFetchOption,
+  type BetterFetchResponse,
+} from '@better-fetch/fetch';
 import { config } from '@/lib/config';
 import {
   ErrorSchema,
@@ -13,6 +18,7 @@ import { TimeSpan } from 'timespan-ts';
 export interface Options {
   userAuth?: string;
   cacheFor?: TimeSpan;
+  maxWaitTime?: TimeSpan;
 }
 
 const defaultHeaders = {
@@ -21,8 +27,10 @@ const defaultHeaders = {
   Authorization: `Bot ${config.discord.botToken}`,
 } as const;
 
-function handleOptions(options: Options): RequestInit {
-  const requestInit: RequestInit = {};
+function handleOptions(options: Options): BetterFetchOption {
+  const requestInit: BetterFetchOption = {};
+  let totalWaitedMs = 0;
+  const maxWaitMs = options.maxWaitTime?.totalMilliseconds ?? 5000;
 
   if (options.userAuth) {
     requestInit.headers = {
@@ -37,6 +45,39 @@ function handleOptions(options: Options): RequestInit {
       revalidate: options.cacheFor.totalSeconds,
     };
   }
+
+  requestInit.retry = {
+    type: 'linear',
+    attempts: 5,
+    delay: 0,
+    shouldRetry: async (response: Response | null) => {
+      if (!response) {
+        return false;
+      }
+
+      if (response.status === 429) {
+        const resetAfter = response.headers.get('X-RateLimit-Reset-After');
+        console.warn(`Discord rate limited`, {
+          resetAfter,
+          remaining: response.headers.get('X-RateLimit-Remaining'),
+          resetTime: response.headers.get('X-RateLimit-Reset'),
+          limit: response.headers.get('X-RateLimit-Limit'),
+          bucket: response.headers.get('X-RateLimit-Bucket'),
+        });
+        if (resetAfter) {
+          const delayMs = parseFloat(resetAfter) * 1000;
+
+          // Check if this new delay would push us over the total budget
+          if (totalWaitedMs + delayMs <= maxWaitMs) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            totalWaitedMs += delayMs;
+            return true;
+          }
+        }
+      }
+      return false;
+    },
+  };
 
   return requestInit;
 }
@@ -108,32 +149,75 @@ const $fetch = createFetch({
   defaultError: ErrorSchema,
 });
 
-export function getGuilds(options: Options = {}) {
-  return $fetch('/users/@me/guilds', {
-    ...handleOptions(options),
-  });
+export class RateLimitError extends Error {
+  constructor(
+    public route: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'RateLimitError';
+  }
 }
 
-export function getGuildRoles(params: { guildId: string }, options: Options = {}) {
-  return $fetch('/guilds/:guildId/roles', {
+export class DiscordApiError extends Error {
+  constructor(
+    public route: string,
+    public code: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'DiscordApiError';
+  }
+}
+
+function toError<TData>(
+  route: string,
+  result: BetterFetchResponse<TData, v.InferOutput<typeof ErrorSchema>>,
+): TData {
+  if (result.error) {
+    if (result.error.status === 429) {
+      throw new RateLimitError(route, result.error.message);
+    }
+
+    throw new DiscordApiError(route, result.error.status, result.error.message);
+  }
+
+  return result.data;
+}
+
+export async function getGuilds(options: Options = {}) {
+  const result = await $fetch('/users/@me/guilds', {
+    ...handleOptions(options),
+  });
+  return toError('/users/@me/guilds', result);
+}
+
+export async function getGuildRoles(params: { guildId: string }, options: Options = {}) {
+  const result = await $fetch('/guilds/:guildId/roles', {
     params,
     ...handleOptions(options),
   });
+  return toError('/guilds/:guildId/roles', result);
 }
 
-export function getGuildMember(params: { guildId: string; userId: string }, options: Options = {}) {
-  return $fetch('/guilds/:guildId/members/:userId', {
+export async function getGuildMember(
+  params: { guildId: string; userId: string },
+  options: Options = {},
+) {
+  const result = await $fetch('/guilds/:guildId/members/:userId', {
     params,
     ...handleOptions(options),
   });
+  return toError('/guilds/:guildId/members/:userId', result);
 }
 
-export function getGuildMembers(params: { guildId: string }, options: Options = {}) {
-  return $fetch('/guilds/:guildId/members', {
+export async function getGuildMembers(params: { guildId: string }, options: Options = {}) {
+  let result = await $fetch('/guilds/:guildId/members', {
     params,
     query: {
       limit: 1000,
     },
     ...handleOptions(options),
   });
+  return toError('/guilds/:guildId/members', result);
 }
