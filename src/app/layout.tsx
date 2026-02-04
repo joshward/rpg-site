@@ -1,21 +1,10 @@
 import { ReactNode } from 'react';
 import type { Metadata } from 'next';
-import { Inter, Fraunces } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import { twJoin } from 'tailwind-merge';
 import { MainHeader } from './MainHeader';
-import './globals.css';
 import { getDefaultMetadata } from '@/lib/metadata';
-
-const interSans = Inter({
-  variable: '--font-inter-sans',
-  subsets: ['latin'],
-});
-
-const frauncesSerif = Fraunces({
-  variable: '--font-fraunces-serif',
-  subsets: ['latin'],
-});
+import { fontStyles, baseStyles } from '@/app/styles';
 
 export const metadata: Metadata = getDefaultMetadata();
 
@@ -27,18 +16,8 @@ export default async function RootLayout({
   guildBadge: ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${interSans.variable} ${frauncesSerif.variable}`}
-    >
-      <body
-        className={twJoin(
-          'relative',
-          'bg-mauve-1 text-slate-11 selection:bg-plum-9 selection:text-white',
-          'font-sans antialiased',
-        )}
-      >
+    <html lang="en" suppressHydrationWarning className={fontStyles}>
+      <body className={twJoin('relative', baseStyles)}>
         <div className="flex flex-col gap-4 min-h-screen min-w-75 isolate">
           <ThemeProvider attribute="class" enableSystem>
             <div className="from-violet-8 dark:from-violet-4 absolute top-0 right-0 left-0 -z-50 h-75 w-full bg-linear-to-b to-transparent" />

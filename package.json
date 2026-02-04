@@ -18,7 +18,9 @@
     "db:migrate": "drizzle-kit migrate",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
@@ -46,7 +48,7 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
-    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/coverage-v8": "^4.0.6",
     "baseline-browser-mapping": "^2.9.11",
     "drizzle-kit": "^0.31.8",
     "eslint": "^9",
@@ -56,7 +58,19 @@
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",
-    "vitest": "^4.0.6"
+    "vitest": "^4.0.6",
+    "storybook": "^10.2.4",
+    "@storybook/nextjs-vite": "^10.2.4",
+    "@chromatic-com/storybook": "^5.0.0",
+    "@storybook/addon-vitest": "^10.2.4",
+    "@storybook/addon-a11y": "^10.2.4",
+    "@storybook/addon-docs": "^10.2.4",
+    "@storybook/addon-onboarding": "^10.2.4",
+    "@storybook/addon-themes": "^10.2.4",
+    "vite": "^7.3.1",
+    "eslint-plugin-storybook": "^10.2.4",
+    "playwright": "^1.57.0",
+    "@vitest/browser-playwright": "^4.0.6"
   },
   "overrides": {
     "better-auth": {
