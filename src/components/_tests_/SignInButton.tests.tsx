@@ -3,6 +3,15 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SignInButton from '../SignInButton';
 import { authClient } from '@/lib/authClient';
+import { useNotification } from '../Notification';
+
+vi.mock('../Notification', async (importOriginal) => {
+  const actual = (await importOriginal()) as any;
+  return {
+    ...actual,
+    useNotification: vi.fn(),
+  };
+});
 
 vi.mock('@/lib/authClient', () => {
   const mockUseSession = vi.fn();
@@ -21,8 +30,14 @@ vi.mock('@/lib/authClient', () => {
 vi.mock('next/navigation');
 
 describe('SignInButton', () => {
+  const mockAdd = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
+
+    vi.mocked(useNotification).mockReturnValue({
+      add: mockAdd,
+    } as any);
 
     vi.mocked(authClient.useSession).mockReturnValue({
       data: null,
@@ -73,5 +88,26 @@ describe('SignInButton', () => {
 
     render(<SignInButton />);
     expect(screen.getByText(/alice/i)).toBeInTheDocument();
+  });
+
+  it('triggers a notification when there is an error', () => {
+    const errorMsg = 'Failed to connect';
+    vi.mocked(authClient.useSession).mockReturnValue({
+      data: null,
+      isPending: false,
+      error: { message: errorMsg } as any,
+      refetch: vi.fn(),
+      isRefetching: false,
+    });
+
+    render(<SignInButton />);
+
+    expect(mockAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Error signing in',
+        description: errorMsg,
+        type: 'error',
+      }),
+    );
   });
 });
