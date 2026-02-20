@@ -9,6 +9,8 @@ import { auth } from '@/lib/auth';
 import { fetchUserRole, fetchUsersGuilds } from '@/lib/authn';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { guild } from '@/db/schema/guild';
+import { getGuildRoles } from '@/lib/discord/api';
+import { TimeSpan } from 'timespan-ts';
 
 const getUsersDiscordAccount = cache(
   async (userId: string): Promise<{ accessToken: string; userId: string } | undefined> => {
@@ -78,8 +80,35 @@ export const getGuildInfo = cache(
       return {
         isConfigured: Boolean(guildData),
         role,
+        allowedRoles: guildData?.allowedRoles ?? [],
       };
     },
     'Something went wrong fetching guild info. Please try again later.',
+  ),
+);
+
+export const getGuildRolesAction = cache(
+  asResult(
+    'getGuildRolesAction',
+    async (guildId: string) => {
+      const session = await getSession();
+
+      if (!session) {
+        throw new ActionError('Not logged in');
+      }
+
+      const discordAccount = await getUsersDiscordAccount(session.user.id);
+      if (!discordAccount) {
+        throw new Error(`No Discord account linked for ${session.user.id}`);
+      }
+
+      const roles = await getGuildRoles({ guildId }, { cacheFor: TimeSpan.fromMinutes(30) });
+
+      return roles.map((role) => ({
+        id: role.id,
+        label: role.name,
+      }));
+    },
+    'Something went wrong fetching guild roles. Please try again later.',
   ),
 );

@@ -72,7 +72,7 @@ export default async function GuildPage({ params }: GuildRouteProps) {
       <Paper className="items-center">
         <Alert type={role === 'admin' ? 'warning' : 'error'}>
           This guild is not yet configured for Tavern Master.{' '}
-          {role === 'admin' && <Link href="/setup">Configure it here.</Link>}
+          {role === 'admin' && <Link href={`/g/${guildId}/admin`}>Configure it here.</Link>}
         </Alert>
       </Paper>
     );

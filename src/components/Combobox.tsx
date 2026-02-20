@@ -3,11 +3,7 @@
 import * as React from 'react';
 import { Combobox } from '@base-ui/react/combobox';
 import { twMerge } from 'tailwind-merge';
-import {
-  DefaultTransitionStyles,
-  FocusResetStyles,
-  ShowFocusOnKeyboardStyles,
-} from '@/styles/common';
+import { DefaultTransitionStyles, FocusResetStyles } from '@/styles/common';
 import { CheckIcon, ChevronDownIcon, Cross1Icon } from '@radix-ui/react-icons';
 
 export interface ComboboxOption {
@@ -26,7 +22,7 @@ export interface ComboboxProps<T extends ComboboxOption, M extends boolean = fal
   size?: 'sm' | 'md' | 'lg';
 }
 
-export default function CustomCombobox<T extends ComboboxOption, M extends boolean = false>({
+export default function ComboBox<T extends ComboboxOption, M extends boolean = false>({
   items,
   value,
   onValueChange,
@@ -46,6 +42,7 @@ export default function CustomCombobox<T extends ComboboxOption, M extends boole
       value={value as any}
       onValueChange={onValueChange as any}
       disabled={disabled}
+      isItemEqualToValue={(itemValue, selectedValue) => itemValue?.id === selectedValue?.id}
     >
       <div className={twMerge('flex flex-col gap-1.5', className)}>
         <div

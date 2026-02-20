@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
-import Combobox from './Combobox';
+import ComboBox from './Combobox';
 
 const meta = {
-  title: 'Components/Combobox',
-  component: Combobox,
+  title: 'Components/ComboBox',
+  component: ComboBox,
   parameters: {
     layout: 'centered',
   },
@@ -12,7 +12,7 @@ const meta = {
     disabled: { control: 'boolean' },
     multiple: { control: 'boolean' },
   },
-} satisfies Meta<typeof Combobox>;
+} satisfies Meta<typeof ComboBox>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

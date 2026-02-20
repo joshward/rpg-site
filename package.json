@@ -9,8 +9,7 @@
     "dev!": "npm run op next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "format": "prettier --write .",
+    "lint": "next lint",
     "format:check": "prettier --check .",
     "db!": "npm run op drizzle-kit --",
     "db:gen!": "npm run op drizzle-kit -- generate --name",
@@ -44,14 +43,14 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/node": "^24.10.12",
+    "@types/node": "^22",
     "@types/react": "19.2.13",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "^5.1.3",
     "@vitest/coverage-v8": "^4.0.18",
     "baseline-browser-mapping": "^2.9.19",
     "drizzle-kit": "^0.31.8",
-    "eslint": "^10",
+    "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "jsdom": "^28.0.0",
     "prettier": "^3.8.1",
@@ -80,6 +79,6 @@
     "@prisma/client": "^5.22.0"
   },
   "volta": {
-    "node": "24.12.0"
+    "node": "22.22.0"
   }
 }
