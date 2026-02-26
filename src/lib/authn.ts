@@ -1,5 +1,5 @@
 import { TimeSpan } from 'timespan-ts';
-import { getGuildMember, getGuildRoles, getGuilds } from '@/lib/discord/api';
+import { DiscordApiError, getGuildMember, getGuildRoles, getGuilds } from '@/lib/discord/api';
 import { GuildModel, RoleModel } from '@/lib/discord/models';
 import { hasPermission, Permissions } from '@/lib/discord/permissions';
 
@@ -54,15 +54,22 @@ export async function fetchUserRole(
 ): Promise<Role> {
   const serverGuilds = await fetchServerGuildLookup();
   if (!(guildId in serverGuilds)) {
-    throw new Error(`Guild (${guildId}) not found in server guilds`);
+    return 'none';
   }
 
-  const member = await getGuildMember(
-    { guildId: guildId, userId: discordUserId },
-    { cacheFor: TimeSpan.fromMinutes(30) },
-  );
+  try {
+    const member = await getGuildMember(
+      { guildId: guildId, userId: discordUserId },
+      { cacheFor: TimeSpan.fromMinutes(30) },
+    );
 
-  return await resolveRoleForGuild(member.roles, guildId, allowedGuildRoles);
+    return await resolveRoleForGuild(member.roles, guildId, allowedGuildRoles);
+  } catch (error) {
+    if (error instanceof DiscordApiError && error.code === 404) {
+      return 'none';
+    }
+    throw error;
+  }
 }
 
 export async function fetchUsersGuilds(

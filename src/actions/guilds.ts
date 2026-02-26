@@ -77,6 +77,14 @@ export const getGuildInfo = cache(
         guildData?.allowedRoles ?? [],
       );
 
+      if (role === 'none') {
+        return {
+          isConfigured: false,
+          role: 'none',
+          allowedRoles: [],
+        };
+      }
+
       return {
         isConfigured: Boolean(guildData),
         role,
