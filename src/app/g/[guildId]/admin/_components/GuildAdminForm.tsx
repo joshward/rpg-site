@@ -1,12 +1,16 @@
 'use client';
 
 import * as React from 'react';
+import { useParams } from 'next/navigation';
 import { useForm } from '@tanstack/react-form';
 import * as v from 'valibot';
 import { FormComboBox } from '@/components/FormComboBox';
 import { ComboboxOption } from '@/components/Combobox';
 import Paper from '@/components/Paper';
 import Button from '@/components/Button';
+import { saveGuildConfig } from '@/actions/guilds';
+import { isFailure } from '@/actions/result';
+import { useNotification } from '@/components/Notification';
 
 interface GuildAdminFormProps {
   roles: ComboboxOption[];
@@ -14,13 +18,32 @@ interface GuildAdminFormProps {
 }
 
 export default function GuildAdminForm({ roles, initialAllowedRoles }: GuildAdminFormProps) {
+  const { guildId } = useParams<{ guildId: string }>();
+  const notification = useNotification();
+
   const form = useForm({
     defaultValues: {
       allowedRoles: roles.filter((role) => initialAllowedRoles.includes(role.id as string)),
     },
     onSubmit: async ({ value }) => {
-      console.log('Form submitted with roles:', value.allowedRoles);
-      // Saving not implemented yet per instructions
+      const result = await saveGuildConfig(
+        guildId,
+        value.allowedRoles.map((role) => role.id as string),
+      );
+
+      if (isFailure(result)) {
+        notification.add({
+          type: 'error',
+          title: 'Error',
+          description: result.error,
+        });
+      } else {
+        notification.add({
+          type: 'success',
+          title: 'Success',
+          description: 'Guild settings saved successfully.',
+        });
+      }
     },
   });
 

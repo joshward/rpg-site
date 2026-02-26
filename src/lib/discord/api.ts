@@ -28,13 +28,17 @@ const defaultHeaders = {
 } as const;
 
 function handleOptions(options: Options): BetterFetchOption {
-  const requestInit: BetterFetchOption = {};
+  const requestInit: BetterFetchOption = {
+    headers: {
+      ...defaultHeaders,
+    },
+  };
   let totalWaitedMs = 0;
   const maxWaitMs = options.maxWaitTime?.totalMilliseconds ?? 5000;
 
   if (options.userAuth) {
     requestInit.headers = {
-      ...defaultHeaders,
+      ...requestInit.headers,
       Authorization: `Bearer ${options.userAuth}`,
     };
   }
@@ -43,6 +47,13 @@ function handleOptions(options: Options): BetterFetchOption {
     requestInit.cache = 'force-cache';
     requestInit.next = {
       revalidate: options.cacheFor.totalSeconds,
+    };
+    // Ensure that incoming request headers don't bypass our cache
+    // Also include Authorization in the cache key to prevent cross-account leakage
+    requestInit.headers = {
+      ...requestInit.headers,
+      'Cache-Control': 'max-age=' + options.cacheFor.totalSeconds,
+      Vary: 'Authorization',
     };
   }
 

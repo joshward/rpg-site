@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { TimeSpan } from 'timespan-ts';
 import { DiscordApiError, getGuildMember, getGuildRoles, getGuilds } from '@/lib/discord/api';
 import { GuildModel, RoleModel } from '@/lib/discord/models';
@@ -5,17 +6,17 @@ import { hasPermission, Permissions } from '@/lib/discord/permissions';
 
 type Role = 'admin' | 'member' | 'none';
 
-async function fetchServerGuildLookup(): Promise<Record<string, GuildModel>> {
+const fetchServerGuildLookup = cache(async (): Promise<Record<string, GuildModel>> => {
   const serverGuilds = await getGuilds({ cacheFor: TimeSpan.fromHours(1) });
 
   return Object.fromEntries(serverGuilds.map((guild) => [guild.id, guild]));
-}
+});
 
-async function fetchGuildRolesLookup(guildId: string): Promise<Record<string, RoleModel>> {
+const fetchGuildRolesLookup = cache(async (guildId: string): Promise<Record<string, RoleModel>> => {
   const roles = await getGuildRoles({ guildId }, { cacheFor: TimeSpan.fromMinutes(30) });
 
   return Object.fromEntries(roles.map((role) => [role.id, role]));
-}
+});
 
 async function resolveRoleForGuild(
   roles: string[],

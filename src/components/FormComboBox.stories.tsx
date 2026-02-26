@@ -70,7 +70,11 @@ export const Disabled: Story = {
 };
 
 export const FunctionalForm: Story = {
-  render: () => {
+  args: {
+    items: languages,
+    label: 'Primary Role',
+  },
+  render: (args) => {
     const form = useForm({
       defaultValues: {
         role: null as ComboboxOption | null,
