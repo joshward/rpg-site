@@ -1,33 +1,20 @@
-import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
-import { getGuildInfo, getGuildRolesAction, getUsersGuilds } from '@/actions/guilds';
+import { getGuildInfo, getGuildRolesAction } from '@/actions/guilds';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
-import { GuildRouteProps } from '../helpers';
-import GuildAdminForm from './_components/GuildAdminForm';
+import { GuildRouteProps, getGuildName } from '../helpers';
 
 export async function generateMetadata({ params }: GuildRouteProps): Promise<Metadata> {
   const { guildId } = await params;
-  const guildsResult = await getUsersGuilds();
-
-  let subtitle: string | undefined;
-
-  if (isFailure(guildsResult)) {
-    subtitle = 'Error';
-  } else {
-    const guild = guildsResult.data
-      ? guildsResult.data.find((guild) => guild.id === guildId)
-      : undefined;
-
-    if (guild) {
-      subtitle = `${guild.name} Admin`;
-    }
-  }
-
-  return getDefaultMetadata({ subtitles: subtitle });
+  const guildName = await getGuildName(guildId);
+  return getDefaultMetadata({
+    subtitles: ['Guild Settings', guildName].filter(Boolean) as string[],
+  });
 }
+import GuildAdminForm from './_components/GuildAdminForm';
 
 export default async function GuildAdminPage({ params }: GuildRouteProps) {
   const { guildId } = await params;
