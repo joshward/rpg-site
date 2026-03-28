@@ -8,9 +8,9 @@ export interface StatusOption {
 }
 
 export const STATUS_OPTIONS: StatusOption[] = [
-  { value: 'available', label: 'Available', activeClass: 'bg-green-9 text-white' },
-  { value: 'late', label: 'Late', activeClass: 'bg-amber-9 text-white' },
-  { value: 'if_needed', label: 'If Needed', activeClass: 'bg-orange-9 text-white' },
+  { value: 'available', label: 'Available', activeClass: 'bg-plum-9 text-white' },
+  { value: 'late', label: 'Late', activeClass: 'bg-amber-9 text-amber-12' },
+  { value: 'if_needed', label: 'If Needed', activeClass: 'bg-violet-9 text-white' },
   { value: 'no', label: 'No', activeClass: 'bg-ruby-9 text-white' },
 ];
 
