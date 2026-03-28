@@ -13,33 +13,31 @@ export interface FormFieldProps extends Field.Root.Props {
  * A reusable form field wrapper that provides labels, descriptions, and error messages
  * using @base-ui/react/field primitives.
  */
-export function FormField({
-  label,
-  description,
-  error,
-  children,
-  className,
-  ...props
-}: FormFieldProps) {
-  return (
-    <Field.Root
-      className={twMerge(
-        'flex flex-col gap-1.5',
-        typeof className === 'function' ? undefined : className,
-      )}
-      {...props}
-    >
-      {label && <Field.Label className="text-sm font-medium text-sage-12">{label}</Field.Label>}
+export const FormField = React.forwardRef<HTMLDivElement, FormFieldProps>(
+  ({ label, description, error, children, className, ...props }, ref) => {
+    return (
+      <Field.Root
+        ref={ref}
+        className={twMerge(
+          'flex flex-col gap-1.5',
+          typeof className === 'function' ? undefined : className,
+        )}
+        {...props}
+      >
+        {label && <Field.Label className="text-sm font-medium text-sage-12">{label}</Field.Label>}
 
-      {children}
+        {children}
 
-      {description && (
-        <Field.Description className="text-xs text-sage-11">{description}</Field.Description>
-      )}
+        {description && (
+          <Field.Description className="text-xs text-sage-11">{description}</Field.Description>
+        )}
 
-      <Field.Error match={!!error} className="text-xs font-medium text-ruby-11">
-        {error}
-      </Field.Error>
-    </Field.Root>
-  );
-}
+        <Field.Error match={!!error} className="text-xs font-medium text-ruby-11">
+          {error}
+        </Field.Error>
+      </Field.Root>
+    );
+  },
+);
+
+FormField.displayName = 'FormField';

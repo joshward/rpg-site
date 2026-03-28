@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import SignInButton from '../SignInButton';
 import { authClient } from '@/lib/authClient';
@@ -90,7 +90,7 @@ describe('SignInButton', () => {
     expect(screen.getByText(/alice/i)).toBeInTheDocument();
   });
 
-  it('triggers a notification when there is an error', () => {
+  it('triggers a notification when there is an error', async () => {
     const errorMsg = 'Failed to connect';
     vi.mocked(authClient.useSession).mockReturnValue({
       data: null,
@@ -102,12 +102,14 @@ describe('SignInButton', () => {
 
     render(<SignInButton />);
 
-    expect(mockAdd).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Error signing in',
-        description: errorMsg,
-        type: 'error',
-      }),
-    );
+    await waitFor(() => {
+      expect(mockAdd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Error signing in',
+          description: errorMsg,
+          type: 'error',
+        }),
+      );
+    });
   });
 });

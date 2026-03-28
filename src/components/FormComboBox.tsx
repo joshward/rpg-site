@@ -33,10 +33,11 @@ export const FormComboBox = React.forwardRef<HTMLDivElement, FormComboBoxProps<a
       comboProps,
       ...props
     },
-    _ref,
+    ref,
   ) => {
     return (
       <FormField
+        ref={ref}
         label={label}
         description={description}
         error={error}
