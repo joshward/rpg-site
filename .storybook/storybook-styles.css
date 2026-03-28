@@ -1,0 +1,9 @@
+body {
+  background-color: var(--mauve-1) !important;
+  color: var(--mauve-12);
+}
+
+/* Optional: Smooth transition when switching themes */
+body {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}

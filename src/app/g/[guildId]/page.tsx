@@ -5,6 +5,7 @@ import { getGuildInfo, getUsersGuilds } from '@/actions/guilds';
 import { isFailure } from '@/actions/result';
 import Alert from '@/components/Alert';
 import SignInButton from '@/components/SignInButton';
+import Link from '@/components/Link';
 import { getDefaultMetadata } from '@/lib/metadata';
 import { GuildRouteProps } from './helpers';
 
@@ -65,7 +66,18 @@ export default async function GuildPage({ params }: GuildRouteProps) {
     );
   }
 
-  const { role } = guildInfoResult.data;
+  const { role, isConfigured } = guildInfoResult.data;
+  if (!isConfigured) {
+    return (
+      <Paper className="items-center">
+        <Alert type={role === 'admin' ? 'warning' : 'error'}>
+          This guild is not yet configured for Tavern Master.{' '}
+          {role === 'admin' && <Link href={`/g/${guildId}/admin`}>Configure it here.</Link>}
+        </Alert>
+      </Paper>
+    );
+  }
+
   if (role === 'none') {
     return (
       <Paper className="items-center">

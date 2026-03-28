@@ -15,6 +15,13 @@
       "when": 1766462818208,
       "tag": "0001_add_cache_table",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767398284576,
+      "tag": "0002_add_guild_table",
+      "breakpoints": true
     }
   ]
 }

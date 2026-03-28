@@ -5,7 +5,7 @@ export default function GuildIcon({
   guild,
   className,
 }: {
-  guild: { id: string; name: string; icon: string | null | undefined };
+  guild: { id: string; name: string; icon?: string | null | undefined };
   className?: string;
 }) {
   return (

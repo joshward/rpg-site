@@ -6,6 +6,7 @@ import { DiscordLogoIcon, PersonIcon } from '@radix-ui/react-icons';
 import { Menu } from '@base-ui/react/menu';
 import { authClient } from '@/lib/authClient';
 import Button from '@/components/Button';
+import { useNotification } from '@/components/Notification';
 
 interface SignInButtonProps {
   signInText?: string;
@@ -14,13 +15,17 @@ interface SignInButtonProps {
 export default function SignInButton({ signInText = 'Log In' }: SignInButtonProps) {
   const { data, isPending, error } = authClient.useSession();
   const router = useRouter();
+  const notification = useNotification();
 
   useEffect(() => {
     if (error) {
-      // TODO - handle error properly
-      console.error('Error signing in:', error);
+      notification.add({
+        title: 'Error signing in',
+        description: error.message || 'An unexpected error occurred.',
+        type: 'error',
+      });
     }
-  }, [error]);
+  }, [error, notification]);
 
   const signIn = async () => {
     await authClient.signIn.social({
