@@ -16,7 +16,7 @@ import {
   type YearMonth,
 } from '@/lib/availability';
 
-export type AvailabilityStatus = 'available' | 'late' | 'if_needed' | 'no';
+export type AvailabilityStatus = 'available' | 'late' | 'if_needed' | 'unavailable';
 
 export interface DayAvailability {
   /** Day of the month (1-31) */

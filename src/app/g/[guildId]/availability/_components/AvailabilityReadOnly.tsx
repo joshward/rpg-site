@@ -38,12 +38,22 @@ export default function AvailabilityReadOnly({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 text-sm">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
         {STATUS_OPTIONS.map((opt) => (
-          <span key={opt.value} className="flex items-center gap-1.5">
-            <span className={twMerge('inline-block w-3 h-3 rounded-sm', opt.activeClass)} />
-            {opt.label}
-          </span>
+          <div key={opt.value} className="flex items-center gap-1.5">
+            <span
+              className={twMerge(
+                'inline-flex items-center justify-center w-5 h-5 rounded-sm',
+                opt.activeClass,
+              )}
+            >
+              <opt.icon className="w-3 h-3" />
+            </span>
+            <div>
+              <span className="font-medium">{opt.label}</span>
+              <span className="text-sage-11 text-xs ml-1.5">{opt.description}</span>
+            </div>
+          </div>
         ))}
       </div>
 
@@ -64,7 +74,7 @@ export default function AvailabilityReadOnly({
 
         {Array.from({ length: totalDays }, (_, i) => {
           const dayNum = i + 1;
-          const status: AvailabilityStatus = dayLookup.get(dayNum) ?? 'no';
+          const status: AvailabilityStatus = dayLookup.get(dayNum) ?? 'unavailable';
           const option = STATUS_MAP[status];
 
           return (
@@ -72,12 +82,14 @@ export default function AvailabilityReadOnly({
               <span className="text-xs text-sage-11">{dayNum}</span>
               <div
                 className={twMerge(
-                  'w-full rounded-md px-1 py-1.5 text-xs font-medium text-center',
+                  'w-full rounded-md px-1 py-1.5 text-xs font-medium',
+                  'flex items-center justify-center gap-0.5',
                   option.activeClass,
                 )}
                 title={`Day ${dayNum}: ${option.label}`}
               >
-                {option.label}
+                <option.icon className="w-3 h-3 shrink-0" />
+                <span className="hidden md:inline">{option.label}</span>
               </div>
             </div>
           );

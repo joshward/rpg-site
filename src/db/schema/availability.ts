@@ -31,7 +31,7 @@ export const availabilityDay = pgTable(
       .notNull()
       .references(() => availabilitySubmission.id, { onDelete: 'cascade' }),
     day: integer().notNull(),
-    status: text({ enum: ['available', 'late', 'if_needed', 'no'] }).notNull(),
+    status: text({ enum: ['available', 'late', 'if_needed', 'unavailable'] }).notNull(),
   },
   (table) => [unique().on(table.submissionId, table.day)],
 );

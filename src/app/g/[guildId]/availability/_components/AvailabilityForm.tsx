@@ -30,13 +30,14 @@ function buildDefaultDays(year: number, month: number): DayEntry[] {
   const count = getDaysInMonth(year, month);
   return Array.from({ length: count }, (_, i) => ({
     day: i + 1,
-    status: 'no' as AvailabilityStatus,
+    status: 'unavailable' as AvailabilityStatus,
   }));
 }
 
 export default function AvailabilityForm({ target, onSubmitted }: AvailabilityFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
+  const [expandedDay, setExpandedDay] = React.useState<number | null>(null);
   const defaultDays = React.useMemo(
     () => buildDefaultDays(target.year, target.month),
     [target.year, target.month],
@@ -73,12 +74,22 @@ export default function AvailabilityForm({ target, onSubmitted }: AvailabilityFo
     <Paper>
       <h2 className="text-xl font-bold">Availability for {formatMonthYear(target)}</h2>
 
-      <div className="flex flex-wrap gap-2 text-sm">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
         {STATUS_OPTIONS.map((opt) => (
-          <span key={opt.value} className="flex items-center gap-1.5">
-            <span className={twMerge('inline-block w-3 h-3 rounded-sm', opt.activeClass)} />
-            {opt.label}
-          </span>
+          <div key={opt.value} className="flex items-center gap-1.5">
+            <span
+              className={twMerge(
+                'inline-flex items-center justify-center w-5 h-5 rounded-sm',
+                opt.activeClass,
+              )}
+            >
+              <opt.icon className="w-3 h-3" />
+            </span>
+            <div>
+              <span className="font-medium">{opt.label}</span>
+              <span className="text-sage-11 text-xs ml-1.5">{opt.description}</span>
+            </div>
+          </div>
         ))}
       </div>
 
@@ -111,37 +122,62 @@ export default function AvailabilityForm({ target, onSubmitted }: AvailabilityFo
               {field.state.value.map((entry, index) => {
                 const currentStatus = entry.status;
                 const currentOption = STATUS_OPTIONS.find((o) => o.value === currentStatus);
+                const isExpanded = expandedDay === entry.day;
 
                 return (
                   <div key={entry.day} className="flex flex-col items-center gap-0.5">
                     <span className="text-xs text-sage-11">{entry.day}</span>
-                    <button
-                      type="button"
-                      className={twMerge(
-                        DefaultTransitionStyles,
-                        FocusResetStyles,
-                        ShowFocusOnKeyboardStyles,
-                        'w-full rounded-md px-1 py-1.5 text-xs font-medium cursor-pointer',
-                        'bg-sage-5 text-sage-12 hover:bg-sage-7',
-                        currentOption?.activeClass,
-                      )}
-                      onClick={() => {
-                        // Cycle to the next status
-                        const currentIdx = STATUS_OPTIONS.findIndex(
-                          (o) => o.value === currentStatus,
-                        );
-                        const nextIdx = (currentIdx + 1) % STATUS_OPTIONS.length;
-                        const newDays = [...field.state.value];
-                        newDays[index] = {
-                          ...newDays[index],
-                          status: STATUS_OPTIONS[nextIdx].value,
-                        };
-                        field.handleChange(newDays);
-                      }}
-                      title={`Day ${entry.day}: ${currentOption?.label ?? currentStatus}`}
-                    >
-                      {currentOption?.label ?? currentStatus}
-                    </button>
+                    {isExpanded ? (
+                      <div className="grid grid-cols-2 gap-0.5 w-full">
+                        {STATUS_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            className={twMerge(
+                              DefaultTransitionStyles,
+                              FocusResetStyles,
+                              ShowFocusOnKeyboardStyles,
+                              'rounded-md p-1.5 cursor-pointer',
+                              'flex items-center justify-center',
+                              'bg-sage-5 text-sage-12 hover:bg-sage-7',
+                              opt.activeClass,
+                            )}
+                            onClick={() => {
+                              const newDays = [...field.state.value];
+                              newDays[index] = {
+                                ...newDays[index],
+                                status: opt.value,
+                              };
+                              field.handleChange(newDays);
+                              setExpandedDay(null);
+                            }}
+                            title={opt.label}
+                          >
+                            <opt.icon className="w-3.5 h-3.5" />
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className={twMerge(
+                          DefaultTransitionStyles,
+                          FocusResetStyles,
+                          ShowFocusOnKeyboardStyles,
+                          'w-full rounded-md px-1 py-5 text-xs font-medium cursor-pointer',
+                          'flex items-center justify-center gap-0.5',
+                          'bg-sage-5 text-sage-12 hover:bg-sage-7',
+                          currentOption?.activeClass,
+                        )}
+                        onClick={() => setExpandedDay(entry.day)}
+                        title={`Day ${entry.day}: ${currentOption?.label ?? currentStatus}`}
+                      >
+                        {currentOption && <currentOption.icon className="w-3 h-3 shrink-0" />}
+                        <span className="hidden md:inline">
+                          {currentOption?.label ?? currentStatus}
+                        </span>
+                      </button>
+                    )}
                   </div>
                 );
               })}
