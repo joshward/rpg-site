@@ -59,6 +59,40 @@ export function validateDays(year: number, month: number, days: number[]): strin
 }
 
 /**
+ * Returns the previous month relative to the given year/month.
+ */
+export function getPrevYearMonth(target: YearMonth): YearMonth {
+  if (target.month === 1) {
+    return { year: target.year - 1, month: 12 };
+  }
+  return { year: target.year, month: target.month - 1 };
+}
+
+/**
+ * Returns the next month relative to the given year/month.
+ */
+export function getNextYearMonth(target: YearMonth): YearMonth {
+  if (target.month === 12) {
+    return { year: target.year + 1, month: 1 };
+  }
+  return { year: target.year, month: target.month + 1 };
+}
+
+/**
+ * Returns the current calendar month as a YearMonth.
+ */
+export function getCurrentMonth(now: Date = new Date()): YearMonth {
+  return { year: now.getFullYear(), month: now.getMonth() + 1 };
+}
+
+/**
+ * Returns true if two YearMonth values represent the same month.
+ */
+export function isSameMonth(a: YearMonth, b: YearMonth): boolean {
+  return a.year === b.year && a.month === b.month;
+}
+
+/**
  * Formats a year/month as a human-readable string (e.g. "July 2026").
  */
 export function formatMonthYear(target: YearMonth): string {

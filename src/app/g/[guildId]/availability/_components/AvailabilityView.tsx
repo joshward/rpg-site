@@ -2,8 +2,15 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Paper from '@/components/Paper';
 import type { DayAvailability } from '@/actions/availability';
-import type { YearMonth } from '@/lib/availability';
+import {
+  formatMonthYear,
+  getSubmissionWindowOpen,
+  getNextMonth,
+  isSameMonth,
+  type YearMonth,
+} from '@/lib/availability';
 import AvailabilityForm from './AvailabilityForm';
 import AvailabilityReadOnly from './AvailabilityReadOnly';
 
@@ -20,7 +27,7 @@ interface AvailabilityViewProps {
 
 export default function AvailabilityView({ target, existing, windowOpen }: AvailabilityViewProps) {
   const router = useRouter();
-  const [editing, setEditing] = useState(!existing);
+  const [editing, setEditing] = useState(!existing && windowOpen);
 
   const handleSubmitted = () => {
     setEditing(false);
@@ -49,7 +56,31 @@ export default function AvailabilityView({ target, existing, windowOpen }: Avail
     );
   }
 
-  // No existing submission and window not open — shouldn't reach here
-  // since the page handles the "window closed" case, but just in case
-  return null;
+  // No submission for this month
+  const nextMonth = getNextMonth();
+  const isFutureMonth = isSameMonth(target, nextMonth) && !windowOpen;
+
+  if (isFutureMonth) {
+    const windowOpenDate = getSubmissionWindowOpen(target);
+    return (
+      <Paper className="items-center">
+        <p className="text-sage-11">
+          The submission window for {formatMonthYear(target)} opens on{' '}
+          {windowOpenDate.toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+            timeZone: 'UTC',
+          })}
+          .
+        </p>
+      </Paper>
+    );
+  }
+
+  return (
+    <Paper className="items-center">
+      <p className="text-sage-11">No availability was submitted for {formatMonthYear(target)}.</p>
+    </Paper>
+  );
 }

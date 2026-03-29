@@ -1,19 +1,23 @@
 import { Metadata } from 'next';
-import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
 import { getMyAvailability } from '@/actions/availability';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
 import {
   getAvailableMonth,
-  getSubmissionWindowOpen,
-  getNextMonth,
-  formatMonthYear,
+  getCurrentMonth,
+  isSameMonth,
+  type YearMonth,
 } from '@/lib/availability';
 import { GuildRouteProps, getGuildName } from '../helpers';
 import AvailabilityView from './_components/AvailabilityView';
+import MonthNav from './_components/MonthNav';
 
-export async function generateMetadata({ params }: GuildRouteProps): Promise<Metadata> {
+interface AvailabilityPageProps extends GuildRouteProps {
+  searchParams: Promise<{ year?: string; month?: string }>;
+}
+
+export async function generateMetadata({ params }: AvailabilityPageProps): Promise<Metadata> {
   const { guildId } = await params;
   const guildName = await getGuildName(guildId);
   return getDefaultMetadata({
@@ -21,42 +25,39 @@ export async function generateMetadata({ params }: GuildRouteProps): Promise<Met
   });
 }
 
-export default async function AvailabilityPage({ params }: GuildRouteProps) {
+export default async function AvailabilityPage({ params, searchParams }: AvailabilityPageProps) {
   const { guildId } = await params;
+  const query = await searchParams;
 
-  // Check if the submission window is open
-  const target = getAvailableMonth();
+  // The editable month (if the submission window is open)
+  const editableMonth = getAvailableMonth();
 
-  if (!target) {
-    const nextMonth = getNextMonth();
-    const windowOpen = getSubmissionWindowOpen(nextMonth);
+  // Default month: the editable month if window is open, otherwise current calendar month
+  const defaultMonth = editableMonth ?? getCurrentMonth();
 
-    return (
-      <Paper className="items-center">
-        <h2 className="text-xl font-bold">Availability</h2>
-        <p className="text-sage-11">
-          The submission window for {formatMonthYear(nextMonth)} opens on{' '}
-          {windowOpen.toLocaleDateString('en-US', {
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric',
-            timeZone: 'UTC',
-          })}
-          .
-        </p>
-      </Paper>
-    );
-  }
+  // Determine which month to view from search params
+  const viewedMonth: YearMonth =
+    query.year && query.month
+      ? { year: parseInt(query.year, 10), month: parseInt(query.month, 10) }
+      : defaultMonth;
+
+  // Is this month editable?
+  const windowOpen = editableMonth !== null && isSameMonth(viewedMonth, editableMonth);
 
   // Fetch existing submission if any
-  const existingResult = await getMyAvailability(guildId, target.year, target.month);
+  const existingResult = await getMyAvailability(guildId, viewedMonth.year, viewedMonth.month);
   if (isFailure(existingResult)) {
-    return (
-      <Paper className="items-center">
-        <Alert type="error">{existingResult.error}</Alert>
-      </Paper>
-    );
+    return <Alert type="error">{existingResult.error}</Alert>;
   }
 
-  return <AvailabilityView target={target} existing={existingResult.data} windowOpen={true} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <MonthNav current={viewedMonth} defaultMonth={defaultMonth} />
+      <AvailabilityView
+        target={viewedMonth}
+        existing={existingResult.data}
+        windowOpen={windowOpen}
+      />
+    </div>
+  );
 }
