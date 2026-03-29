@@ -4,13 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Paper from '@/components/Paper';
 import type { DayAvailability } from '@/actions/availability';
-import {
-  formatMonthYear,
-  getSubmissionWindowOpen,
-  getNextMonth,
-  isSameMonth,
-  type YearMonth,
-} from '@/lib/availability';
+import { formatMonthYear, type YearMonth } from '@/lib/availability';
 import AvailabilityForm from './AvailabilityForm';
 import AvailabilityReadOnly from './AvailabilityReadOnly';
 
@@ -23,9 +17,18 @@ interface AvailabilityViewProps {
   target: YearMonth;
   existing: ExistingSubmission | null;
   windowOpen: boolean;
+  previousMonthDays?: DayAvailability[] | null;
+  /** ISO string of when the submission window opens, if this is a future month */
+  windowOpensAt?: string | null;
 }
 
-export default function AvailabilityView({ target, existing, windowOpen }: AvailabilityViewProps) {
+export default function AvailabilityView({
+  target,
+  existing,
+  windowOpen,
+  previousMonthDays,
+  windowOpensAt,
+}: AvailabilityViewProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(!existing && windowOpen);
 
@@ -39,6 +42,7 @@ export default function AvailabilityView({ target, existing, windowOpen }: Avail
       <AvailabilityForm
         target={target}
         initialDays={existing?.days}
+        previousMonthDays={previousMonthDays ?? undefined}
         onSubmitted={handleSubmitted}
       />
     );
@@ -57,11 +61,8 @@ export default function AvailabilityView({ target, existing, windowOpen }: Avail
   }
 
   // No submission for this month
-  const nextMonth = getNextMonth();
-  const isFutureMonth = isSameMonth(target, nextMonth) && !windowOpen;
-
-  if (isFutureMonth) {
-    const windowOpenDate = getSubmissionWindowOpen(target);
+  if (windowOpensAt) {
+    const windowOpenDate = new Date(windowOpensAt);
     return (
       <Paper className="items-center">
         <p className="text-sage-11">

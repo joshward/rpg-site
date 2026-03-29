@@ -1,11 +1,14 @@
 import { Metadata } from 'next';
 import Alert from '@/components/Alert';
-import { getMyAvailability } from '@/actions/availability';
+import { getMyAvailability, type DayAvailability } from '@/actions/availability';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
 import {
   getAvailableMonth,
   getCurrentMonth,
+  getNextMonth,
+  getPrevYearMonth,
+  getSubmissionWindowOpen,
   isSameMonth,
   type YearMonth,
 } from '@/lib/availability';
@@ -44,19 +47,37 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
   // Is this month editable?
   const windowOpen = editableMonth !== null && isSameMonth(viewedMonth, editableMonth);
 
+  // Is this a future month where the window hasn't opened yet?
+  const nextMonth = getNextMonth();
+  const isFutureMonth = isSameMonth(viewedMonth, nextMonth) && !windowOpen;
+  const windowOpensAt = isFutureMonth ? getSubmissionWindowOpen(viewedMonth).toISOString() : null;
+
   // Fetch existing submission if any
   const existingResult = await getMyAvailability(guildId, viewedMonth.year, viewedMonth.month);
   if (isFailure(existingResult)) {
     return <Alert type="error">{existingResult.error}</Alert>;
   }
 
+  // Fetch previous month's data for copy feature (only when editable)
+  let previousMonthDays: DayAvailability[] | null = null;
+  if (windowOpen) {
+    const prevMonth = getPrevYearMonth(viewedMonth);
+    const prevResult = await getMyAvailability(guildId, prevMonth.year, prevMonth.month);
+    if (!isFailure(prevResult) && prevResult.data) {
+      previousMonthDays = prevResult.data.days;
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <MonthNav current={viewedMonth} defaultMonth={defaultMonth} />
       <AvailabilityView
+        key={`${viewedMonth.year}-${viewedMonth.month}`}
         target={viewedMonth}
         existing={existingResult.data}
         windowOpen={windowOpen}
+        previousMonthDays={previousMonthDays}
+        windowOpensAt={windowOpensAt}
       />
     </div>
   );

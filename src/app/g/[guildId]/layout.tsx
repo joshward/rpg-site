@@ -6,6 +6,7 @@ import SignInButton from '@/components/SignInButton';
 import Link from '@/components/Link';
 import { getGuildInfo, getUsersGuilds } from '@/actions/guilds';
 import { isFailure } from '@/actions/result';
+import { getNow, isDateOverridden } from '@/lib/availability';
 import { GuildRouteProps } from './helpers';
 import GuildTabBar from './_components/GuildTabBar';
 
@@ -73,6 +74,17 @@ export default async function GuildLayout({ params, children }: GuildLayoutProps
 
   return (
     <div className="flex flex-col gap-4">
+      {isDateOverridden() && (
+        <div className="rounded-md bg-violet-5 text-violet-12 px-3 py-1.5 text-xs font-medium text-center">
+          Date override active:{' '}
+          {getNow().toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+          })}
+        </div>
+      )}
       <GuildTabBar guildId={guildId} isAdmin={role === 'admin'} />
       {children}
     </div>

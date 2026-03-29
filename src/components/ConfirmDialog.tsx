@@ -11,6 +11,7 @@ interface ConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: string;
+  children?: React.ReactNode;
   confirmLabel?: string;
   confirmVariant?: ButtonProps['variant'];
   onConfirm: () => void;
@@ -21,6 +22,7 @@ export default function ConfirmDialog({
   onOpenChange,
   title,
   description,
+  children,
   confirmLabel = 'Confirm',
   confirmVariant = 'default',
   onConfirm,
@@ -46,6 +48,7 @@ export default function ConfirmDialog({
                 {description}
               </AlertDialog.Description>
             )}
+            {children}
             <div className="flex justify-end gap-2 mt-2">
               <AlertDialog.Close render={<Button size="sm">Cancel</Button>} />
               <Button

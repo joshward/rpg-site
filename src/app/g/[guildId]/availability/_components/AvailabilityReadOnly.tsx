@@ -44,7 +44,7 @@ export default function AvailabilityReadOnly({
           </p>
         </div>
         {canEdit && onEdit && (
-          <Button size="sm" onClick={onEdit}>
+          <Button size="sm" variant="primary" onClick={onEdit}>
             Edit
           </Button>
         )}

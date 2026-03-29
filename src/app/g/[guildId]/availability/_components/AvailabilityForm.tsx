@@ -10,7 +10,13 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { useNotification } from '@/components/Notification';
 import { submitAvailability, type AvailabilityStatus } from '@/actions/availability';
 import { isFailure } from '@/actions/result';
-import { getDaysInMonth, formatMonthYear, type YearMonth } from '@/lib/availability';
+import {
+  getDaysInMonth,
+  getPrevYearMonth,
+  mapDaysByWeekday,
+  formatMonthYear,
+  type YearMonth,
+} from '@/lib/availability';
 import { STATUS_OPTIONS, UNSET_OPTION } from './availability-status';
 import {
   DefaultTransitionStyles,
@@ -22,6 +28,8 @@ interface AvailabilityFormProps {
   target: YearMonth;
   /** Pre-populate the form when editing an existing submission */
   initialDays?: { day: number; status: AvailabilityStatus }[];
+  /** Previous month's submitted days, used for the copy feature */
+  previousMonthDays?: { day: number; status: AvailabilityStatus }[];
   onSubmitted?: () => void;
 }
 
@@ -41,6 +49,7 @@ function buildDefaultDays(year: number, month: number): DayEntry[] {
 export default function AvailabilityForm({
   target,
   initialDays,
+  previousMonthDays,
   onSubmitted,
 }: AvailabilityFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
@@ -49,6 +58,8 @@ export default function AvailabilityForm({
   const [fillStatus, setFillStatus] = React.useState<AvailabilityStatus>('available');
   const [showResetConfirm, setShowResetConfirm] = React.useState(false);
   const [showUnsetConfirm, setShowUnsetConfirm] = React.useState(false);
+  const [showCopyConfirm, setShowCopyConfirm] = React.useState(false);
+  const [copyMode, setCopyMode] = React.useState<'date' | 'weekday'>('weekday');
   const defaultDays = React.useMemo(() => {
     if (initialDays) {
       const lookup = new Map(initialDays.map((d) => [d.day, d.status]));
@@ -156,6 +167,11 @@ export default function AvailabilityForm({
               >
                 Reset All
               </Button>
+              {previousMonthDays && (
+                <Button type="button" size="sm" onClick={() => setShowCopyConfirm(true)}>
+                  Copy Previous Month
+                </Button>
+              )}
               <ConfirmDialog
                 open={showResetConfirm}
                 onOpenChange={setShowResetConfirm}
@@ -168,6 +184,70 @@ export default function AvailabilityForm({
                   setExpandedDay(null);
                 }}
               />
+              {previousMonthDays && (
+                <ConfirmDialog
+                  open={showCopyConfirm}
+                  onOpenChange={setShowCopyConfirm}
+                  title="Copy previous month?"
+                  description="This will replace all your current selections with last month's availability."
+                  confirmLabel="Copy"
+                  onConfirm={() => {
+                    const prevLookup = new Map(previousMonthDays.map((d) => [d.day, d.status]));
+                    const count = getDaysInMonth(target.year, target.month);
+
+                    let mapped: Map<number, string>;
+                    if (copyMode === 'weekday') {
+                      mapped = mapDaysByWeekday(getPrevYearMonth(target), target, prevLookup);
+                    } else {
+                      mapped = prevLookup;
+                    }
+
+                    field.handleChange(
+                      Array.from({ length: count }, (_, i) => ({
+                        day: i + 1,
+                        status: (mapped.get(i + 1) as DayStatus) ?? null,
+                      })),
+                    );
+                    setExpandedDay(null);
+                  }}
+                >
+                  <fieldset className="flex flex-col gap-2">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="copyMode"
+                        value="weekday"
+                        checked={copyMode === 'weekday'}
+                        onChange={() => setCopyMode('weekday')}
+                        className="mt-0.5"
+                      />
+                      <div>
+                        <span className="text-sm font-medium text-sage-12">By day of week</span>
+                        <p className="text-xs text-sage-11">
+                          Matches days by their position in the calendar grid. Best for recurring
+                          weekly schedules.
+                        </p>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="copyMode"
+                        value="date"
+                        checked={copyMode === 'date'}
+                        onChange={() => setCopyMode('date')}
+                        className="mt-0.5"
+                      />
+                      <div>
+                        <span className="text-sm font-medium text-sage-12">By date</span>
+                        <p className="text-xs text-sage-11">
+                          Copies day 1 to day 1, day 2 to day 2, etc. Simple 1-to-1 mapping.
+                        </p>
+                      </div>
+                    </label>
+                  </fieldset>
+                </ConfirmDialog>
+              )}
 
               <div className="flex items-center gap-1.5 ml-auto">
                 <select
@@ -303,7 +383,7 @@ export default function AvailabilityForm({
           selector={(state) => [state.canSubmit, state.isSubmitting]}
           children={([canSubmit, isSubmitting]) => (
             <div className="flex justify-end">
-              <Button type="submit" disabled={!canSubmit} loading={isSubmitting}>
+              <Button type="submit" variant="primary" disabled={!canSubmit} loading={isSubmitting}>
                 Submit Availability
               </Button>
             </div>
