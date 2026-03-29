@@ -4,6 +4,7 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   CircleBackslashIcon,
+  DashIcon,
 } from '@radix-ui/react-icons';
 import type { AvailabilityStatus } from '@/actions/availability';
 
@@ -50,3 +51,11 @@ export const STATUS_OPTIONS: StatusOption[] = [
 export const STATUS_MAP = Object.fromEntries(
   STATUS_OPTIONS.map((opt) => [opt.value, opt]),
 ) as Record<AvailabilityStatus, StatusOption>;
+
+/** UI-only unset state — never persisted to the database. */
+export const UNSET_OPTION = {
+  label: 'Unset',
+  description: 'No selection made yet',
+  icon: DashIcon,
+  activeClass: 'bg-sage-7 text-sage-11',
+} as const;

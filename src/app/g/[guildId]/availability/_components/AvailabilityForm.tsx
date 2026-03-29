@@ -10,7 +10,7 @@ import { useNotification } from '@/components/Notification';
 import { submitAvailability, type AvailabilityStatus } from '@/actions/availability';
 import { isFailure } from '@/actions/result';
 import { getDaysInMonth, formatMonthYear, type YearMonth } from '@/lib/availability';
-import { STATUS_OPTIONS } from './availability-status';
+import { STATUS_OPTIONS, UNSET_OPTION } from './availability-status';
 import {
   DefaultTransitionStyles,
   FocusResetStyles,
@@ -24,13 +24,14 @@ interface AvailabilityFormProps {
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
-type DayEntry = { day: number; status: AvailabilityStatus };
+type DayStatus = AvailabilityStatus | null;
+type DayEntry = { day: number; status: DayStatus };
 
 function buildDefaultDays(year: number, month: number): DayEntry[] {
   const count = getDaysInMonth(year, month);
   return Array.from({ length: count }, (_, i) => ({
     day: i + 1,
-    status: 'unavailable' as AvailabilityStatus,
+    status: null,
   }));
 }
 
@@ -48,7 +49,11 @@ export default function AvailabilityForm({ target, onSubmitted }: AvailabilityFo
       days: defaultDays,
     },
     onSubmit: async ({ value }) => {
-      const result = await submitAvailability(guildId, target.year, target.month, value.days);
+      const days = value.days.map((d) => ({
+        day: d.day,
+        status: d.status ?? 'unavailable',
+      })) as { day: number; status: AvailabilityStatus }[];
+      const result = await submitAvailability(guildId, target.year, target.month, days);
 
       if (isFailure(result)) {
         notification.add({
@@ -121,7 +126,10 @@ export default function AvailabilityForm({ target, onSubmitted }: AvailabilityFo
 
               {field.state.value.map((entry, index) => {
                 const currentStatus = entry.status;
-                const currentOption = STATUS_OPTIONS.find((o) => o.value === currentStatus);
+                const currentOption = currentStatus
+                  ? STATUS_OPTIONS.find((o) => o.value === currentStatus)
+                  : null;
+                const displayOption = currentOption ?? UNSET_OPTION;
                 const isExpanded = expandedDay === entry.day;
 
                 return (
@@ -167,15 +175,13 @@ export default function AvailabilityForm({ target, onSubmitted }: AvailabilityFo
                           'w-full rounded-md px-1 py-5 text-xs font-medium cursor-pointer',
                           'flex items-center justify-center gap-0.5',
                           'bg-sage-5 text-sage-12 hover:bg-sage-7',
-                          currentOption?.activeClass,
+                          displayOption.activeClass,
                         )}
                         onClick={() => setExpandedDay(entry.day)}
-                        title={`Day ${entry.day}: ${currentOption?.label ?? currentStatus}`}
+                        title={`Day ${entry.day}: ${displayOption.label}`}
                       >
-                        {currentOption && <currentOption.icon className="w-3 h-3 shrink-0" />}
-                        <span className="hidden md:inline">
-                          {currentOption?.label ?? currentStatus}
-                        </span>
+                        <displayOption.icon className="w-3 h-3 shrink-0" />
+                        <span className="hidden md:inline">{displayOption.label}</span>
                       </button>
                     )}
                   </div>
