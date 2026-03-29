@@ -12,7 +12,7 @@ export type ButtonProps = ComponentPropsWithRef<'button'> & {
   loadingLabel?: string;
   loaderClassName?: string;
   size?: 'sm' | 'md' | 'lg';
-  variant?: 'default' | 'danger';
+  variant?: 'default' | 'primary' | 'danger';
 };
 
 export default function Button({
@@ -39,6 +39,9 @@ export default function Button({
 
         'bg-sage-5 text-sage-12',
         !disabled && !loading && 'hover:bg-sage-7',
+
+        variant === 'primary' && 'bg-violet-9 text-white',
+        !disabled && !loading && variant === 'primary' && 'hover:bg-violet-10',
 
         variant === 'danger' && 'bg-ruby-5 text-ruby-12',
         !disabled && !loading && variant === 'danger' && 'hover:bg-ruby-7',

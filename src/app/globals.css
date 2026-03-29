@@ -16,6 +16,8 @@
 @import "@radix-ui/colors/ruby-dark.css";
 @import "@radix-ui/colors/amber.css";
 @import "@radix-ui/colors/amber-dark.css";
+@import "@radix-ui/colors/jade.css";
+@import "@radix-ui/colors/jade-dark.css";
 
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -148,6 +150,19 @@
   --color-amber-10: var(--amber-10);
   --color-amber-11: var(--amber-11);
   --color-amber-12: var(--amber-12);
+
+  --color-jade-1: var(--jade-1);
+  --color-jade-2: var(--jade-2);
+  --color-jade-3: var(--jade-3);
+  --color-jade-4: var(--jade-4);
+  --color-jade-5: var(--jade-5);
+  --color-jade-6: var(--jade-6);
+  --color-jade-7: var(--jade-7);
+  --color-jade-8: var(--jade-8);
+  --color-jade-9: var(--jade-9);
+  --color-jade-10: var(--jade-10);
+  --color-jade-11: var(--jade-11);
+  --color-jade-12: var(--jade-12);
 }
 
 @layer components {

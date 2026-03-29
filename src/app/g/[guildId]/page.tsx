@@ -1,91 +1,19 @@
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import Paper from '@/components/Paper';
-import { getGuildInfo, getUsersGuilds } from '@/actions/guilds';
-import { isFailure } from '@/actions/result';
-import Alert from '@/components/Alert';
-import SignInButton from '@/components/SignInButton';
-import Link from '@/components/Link';
 import { getDefaultMetadata } from '@/lib/metadata';
-import { GuildRouteProps } from './helpers';
+import { GuildRouteProps, getGuildName } from './helpers';
 
 export async function generateMetadata({ params }: GuildRouteProps): Promise<Metadata> {
   const { guildId } = await params;
-  const guildsResult = await getUsersGuilds();
-
-  let subtitle: string | undefined;
-
-  if (isFailure(guildsResult)) {
-    subtitle = 'Error';
-  } else {
-    const guild = guildsResult.data
-      ? guildsResult.data.find((guild) => guild.id === guildId)
-      : undefined;
-
-    if (guild) {
-      subtitle = guild.name;
-    }
-  }
-
-  return getDefaultMetadata({ subtitles: subtitle });
+  const guildName = await getGuildName(guildId);
+  return getDefaultMetadata({ subtitles: guildName });
 }
 
-export default async function GuildPage({ params }: GuildRouteProps) {
-  const { guildId } = await params;
-  const guildsResult = await getUsersGuilds();
-
-  if (isFailure(guildsResult)) {
-    return (
-      <Paper className="items-center">
-        <Alert type="error">{guildsResult.error}</Alert>
-      </Paper>
-    );
-  }
-
-  const userGuilds = guildsResult.data;
-
-  if (!userGuilds) {
-    return (
-      <Paper className="items-center">
-        <h2>Your session has expired. Please log in again.</h2>
-        <SignInButton signInText="Log in with Discord" />
-      </Paper>
-    );
-  }
-
-  if (!userGuilds.some((guild) => guild.id === guildId)) {
-    notFound();
-  }
-
-  const guildInfoResult = await getGuildInfo(guildId);
-  if (isFailure(guildInfoResult)) {
-    return (
-      <Paper className="items-center">
-        <Alert type="error">{guildInfoResult.error}</Alert>
-      </Paper>
-    );
-  }
-
-  const { role, isConfigured } = guildInfoResult.data;
-  if (!isConfigured) {
-    return (
-      <Paper className="items-center">
-        <Alert type={role === 'admin' ? 'warning' : 'error'}>
-          This guild is not yet configured for Tavern Master.{' '}
-          {role === 'admin' && <Link href={`/g/${guildId}/admin`}>Configure it here.</Link>}
-        </Alert>
-      </Paper>
-    );
-  }
-
-  if (role === 'none') {
-    return (
-      <Paper className="items-center">
-        <h2 className="text-xl">You don't have access to Tavern Master for this guild.</h2>
-        <p>If you think this is a mistake, please contact the guild owner.</p>
-      </Paper>
-    );
-  }
-
-  return <Paper>Guild Role: {guildInfoResult.data.role}</Paper>;
+export default function GuildPage() {
+  return (
+    <Paper>
+      <h2 className="text-xl font-bold">Overview</h2>
+      <p className="text-sage-11">Welcome to your guild. More features coming soon.</p>
+    </Paper>
+  );
 }
