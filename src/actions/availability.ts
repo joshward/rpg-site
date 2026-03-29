@@ -12,6 +12,7 @@ import { ActionError, asResult } from '@/actions/action-helpers';
 import { availabilitySubmission, availabilityDay } from '@/db/schema/availability';
 import {
   getAvailableMonth as getAvailableMonthHelper,
+  getDaysInMonth,
   validateDays,
   type YearMonth,
 } from '@/lib/availability';
@@ -119,6 +120,7 @@ export const getMyAvailability = asResult(
     return {
       submissionId: submission.id,
       createdAt: submission.createdAt.toISOString(),
+      updatedAt: submission.updatedAt.toISOString(),
       days: days.map((d) => ({
         day: d.day,
         status: d.status as AvailabilityStatus,
@@ -158,41 +160,65 @@ export const submitAvailability = asResult(
       throw new ActionError(dayError);
     }
 
-    // Upsert submission
-    const [submission] = await db
-      .insert(availabilitySubmission)
-      .values({
-        guildId,
-        userId: session.user.id,
-        year,
-        month,
-      })
-      .onConflictDoUpdate({
-        target: [
-          availabilitySubmission.guildId,
-          availabilitySubmission.userId,
-          availabilitySubmission.year,
-          availabilitySubmission.month,
-        ],
-        set: {
-          updatedAt: new Date(),
-        },
-      })
-      .returning({ id: availabilitySubmission.id });
+    // Validate completeness: exactly one entry per day
+    const daysInMonth = getDaysInMonth(year, month);
+    if (days.length !== daysInMonth) {
+      throw new ActionError(
+        `You must submit availability for every day of the month (expected ${daysInMonth}, got ${days.length}).`,
+      );
+    }
 
-    // Replace day entries — delete old ones first
-    await db.delete(availabilityDay).where(eq(availabilityDay.submissionId, submission.id));
+    const seenDays = new Set<number>();
+    const allowedStatuses: AvailabilityStatus[] = ['available', 'late', 'if_needed', 'unavailable'];
+    for (const d of days) {
+      if (seenDays.has(d.day)) {
+        throw new ActionError(`Duplicate entry for day ${d.day}.`);
+      }
+      seenDays.add(d.day);
+      if (!allowedStatuses.includes(d.status)) {
+        throw new ActionError(`Invalid status: ${d.status}`);
+      }
+    }
 
-    // Insert new day entries
-    await db.insert(availabilityDay).values(
-      days.map((d) => ({
-        submissionId: submission.id,
-        day: d.day,
-        status: d.status,
-      })),
-    );
+    // Upsert submission + replace days in a transaction
+    const { submissionId } = await db.transaction(async (tx) => {
+      const [submission] = await tx
+        .insert(availabilitySubmission)
+        .values({
+          guildId,
+          userId: session.user.id,
+          year,
+          month,
+        })
+        .onConflictDoUpdate({
+          target: [
+            availabilitySubmission.guildId,
+            availabilitySubmission.userId,
+            availabilitySubmission.year,
+            availabilitySubmission.month,
+          ],
+          set: {
+            updatedAt: new Date(),
+          },
+        })
+        .returning({ id: availabilitySubmission.id });
 
-    return { submissionId: submission.id };
+      // Replace day entries — delete old ones first
+      await tx.delete(availabilityDay).where(eq(availabilityDay.submissionId, submission.id));
+
+      // Insert new day entries
+      await tx.insert(availabilityDay).values(
+        days.map((d) => ({
+          submissionId: submission.id,
+          day: d.day,
+          status: d.status,
+        })),
+      );
+
+      return { submissionId: submission.id };
+    });
+
+    return { submissionId };
   },
   'Something went wrong submitting your availability.',
 );

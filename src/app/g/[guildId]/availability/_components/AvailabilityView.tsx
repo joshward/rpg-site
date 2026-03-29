@@ -11,6 +11,7 @@ import AvailabilityReadOnly from './AvailabilityReadOnly';
 interface ExistingSubmission {
   days: DayAvailability[];
   createdAt: string;
+  updatedAt: string;
 }
 
 interface AvailabilityViewProps {
@@ -53,7 +54,7 @@ export default function AvailabilityView({
       <AvailabilityReadOnly
         target={target}
         days={existing.days}
-        submittedAt={existing.createdAt}
+        submittedAt={existing.updatedAt}
         canEdit={windowOpen}
         onEdit={() => setEditing(true)}
       />

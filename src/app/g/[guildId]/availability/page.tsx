@@ -39,10 +39,16 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
   const defaultMonth = editableMonth ?? getCurrentMonth();
 
   // Determine which month to view from search params
-  const viewedMonth: YearMonth =
-    query.year && query.month
-      ? { year: parseInt(query.year, 10), month: parseInt(query.month, 10) }
-      : defaultMonth;
+  const queryYear = query.year ? Number.parseInt(query.year, 10) : NaN;
+  const queryMonth = query.month ? Number.parseInt(query.month, 10) : NaN;
+  const hasValidParams =
+    Number.isInteger(queryYear) &&
+    Number.isInteger(queryMonth) &&
+    queryMonth >= 1 &&
+    queryMonth <= 12;
+  const viewedMonth: YearMonth = hasValidParams
+    ? { year: queryYear, month: queryMonth }
+    : defaultMonth;
 
   // Is this month editable?
   const windowOpen = editableMonth !== null && isSameMonth(viewedMonth, editableMonth);

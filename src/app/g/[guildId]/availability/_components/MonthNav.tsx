@@ -63,6 +63,7 @@ export default function MonthNav({ current, defaultMonth }: MonthNavProps) {
         className={navButtonClass}
         onClick={() => navigateTo(prev)}
         title={formatMonthYear(prev)}
+        aria-label="Previous month"
       >
         <ChevronLeftIcon className="w-5 h-5" />
       </button>
@@ -81,6 +82,7 @@ export default function MonthNav({ current, defaultMonth }: MonthNavProps) {
           onClick={() => canGoNext && navigateTo(next)}
           disabled={!canGoNext}
           title={canGoNext ? formatMonthYear(next) : 'Cannot navigate further'}
+          aria-label="Next month"
         >
           <ChevronRightIcon className="w-5 h-5" />
         </button>

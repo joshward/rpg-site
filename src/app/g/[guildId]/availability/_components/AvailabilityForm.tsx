@@ -195,7 +195,7 @@ export default function AvailabilityForm({
                     const prevLookup = new Map(previousMonthDays.map((d) => [d.day, d.status]));
                     const count = getDaysInMonth(target.year, target.month);
 
-                    let mapped: Map<number, string>;
+                    let mapped: Map<number, AvailabilityStatus>;
                     if (copyMode === 'weekday') {
                       mapped = mapDaysByWeekday(getPrevYearMonth(target), target, prevLookup);
                     } else {
@@ -348,6 +348,8 @@ export default function AvailabilityForm({
                               setExpandedDay(null);
                             }}
                             title={opt.label}
+                            aria-label={opt.label}
+                            aria-pressed={currentStatus === opt.value}
                           >
                             <opt.icon className="w-3.5 h-3.5" />
                           </button>
@@ -367,6 +369,7 @@ export default function AvailabilityForm({
                         )}
                         onClick={() => setExpandedDay(entry.day)}
                         title={`Day ${entry.day}: ${displayOption.label}`}
+                        aria-label={`Day ${entry.day}: ${displayOption.label}`}
                       >
                         <displayOption.icon className="w-3 h-3 shrink-0" />
                         <span className="hidden md:inline">{displayOption.label}</span>
