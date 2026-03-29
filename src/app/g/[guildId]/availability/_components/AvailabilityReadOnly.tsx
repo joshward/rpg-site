@@ -1,5 +1,6 @@
 import { twMerge } from 'tailwind-merge';
 import Paper from '@/components/Paper';
+import Button from '@/components/Button';
 import type { AvailabilityStatus, DayAvailability } from '@/actions/availability';
 import { getDaysInMonth, formatMonthYear, type YearMonth } from '@/lib/availability';
 import { STATUS_OPTIONS, STATUS_MAP } from './availability-status';
@@ -8,6 +9,8 @@ interface AvailabilityReadOnlyProps {
   target: YearMonth;
   days: DayAvailability[];
   submittedAt: string;
+  canEdit?: boolean;
+  onEdit?: () => void;
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
@@ -16,6 +19,8 @@ export default function AvailabilityReadOnly({
   target,
   days,
   submittedAt,
+  canEdit,
+  onEdit,
 }: AvailabilityReadOnlyProps) {
   const totalDays = getDaysInMonth(target.year, target.month);
   const dayLookup = new Map(days.map((d) => [d.day, d.status]));
@@ -26,16 +31,23 @@ export default function AvailabilityReadOnly({
 
   return (
     <Paper>
-      <div className="flex flex-col gap-1">
-        <h2 className="text-xl font-bold">Availability for {formatMonthYear(target)}</h2>
-        <p className="text-xs text-sage-11">
-          Submitted on{' '}
-          {submittedDate.toLocaleDateString('en-US', {
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric',
-          })}
-        </p>
+      <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-bold">Availability for {formatMonthYear(target)}</h2>
+          <p className="text-xs text-sage-11">
+            Submitted on{' '}
+            {submittedDate.toLocaleDateString('en-US', {
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </p>
+        </div>
+        {canEdit && onEdit && (
+          <Button size="sm" onClick={onEdit}>
+            Edit
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">

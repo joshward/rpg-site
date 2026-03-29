@@ -19,6 +19,8 @@ import {
 
 interface AvailabilityFormProps {
   target: YearMonth;
+  /** Pre-populate the form when editing an existing submission */
+  initialDays?: { day: number; status: AvailabilityStatus }[];
   onSubmitted?: () => void;
 }
 
@@ -35,14 +37,25 @@ function buildDefaultDays(year: number, month: number): DayEntry[] {
   }));
 }
 
-export default function AvailabilityForm({ target, onSubmitted }: AvailabilityFormProps) {
+export default function AvailabilityForm({
+  target,
+  initialDays,
+  onSubmitted,
+}: AvailabilityFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
   const [expandedDay, setExpandedDay] = React.useState<number | null>(null);
-  const defaultDays = React.useMemo(
-    () => buildDefaultDays(target.year, target.month),
-    [target.year, target.month],
-  );
+  const defaultDays = React.useMemo(() => {
+    if (initialDays) {
+      const lookup = new Map(initialDays.map((d) => [d.day, d.status]));
+      const count = getDaysInMonth(target.year, target.month);
+      return Array.from({ length: count }, (_, i) => ({
+        day: i + 1,
+        status: lookup.get(i + 1) ?? null,
+      }));
+    }
+    return buildDefaultDays(target.year, target.month);
+  }, [target.year, target.month, initialDays]);
 
   const form = useForm({
     defaultValues: {

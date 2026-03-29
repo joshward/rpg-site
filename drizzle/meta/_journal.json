@@ -29,6 +29,13 @@
       "when": 1774714709437,
       "tag": "0003_add_availability_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774806896339,
+      "tag": "0004_add_availability_updated_at",
+      "breakpoints": true
     }
   ]
 }

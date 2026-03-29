@@ -17,6 +17,10 @@ export const availabilitySubmission = pgTable(
     year: integer().notNull(),
     month: integer().notNull(),
     createdAt: timestamp().defaultNow().notNull(),
+    updatedAt: timestamp()
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
   },
   (table) => [unique().on(table.guildId, table.userId, table.year, table.month)],
 );

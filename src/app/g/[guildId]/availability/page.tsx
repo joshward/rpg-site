@@ -11,14 +11,15 @@ import {
   formatMonthYear,
 } from '@/lib/availability';
 import { GuildRouteProps, getGuildName } from '../helpers';
+import AvailabilityView from './_components/AvailabilityView';
 
 export async function generateMetadata({ params }: GuildRouteProps): Promise<Metadata> {
   const { guildId } = await params;
   const guildName = await getGuildName(guildId);
-  return getDefaultMetadata({ subtitles: ['Availability', guildName].filter(Boolean) as string[] });
+  return getDefaultMetadata({
+    subtitles: ['Availability', guildName].filter(Boolean) as string[],
+  });
 }
-import AvailabilityForm from './_components/AvailabilityForm';
-import AvailabilityReadOnly from './_components/AvailabilityReadOnly';
 
 export default async function AvailabilityPage({ params }: GuildRouteProps) {
   const { guildId } = await params;
@@ -47,7 +48,7 @@ export default async function AvailabilityPage({ params }: GuildRouteProps) {
     );
   }
 
-  // Check if the user has already submitted
+  // Fetch existing submission if any
   const existingResult = await getMyAvailability(guildId, target.year, target.month);
   if (isFailure(existingResult)) {
     return (
@@ -57,15 +58,5 @@ export default async function AvailabilityPage({ params }: GuildRouteProps) {
     );
   }
 
-  if (existingResult.data) {
-    return (
-      <AvailabilityReadOnly
-        target={target}
-        days={existingResult.data.days}
-        submittedAt={existingResult.data.createdAt}
-      />
-    );
-  }
-
-  return <AvailabilityForm target={target} />;
+  return <AvailabilityView target={target} existing={existingResult.data} windowOpen={true} />;
 }

@@ -158,24 +158,7 @@ export const submitAvailability = asResult(
       throw new ActionError(dayError);
     }
 
-    // Check for existing submission
-    const existing = await db
-      .select({ id: availabilitySubmission.id })
-      .from(availabilitySubmission)
-      .where(
-        and(
-          eq(availabilitySubmission.guildId, guildId),
-          eq(availabilitySubmission.userId, session.user.id),
-          eq(availabilitySubmission.year, year),
-          eq(availabilitySubmission.month, month),
-        ),
-      );
-
-    if (existing.length > 0) {
-      throw new ActionError('You have already submitted your availability for this month.');
-    }
-
-    // Insert submission
+    // Upsert submission
     const [submission] = await db
       .insert(availabilitySubmission)
       .values({
@@ -184,9 +167,23 @@ export const submitAvailability = asResult(
         year,
         month,
       })
+      .onConflictDoUpdate({
+        target: [
+          availabilitySubmission.guildId,
+          availabilitySubmission.userId,
+          availabilitySubmission.year,
+          availabilitySubmission.month,
+        ],
+        set: {
+          updatedAt: new Date(),
+        },
+      })
       .returning({ id: availabilitySubmission.id });
 
-    // Insert day entries
+    // Replace day entries — delete old ones first
+    await db.delete(availabilityDay).where(eq(availabilityDay.submissionId, submission.id));
+
+    // Insert new day entries
     await db.insert(availabilityDay).values(
       days.map((d) => ({
         submissionId: submission.id,
