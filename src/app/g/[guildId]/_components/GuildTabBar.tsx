@@ -4,7 +4,7 @@ import { type ReactNode } from 'react';
 import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
 import { twMerge } from 'tailwind-merge';
-import { HomeIcon, CalendarIcon, GearIcon } from '@radix-ui/react-icons';
+import { HomeIcon, CalendarIcon, GearIcon, MixerHorizontalIcon } from '@radix-ui/react-icons';
 import {
   DefaultTransitionStyles,
   FocusResetStyles,
@@ -29,6 +29,7 @@ export default function GuildTabBar({ guildId, isAdmin }: GuildTabBarProps) {
   const tabs: Tab[] = [
     { label: 'Overview', href: basePath, icon: <HomeIcon /> },
     { label: 'Availability', href: `${basePath}/availability`, icon: <CalendarIcon /> },
+    { label: 'My Preferences', href: `${basePath}/preferences`, icon: <MixerHorizontalIcon /> },
     ...(isAdmin
       ? [{ label: 'Guild Settings', href: `${basePath}/admin`, icon: <GearIcon /> }]
       : []),

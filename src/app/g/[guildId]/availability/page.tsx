@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
 import Alert from '@/components/Alert';
+import Link from '@/components/Link';
 import { getMyAvailability, type DayAvailability } from '@/actions/availability';
+import { getMyPreference } from '@/actions/preferences';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
 import {
@@ -31,6 +33,14 @@ export async function generateMetadata({ params }: AvailabilityPageProps): Promi
 export default async function AvailabilityPage({ params, searchParams }: AvailabilityPageProps) {
   const { guildId } = await params;
   const query = await searchParams;
+
+  // Check preferences
+  const prefResult = await getMyPreference(guildId);
+  if (isFailure(prefResult)) {
+    return <Alert type="error">{prefResult.error}</Alert>;
+  }
+
+  const preferenceUnset = prefResult.data.sessionsPerMonth === null;
 
   // The editable month (if the submission window is open)
   const editableMonth = getAvailableMonth();
@@ -64,9 +74,9 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
     return <Alert type="error">{existingResult.error}</Alert>;
   }
 
-  // Fetch previous month's data for copy feature (only when editable)
+  // Fetch previous month's data for copy feature (only when editable and preferences set)
   let previousMonthDays: DayAvailability[] | null = null;
-  if (windowOpen) {
+  if (windowOpen && !preferenceUnset) {
     const prevMonth = getPrevYearMonth(viewedMonth);
     const prevResult = await getMyAvailability(guildId, prevMonth.year, prevMonth.month);
     if (!isFailure(prevResult) && prevResult.data) {
@@ -77,14 +87,22 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
   return (
     <div className="flex flex-col gap-4">
       <MonthNav current={viewedMonth} defaultMonth={defaultMonth} />
-      <AvailabilityView
-        key={`${viewedMonth.year}-${viewedMonth.month}`}
-        target={viewedMonth}
-        existing={existingResult.data}
-        windowOpen={windowOpen}
-        previousMonthDays={previousMonthDays}
-        windowOpensAt={windowOpensAt}
-      />
+
+      {preferenceUnset && windowOpen ? (
+        <Alert type="warning">
+          Please <Link href={`/g/${guildId}/preferences`}>set your session preference</Link> before
+          filling out your availability.
+        </Alert>
+      ) : (
+        <AvailabilityView
+          key={`${viewedMonth.year}-${viewedMonth.month}`}
+          target={viewedMonth}
+          existing={existingResult.data}
+          windowOpen={windowOpen && !preferenceUnset}
+          previousMonthDays={previousMonthDays}
+          windowOpensAt={windowOpensAt}
+        />
+      )}
     </div>
   );
 }

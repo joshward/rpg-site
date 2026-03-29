@@ -36,6 +36,13 @@
       "when": 1774806896339,
       "tag": "0004_add_availability_updated_at",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1774818193200,
+      "tag": "0005_add_member_preferences",
+      "breakpoints": true
     }
   ]
 }
