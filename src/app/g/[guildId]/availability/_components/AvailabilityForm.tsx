@@ -6,6 +6,7 @@ import { useForm } from '@tanstack/react-form';
 import { twMerge } from 'tailwind-merge';
 import Button from '@/components/Button';
 import Paper from '@/components/Paper';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { useNotification } from '@/components/Notification';
 import { submitAvailability, type AvailabilityStatus } from '@/actions/availability';
 import { isFailure } from '@/actions/result';
@@ -45,6 +46,9 @@ export default function AvailabilityForm({
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
   const [expandedDay, setExpandedDay] = React.useState<number | null>(null);
+  const [fillStatus, setFillStatus] = React.useState<AvailabilityStatus>('available');
+  const [showResetConfirm, setShowResetConfirm] = React.useState(false);
+  const [showUnsetConfirm, setShowUnsetConfirm] = React.useState(false);
   const defaultDays = React.useMemo(() => {
     if (initialDays) {
       const lookup = new Map(initialDays.map((d) => [d.day, d.status]));
@@ -57,16 +61,13 @@ export default function AvailabilityForm({
     return buildDefaultDays(target.year, target.month);
   }, [target.year, target.month, initialDays]);
 
-  const form = useForm({
-    defaultValues: {
-      days: defaultDays,
-    },
-    onSubmit: async ({ value }) => {
-      const days = value.days.map((d) => ({
+  const doSubmit = React.useCallback(
+    async (days: DayEntry[]) => {
+      const resolved = days.map((d) => ({
         day: d.day,
-        status: d.status ?? 'unavailable',
-      })) as { day: number; status: AvailabilityStatus }[];
-      const result = await submitAvailability(guildId, target.year, target.month, days);
+        status: d.status ?? ('unavailable' as AvailabilityStatus),
+      }));
+      const result = await submitAvailability(guildId, target.year, target.month, resolved);
 
       if (isFailure(result)) {
         notification.add({
@@ -83,6 +84,21 @@ export default function AvailabilityForm({
         onSubmitted?.();
       }
     },
+    [guildId, target.year, target.month, notification, onSubmitted],
+  );
+
+  const form = useForm({
+    defaultValues: {
+      days: defaultDays,
+    },
+    onSubmit: async ({ value }) => {
+      const hasUnset = value.days.some((d) => d.status === null);
+      if (hasUnset) {
+        setShowUnsetConfirm(true);
+        return;
+      }
+      await doSubmit(value.days);
+    },
   });
 
   // Compute the starting day-of-week offset for the calendar grid
@@ -90,6 +106,15 @@ export default function AvailabilityForm({
 
   return (
     <Paper>
+      <ConfirmDialog
+        open={showUnsetConfirm}
+        onOpenChange={setShowUnsetConfirm}
+        title="Unset days remaining"
+        description="Some days don't have a status yet. Would you like to set all remaining days to Unavailable and submit?"
+        confirmLabel="Set to Unavailable & Submit"
+        onConfirm={() => doSubmit(form.state.values.days)}
+      />
+
       <h2 className="text-xl font-bold">Availability for {formatMonthYear(target)}</h2>
 
       <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
@@ -119,6 +144,76 @@ export default function AvailabilityForm({
         }}
         className="flex flex-col gap-4"
       >
+        {/* Bulk actions */}
+        <form.Field name="days" mode="array">
+          {(field) => (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="danger"
+                onClick={() => setShowResetConfirm(true)}
+              >
+                Reset All
+              </Button>
+              <ConfirmDialog
+                open={showResetConfirm}
+                onOpenChange={setShowResetConfirm}
+                title="Reset all days?"
+                description="This will clear all your selections back to unset. This cannot be undone."
+                confirmLabel="Reset"
+                confirmVariant="danger"
+                onConfirm={() => {
+                  field.handleChange(field.state.value.map((d) => ({ ...d, status: null })));
+                  setExpandedDay(null);
+                }}
+              />
+
+              <div className="flex items-center gap-1.5 ml-auto">
+                <select
+                  value={fillStatus}
+                  onChange={(e) => setFillStatus(e.target.value as AvailabilityStatus)}
+                  className={twMerge(
+                    DefaultTransitionStyles,
+                    FocusResetStyles,
+                    ShowFocusOnKeyboardStyles,
+                    'rounded-xl border border-sage-6 bg-sage-2 px-2 py-1 text-sm text-sage-12',
+                    'hover:border-sage-8 cursor-pointer',
+                  )}
+                >
+                  {STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    const hasUnset = field.state.value.some((d) => d.status === null);
+                    if (!hasUnset) {
+                      notification.add({
+                        type: 'warning',
+                        title: 'No unset days',
+                        description: 'All days already have a status.',
+                      });
+                      return;
+                    }
+                    field.handleChange(
+                      field.state.value.map((d) =>
+                        d.status === null ? { ...d, status: fillStatus } : d,
+                      ),
+                    );
+                  }}
+                >
+                  Fill Remaining
+                </Button>
+              </div>
+            </div>
+          )}
+        </form.Field>
+
         {/* Calendar grid header */}
         <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-sage-11">
           {DAY_NAMES.map((name) => (
