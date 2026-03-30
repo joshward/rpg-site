@@ -100,6 +100,14 @@ export const getGuildInfo = asResult(
       throw new ActionError('Discord account not linked or session expired. Please sign in again.');
     }
 
+    const userGuilds = await fetchUsersGuildsCached(
+      discordAccount.userId,
+      discordAccount.accessToken,
+    );
+    if (!userGuilds.some((g) => g.id === guildId)) {
+      throw new ActionError('Guild not found');
+    }
+
     const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
 
     const role = await fetchUserRoleCached(
@@ -107,14 +115,6 @@ export const getGuildInfo = asResult(
       guildId,
       guildData?.allowedRoles ?? [],
     );
-
-    if (role === 'none') {
-      return {
-        isConfigured: false,
-        role: 'none',
-        allowedRoles: [],
-      };
-    }
 
     return {
       isConfigured: Boolean(guildData),
@@ -137,6 +137,18 @@ export const getGuildRolesAction = asResult(
     const discordAccount = await getUsersDiscordAccount(session.user.id);
     if (!discordAccount) {
       throw new ActionError('Discord account not linked or session expired. Please sign in again.');
+    }
+
+    const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
+
+    const role = await fetchUserRoleCached(
+      discordAccount.userId,
+      guildId,
+      guildData?.allowedRoles ?? [],
+    );
+
+    if (role !== 'admin') {
+      throw new ActionError('Only guild administrators can perform this action.');
     }
 
     const roles = await getGuildRolesCached(guildId);

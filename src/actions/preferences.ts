@@ -66,18 +66,32 @@ const ensureAdmin = async (guildId: string) => {
   return { session, discordAccount, guildData };
 };
 
+const ensureAccess = async (guildId: string) => {
+  const session = await getSession();
+  if (!session) {
+    throw new ActionError('Not logged in');
+  }
+
+  const discordAccount = await getUsersDiscordAccount(session.user.id);
+  if (!discordAccount) {
+    throw new ActionError('Discord account not linked or session expired. Please sign in again.');
+  }
+
+  const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
+
+  const role = await fetchUserRole(discordAccount.userId, guildId, guildData?.allowedRoles ?? []);
+
+  if (role === 'none') {
+    throw new ActionError("You don't have access to this guild.");
+  }
+
+  return { session, discordAccount, guildData, role };
+};
+
 export const getMyPreference = asResult(
   'getMyPreference',
   async (guildId: string) => {
-    const session = await getSession();
-    if (!session) {
-      throw new ActionError('Not logged in');
-    }
-
-    const discordAccount = await getUsersDiscordAccount(session.user.id);
-    if (!discordAccount) {
-      throw new ActionError('Discord account not linked or session expired. Please sign in again.');
-    }
+    const { discordAccount } = await ensureAccess(guildId);
 
     const prefs = await db
       .select()
@@ -102,15 +116,7 @@ export const getMyPreference = asResult(
 export const setMyPreference = asResult(
   'setMyPreference',
   async (guildId: string, sessionsPerMonth: number) => {
-    const session = await getSession();
-    if (!session) {
-      throw new ActionError('Not logged in');
-    }
-
-    const discordAccount = await getUsersDiscordAccount(session.user.id);
-    if (!discordAccount) {
-      throw new ActionError('Discord account not linked or session expired. Please sign in again.');
-    }
+    const { session, discordAccount } = await ensureAccess(guildId);
 
     // Validate
     if (

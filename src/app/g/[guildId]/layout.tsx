@@ -52,6 +52,15 @@ export default async function GuildLayout({ params, children }: GuildLayoutProps
 
   const { role, isConfigured } = guildInfoResult.data;
 
+  if (role === 'none') {
+    return (
+      <Paper className="items-center">
+        <h2 className="text-xl">You don&apos;t have access to Tavern Master for this guild.</h2>
+        <p>If you think this is a mistake, please contact the guild owner.</p>
+      </Paper>
+    );
+  }
+
   if (!isConfigured) {
     return (
       <Paper className="items-center">
@@ -59,15 +68,6 @@ export default async function GuildLayout({ params, children }: GuildLayoutProps
           This guild is not yet configured for Tavern Master.{' '}
           {role === 'admin' && <Link href={`/g/${guildId}/admin`}>Configure it here.</Link>}
         </Alert>
-      </Paper>
-    );
-  }
-
-  if (role === 'none') {
-    return (
-      <Paper className="items-center">
-        <h2 className="text-xl">You don&apos;t have access to Tavern Master for this guild.</h2>
-        <p>If you think this is a mistake, please contact the guild owner.</p>
       </Paper>
     );
   }
