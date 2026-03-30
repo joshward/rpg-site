@@ -68,15 +68,29 @@ export const getUsersGuilds = asResult(
 
     if (discordAccount) {
       // Backfill userId in member_preferences if it's missing (requirement 71)
-      await db
-        .update(memberPreference)
-        .set({ userId: session.user.id })
+      // First, do a cheap existence check to avoid running an UPDATE on every call.
+      const needsBackfill = await db
+        .select({ id: memberPreference.id })
+        .from(memberPreference)
         .where(
           and(
             eq(memberPreference.discordUserId, discordAccount.userId),
             isNull(memberPreference.userId),
           ),
-        );
+        )
+        .limit(1);
+
+      if (needsBackfill.length > 0) {
+        await db
+          .update(memberPreference)
+          .set({ userId: session.user.id })
+          .where(
+            and(
+              eq(memberPreference.discordUserId, discordAccount.userId),
+              isNull(memberPreference.userId),
+            ),
+          );
+      }
     }
 
     return discordAccount

@@ -1,5 +1,4 @@
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import Alert from '@/components/Alert';
 import Paper from '@/components/Paper';
 import { getMyPreference } from '@/actions/preferences';

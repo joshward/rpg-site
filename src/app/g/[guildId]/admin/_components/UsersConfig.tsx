@@ -16,11 +16,22 @@ import ComboBox, { ComboboxOption } from '@/components/Combobox';
 import { SESSIONS_PER_MONTH_OPTIONS } from '@/lib/preferences';
 import { useNotification } from '@/components/Notification';
 
+interface MemberPreference {
+  discordUserId: string;
+  username: string;
+  displayName: string;
+  avatar: string | null | undefined;
+  hasLoggedIn: boolean;
+  lastLoginAt: string | null;
+  sessionsPerMonth: number | null;
+}
+
 export default function UsersConfig() {
   const { guildId } = useParams<{ guildId: string }>();
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const [hasFetched, setHasFetched] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
-  const [members, setMembers] = React.useState<any[]>([]);
+  const [members, setMembers] = React.useState<MemberPreference[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const notification = useNotification();
 
@@ -32,17 +43,18 @@ export default function UsersConfig() {
       setError(result.error);
     } else {
       setMembers(result.data);
+      setHasFetched(true);
     }
     setLoading(false);
   }, [guildId]);
 
   React.useEffect(() => {
-    if (isExpanded && members.length === 0) {
+    if (isExpanded && !hasFetched && !loading) {
       fetchMembers();
     }
-  }, [isExpanded, members.length, fetchMembers]);
+  }, [isExpanded, hasFetched, loading, fetchMembers]);
 
-  const handleToggle = () => setIsExpanded(!isExpanded);
+  const handleToggle = () => setIsExpanded((prev) => !prev);
 
   const handlePreferenceChange = async (discordUserId: string, option: ComboboxOption | null) => {
     if (!option) return;
@@ -76,6 +88,8 @@ export default function UsersConfig() {
         type="button"
         className="flex items-center justify-between w-full p-6 text-left hover:bg-sage-4/30 transition-colors focus:outline-none"
         onClick={handleToggle}
+        aria-expanded={isExpanded}
+        aria-controls="users-config-content"
       >
         <div className="flex flex-col">
           <h2 className="text-xl font-bold">Users Config</h2>
@@ -91,7 +105,7 @@ export default function UsersConfig() {
       </button>
 
       {isExpanded && (
-        <div className="flex flex-col gap-4 border-t border-sage-6 p-6">
+        <div id="users-config-content" className="flex flex-col gap-4 border-t border-sage-6 p-6">
           {loading ? (
             <div className="h-60 flex items-center justify-center">
               <div className="loader"></div>

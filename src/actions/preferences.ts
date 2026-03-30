@@ -56,8 +56,11 @@ const ensureAdmin = async (guildId: string) => {
   }
 
   const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
+  if (!guildData) {
+    throw new ActionError('This guild is not configured for Tavern Master.');
+  }
 
-  const role = await fetchUserRole(discordAccount.userId, guildId, guildData?.allowedRoles ?? []);
+  const role = await fetchUserRole(discordAccount.userId, guildId, guildData.allowedRoles ?? []);
 
   if (role !== 'admin') {
     throw new ActionError('Only guild administrators can perform this action.');
@@ -78,8 +81,11 @@ const ensureAccess = async (guildId: string) => {
   }
 
   const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
+  if (!guildData) {
+    throw new ActionError('This guild is not configured for Tavern Master.');
+  }
 
-  const role = await fetchUserRole(discordAccount.userId, guildId, guildData?.allowedRoles ?? []);
+  const role = await fetchUserRole(discordAccount.userId, guildId, guildData.allowedRoles ?? []);
 
   if (role === 'none') {
     throw new ActionError("You don't have access to this guild.");
@@ -161,6 +167,8 @@ export const getAdminMemberPreferences = asResult(
       .from(memberPreference)
       .where(eq(memberPreference.guildId, guildId));
 
+    const dbPrefsMap = new Map(dbPrefs.map((p) => [p.discordUserId, p]));
+
     // Fetch all accounts for these discord user IDs to see who has logged in
     const discordUserIds = members.map((m) => m.user.id);
 
@@ -194,7 +202,7 @@ export const getAdminMemberPreferences = asResult(
           return null;
         }
 
-        const pref = dbPrefs.find((p) => p.discordUserId === m.user.id);
+        const pref = dbPrefsMap.get(m.user.id);
         const lastLoginAt = loggedInUsersMap.get(m.user.id);
 
         return {
@@ -203,7 +211,7 @@ export const getAdminMemberPreferences = asResult(
           displayName: m.nick || m.user.global_name || m.user.username,
           avatar: m.user.avatar,
           hasLoggedIn: loggedInUsersMap.has(m.user.id),
-          lastLoginAt: lastLoginAt ?? null,
+          lastLoginAt: lastLoginAt?.toISOString() ?? null,
           sessionsPerMonth: pref?.sessionsPerMonth ?? null,
         };
       }),
