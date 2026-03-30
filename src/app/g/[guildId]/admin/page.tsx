@@ -15,6 +15,7 @@ export async function generateMetadata({ params }: GuildRouteProps): Promise<Met
   });
 }
 import GuildAdminForm from './_components/GuildAdminForm';
+import UsersConfig from './_components/UsersConfig';
 
 export default async function GuildAdminPage({ params }: GuildRouteProps) {
   const { guildId } = await params;
@@ -47,6 +48,7 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">Guild Administration</h1>
       <GuildAdminForm roles={rolesResult.data} initialAllowedRoles={allowedRoles} />
+      <UsersConfig />
     </div>
   );
 }

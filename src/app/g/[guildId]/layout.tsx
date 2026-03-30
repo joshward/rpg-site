@@ -73,7 +73,7 @@ export default async function GuildLayout({ params, children }: GuildLayoutProps
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 mb-8">
       {isDateOverridden() && (
         <div className="rounded-md bg-violet-5 text-violet-12 px-3 py-1.5 text-xs font-medium text-center">
           Date override active:{' '}

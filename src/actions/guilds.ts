@@ -2,13 +2,14 @@
 
 import { cache } from 'react';
 import { headers } from 'next/headers';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { account } from '@/db/schema/auth';
 import { auth } from '@/lib/auth';
 import { fetchUserRole, fetchUsersGuilds } from '@/lib/authn';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { guild } from '@/db/schema/guild';
+import { memberPreference } from '@/db/schema/member-preferences';
 import { getGuildRoles } from '@/lib/discord/api';
 import { TimeSpan } from 'timespan-ts';
 import { revalidatePath } from 'next/cache';
@@ -64,6 +65,19 @@ export const getUsersGuilds = asResult(
     }
 
     const discordAccount = await getUsersDiscordAccount(session.user.id);
+
+    if (discordAccount) {
+      // Backfill userId in member_preferences if it's missing (requirement 71)
+      await db
+        .update(memberPreference)
+        .set({ userId: session.user.id })
+        .where(
+          and(
+            eq(memberPreference.discordUserId, discordAccount.userId),
+            isNull(memberPreference.userId),
+          ),
+        );
+    }
 
     return discordAccount
       ? await fetchUsersGuildsCached(discordAccount.userId, discordAccount.accessToken)

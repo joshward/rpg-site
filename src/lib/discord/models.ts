@@ -32,6 +32,7 @@ export const UserSchema = v.object({
   id: v.string(),
   username: v.string(),
   global_name: v.nullish(v.string()),
+  avatar: v.nullish(v.string()),
   bot: v.nullish(v.boolean()),
 });
 export type UserModel = v.InferOutput<typeof UserSchema>;
