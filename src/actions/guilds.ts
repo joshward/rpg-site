@@ -2,13 +2,14 @@
 
 import { cache } from 'react';
 import { headers } from 'next/headers';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { account } from '@/db/schema/auth';
 import { auth } from '@/lib/auth';
 import { fetchUserRole, fetchUsersGuilds } from '@/lib/authn';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { guild } from '@/db/schema/guild';
+import { memberPreference } from '@/db/schema/member-preferences';
 import { getGuildRoles } from '@/lib/discord/api';
 import { TimeSpan } from 'timespan-ts';
 import { revalidatePath } from 'next/cache';
@@ -65,6 +66,33 @@ export const getUsersGuilds = asResult(
 
     const discordAccount = await getUsersDiscordAccount(session.user.id);
 
+    if (discordAccount) {
+      // Backfill userId in member_preferences if it's missing (requirement 71)
+      // First, do a cheap existence check to avoid running an UPDATE on every call.
+      const needsBackfill = await db
+        .select({ id: memberPreference.id })
+        .from(memberPreference)
+        .where(
+          and(
+            eq(memberPreference.discordUserId, discordAccount.userId),
+            isNull(memberPreference.userId),
+          ),
+        )
+        .limit(1);
+
+      if (needsBackfill.length > 0) {
+        await db
+          .update(memberPreference)
+          .set({ userId: session.user.id })
+          .where(
+            and(
+              eq(memberPreference.discordUserId, discordAccount.userId),
+              isNull(memberPreference.userId),
+            ),
+          );
+      }
+    }
+
     return discordAccount
       ? await fetchUsersGuildsCached(discordAccount.userId, discordAccount.accessToken)
       : [];
@@ -86,6 +114,14 @@ export const getGuildInfo = asResult(
       throw new ActionError('Discord account not linked or session expired. Please sign in again.');
     }
 
+    const userGuilds = await fetchUsersGuildsCached(
+      discordAccount.userId,
+      discordAccount.accessToken,
+    );
+    if (!userGuilds.some((g) => g.id === guildId)) {
+      throw new ActionError('Guild not found');
+    }
+
     const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
 
     const role = await fetchUserRoleCached(
@@ -93,14 +129,6 @@ export const getGuildInfo = asResult(
       guildId,
       guildData?.allowedRoles ?? [],
     );
-
-    if (role === 'none') {
-      return {
-        isConfigured: false,
-        role: 'none',
-        allowedRoles: [],
-      };
-    }
 
     return {
       isConfigured: Boolean(guildData),
@@ -123,6 +151,18 @@ export const getGuildRolesAction = asResult(
     const discordAccount = await getUsersDiscordAccount(session.user.id);
     if (!discordAccount) {
       throw new ActionError('Discord account not linked or session expired. Please sign in again.');
+    }
+
+    const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
+
+    const role = await fetchUserRoleCached(
+      discordAccount.userId,
+      guildId,
+      guildData?.allowedRoles ?? [],
+    );
+
+    if (role !== 'admin') {
+      throw new ActionError('Only guild administrators can perform this action.');
     }
 
     const roles = await getGuildRolesCached(guildId);

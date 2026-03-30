@@ -52,6 +52,15 @@ export default async function GuildLayout({ params, children }: GuildLayoutProps
 
   const { role, isConfigured } = guildInfoResult.data;
 
+  if (role === 'none') {
+    return (
+      <Paper className="items-center">
+        <h2 className="text-xl">You don&apos;t have access to Tavern Master for this guild.</h2>
+        <p>If you think this is a mistake, please contact the guild owner.</p>
+      </Paper>
+    );
+  }
+
   if (!isConfigured) {
     return (
       <Paper className="items-center">
@@ -63,17 +72,8 @@ export default async function GuildLayout({ params, children }: GuildLayoutProps
     );
   }
 
-  if (role === 'none') {
-    return (
-      <Paper className="items-center">
-        <h2 className="text-xl">You don&apos;t have access to Tavern Master for this guild.</h2>
-        <p>If you think this is a mistake, please contact the guild owner.</p>
-      </Paper>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 mb-8">
       {isDateOverridden() && (
         <div className="rounded-md bg-violet-5 text-violet-12 px-3 py-1.5 text-xs font-medium text-center">
           Date override active:{' '}

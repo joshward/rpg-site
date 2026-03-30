@@ -4,7 +4,7 @@ import { DiscordApiError, getGuildMember, getGuildRoles, getGuilds } from '@/lib
 import { GuildModel, RoleModel } from '@/lib/discord/models';
 import { hasPermission, Permissions } from '@/lib/discord/permissions';
 
-type Role = 'admin' | 'member' | 'none';
+export type Role = 'admin' | 'member' | 'none';
 
 const fetchServerGuildLookup = cache(async (): Promise<Record<string, GuildModel>> => {
   const serverGuilds = await getGuilds({ cacheFor: TimeSpan.fromHours(1) });
@@ -18,7 +18,7 @@ const fetchGuildRolesLookup = cache(async (guildId: string): Promise<Record<stri
   return Object.fromEntries(roles.map((role) => [role.id, role]));
 });
 
-async function resolveRoleForGuild(
+export async function resolveRoleForGuild(
   roles: string[],
   guildId: string,
   allowedGuildRoles: string[],
