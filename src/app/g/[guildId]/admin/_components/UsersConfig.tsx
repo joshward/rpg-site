@@ -122,11 +122,26 @@ export default function UsersConfig() {
                       <td className="py-3 px-2 text-center">
                         {member.hasLoggedIn ? (
                           <div
-                            className="flex items-center justify-center gap-1.5 text-emerald-10"
-                            title="Has logged in"
+                            className="flex flex-col items-center justify-center gap-0.5 text-emerald-10"
+                            title={
+                              member.lastLoginAt
+                                ? `Last logged in: ${new Date(member.lastLoginAt).toLocaleString()}`
+                                : 'Has logged in'
+                            }
                           >
-                            <CheckCircledIcon className="size-5" />
-                            <span className="text-xs font-medium">Logged In</span>
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircledIcon className="size-5" />
+                              <span className="text-xs font-medium">Logged In</span>
+                            </div>
+                            {member.lastLoginAt && (
+                              <span className="text-[10px] text-sage-11 leading-none">
+                                {new Date(member.lastLoginAt).toLocaleDateString(undefined, {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <div

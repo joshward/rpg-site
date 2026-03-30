@@ -5,7 +5,7 @@ import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/db';
-import { account } from '@/db/schema/auth';
+import { account, user } from '@/db/schema/auth';
 import { guild } from '@/db/schema/guild';
 import { auth } from '@/lib/auth';
 import { fetchUserRole, resolveRoleForGuild } from '@/lib/authn';
@@ -171,11 +171,14 @@ export const getAdminMemberPreferences = asResult(
     // Split into chunks if there are too many (inArray might have limits)
     // But 1000 members is probably fine for most DBs.
     const dbAccounts = await db
-      .select({ accountId: account.accountId })
+      .select({ accountId: account.accountId, lastLoginAt: user.lastLoginAt })
       .from(account)
+      .innerJoin(user, eq(account.userId, user.id))
       .where(and(eq(account.providerId, 'discord'), inArray(account.accountId, discordUserIds)));
 
-    const loggedInDiscordIds = new Set(dbAccounts.map((a) => a.accountId));
+    const loggedInUsersMap = new Map(
+      dbAccounts.map((a) => [a.accountId, a.lastLoginAt] as [string, Date | null]),
+    );
 
     // Combine and filter
     const mappedResults = await Promise.all(
@@ -192,12 +195,15 @@ export const getAdminMemberPreferences = asResult(
         }
 
         const pref = dbPrefs.find((p) => p.discordUserId === m.user.id);
+        const lastLoginAt = loggedInUsersMap.get(m.user.id);
+
         return {
           discordUserId: m.user.id,
           username: m.user.username,
           displayName: m.nick || m.user.global_name || m.user.username,
           avatar: m.user.avatar,
-          hasLoggedIn: loggedInDiscordIds.has(m.user.id),
+          hasLoggedIn: loggedInUsersMap.has(m.user.id),
+          lastLoginAt: lastLoginAt ?? null,
           sessionsPerMonth: pref?.sessionsPerMonth ?? null,
         };
       }),
