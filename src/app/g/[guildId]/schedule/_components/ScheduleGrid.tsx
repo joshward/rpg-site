@@ -1,10 +1,11 @@
 'use client';
 
 import { twMerge } from 'tailwind-merge';
-import { useMemo, Fragment } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { getDaysInMonth, YearMonth } from '@/lib/availability';
 import { STATUS_MAP, UNSET_OPTION } from '../../availability/_components/availability-status';
 import { NO_LIMIT } from '@/lib/preferences';
+import { EyeOpenIcon, EyeNoneIcon } from '@radix-ui/react-icons';
 
 interface Member {
   discordUserId: string;
@@ -31,8 +32,20 @@ interface ScheduleGridProps {
 const DAY_NAMES = ['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa'] as const;
 
 export default function ScheduleGrid({ target, games, unassignedMembers }: ScheduleGridProps) {
+  const [showUnsetOptional, setShowUnsetOptional] = useState(true);
   const daysInMonth = useMemo(() => getDaysInMonth(target.year, target.month), [target]);
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
+
+  const filteredGames = useMemo(() => {
+    if (showUnsetOptional) return games;
+    return games.map((game) => ({
+      ...game,
+      members: game.members.filter((member) => {
+        if (member.isRequired) return true;
+        return Object.keys(member.availability).length > 0;
+      }),
+    }));
+  }, [games, showUnsetOptional]);
 
   const getDayInfo = (day: number) => {
     const date = new Date(Date.UTC(target.year, target.month - 1, day));
@@ -108,6 +121,22 @@ export default function ScheduleGrid({ target, games, unassignedMembers }: Sched
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setShowUnsetOptional(!showUnsetOptional)}
+          className={twMerge(
+            'flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors border shadow-sm cursor-pointer',
+            !showUnsetOptional
+              ? 'bg-violet-3 text-violet-11 border-violet-6 hover:bg-violet-4 hover:border-violet-7'
+              : 'bg-sage-3 text-sage-11 border-sage-6 hover:bg-sage-4 hover:border-sage-7',
+          )}
+        >
+          {showUnsetOptional ? <EyeOpenIcon /> : <EyeNoneIcon />}
+          {showUnsetOptional ? 'Hide Unset Optional' : 'Show Unset Optional'}
+        </button>
+      </div>
+
       <div className="overflow-x-auto border border-sage-4 rounded-lg shadow-md max-h-[70vh]">
         <table className="min-w-full border-collapse bg-sage-1">
           <thead>
@@ -131,7 +160,7 @@ export default function ScheduleGrid({ target, games, unassignedMembers }: Sched
             </tr>
           </thead>
           <tbody>
-            {games.map((game) => (
+            {filteredGames.map((game) => (
               <Fragment key={game.id}>
                 <tr className="bg-sage-3 border-b border-sage-4">
                   <td className="sticky left-0 z-20 bg-sage-3 p-2 font-bold text-xs uppercase tracking-wider text-sage-12 border-b border-sage-4 w-[200px] min-w-[200px]">
