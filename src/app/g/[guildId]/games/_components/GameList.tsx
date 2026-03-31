@@ -12,6 +12,7 @@ interface Game {
   name: string;
   status: GameStatus;
   sessionsPerMonth: number;
+  memberCount: number;
 }
 
 interface GameListProps {
@@ -55,7 +56,12 @@ export default function GameList({ initialGames }: GameListProps) {
                   {game.status.charAt(0).toUpperCase() + game.status.slice(1)}
                 </span>
               </div>
-              <div className="text-sm text-sage-11">{game.sessionsPerMonth} sessions / month</div>
+              <div className="flex flex-col gap-1 text-sm text-sage-11">
+                <div>{game.sessionsPerMonth} sessions / month</div>
+                <div>
+                  {game.memberCount} {game.memberCount === 1 ? 'player' : 'players'}
+                </div>
+              </div>
             </div>
             <div className="px-6 py-4 bg-sage-3 border-t border-sage-4 text-xs text-center font-medium uppercase tracking-wider text-sage-11 group-hover:text-plum-11 transition-colors">
               Manage Game

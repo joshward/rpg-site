@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, count } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { asResult, ActionError } from '@/actions/action-helpers';
 import { ensureAdmin, ensureAccess } from '@/actions/auth-helpers';
@@ -15,7 +15,27 @@ export const getGames = asResult(
     // Only admins for now
     await ensureAdmin(guildId);
 
-    return await db.select().from(game).where(eq(game.guildId, guildId)).orderBy(game.name);
+    const result = await db
+      .select({
+        id: game.id,
+        name: game.name,
+        description: game.description,
+        status: game.status,
+        sessionsPerMonth: game.sessionsPerMonth,
+        createdAt: game.createdAt,
+        updatedAt: game.updatedAt,
+        memberCount: count(gameMember.id),
+      })
+      .from(game)
+      .leftJoin(gameMember, eq(game.id, gameMember.gameId))
+      .where(eq(game.guildId, guildId))
+      .groupBy(game.id)
+      .orderBy(game.name);
+
+    return result.map((g) => ({
+      ...g,
+      memberCount: Number(g.memberCount),
+    }));
   },
   'Something went wrong fetching games.',
 );
