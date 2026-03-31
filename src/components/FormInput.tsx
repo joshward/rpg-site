@@ -6,7 +6,7 @@ import { FormField, FormFieldProps } from './FormField';
 export interface FormInputProps extends Omit<FormFieldProps, 'children' | 'onChange' | 'onBlur'> {
   inputProps?: InputProps;
   placeholder?: string;
-  value?: string;
+  value?: string | number;
   onChange?: React.ChangeEventHandler<HTMLInputElement>;
   onBlur?: React.FocusEventHandler<HTMLInputElement>;
   name?: string;

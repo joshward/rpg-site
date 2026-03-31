@@ -73,6 +73,19 @@
   --color-slate-11: var(--slate-11);
   --color-slate-12: var(--slate-12);
 
+  /* Map Radix to Tailwind scale for typography plugin */
+  --color-slate-50: var(--slate-1);
+  --color-slate-100: var(--slate-2);
+  --color-slate-200: var(--slate-3);
+  --color-slate-300: var(--slate-4);
+  --color-slate-400: var(--slate-5);
+  --color-slate-500: var(--slate-6);
+  --color-slate-600: var(--slate-7);
+  --color-slate-700: var(--slate-8);
+  --color-slate-800: var(--slate-9);
+  --color-slate-900: var(--slate-10);
+  --color-slate-950: var(--slate-12);
+
   --color-mauve-1: var(--mauve-1);
   --color-mauve-2: var(--mauve-2);
   --color-mauve-3: var(--mauve-3);
@@ -125,6 +138,19 @@
   --color-sage-11: var(--sage-11);
   --color-sage-12: var(--sage-12);
 
+  /* Map Radix to Tailwind scale for typography plugin */
+  --color-sage-50: var(--sage-1);
+  --color-sage-100: var(--sage-2);
+  --color-sage-200: var(--sage-3);
+  --color-sage-300: var(--sage-4);
+  --color-sage-400: var(--sage-5);
+  --color-sage-500: var(--sage-6);
+  --color-sage-600: var(--sage-7);
+  --color-sage-700: var(--sage-8);
+  --color-sage-800: var(--sage-9);
+  --color-sage-900: var(--sage-10);
+  --color-sage-950: var(--sage-12);
+
   --color-ruby-1: var(--ruby-1);
   --color-ruby-2: var(--ruby-2);
   --color-ruby-3: var(--ruby-3);
@@ -164,6 +190,8 @@
   --color-jade-11: var(--jade-11);
   --color-jade-12: var(--jade-12);
 }
+
+@plugin "@tailwindcss/typography";
 
 @layer components {
   .loader {

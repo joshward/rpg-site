@@ -17,10 +17,12 @@ Primary goals for automation: keep changes minimal, safe, and aligned with the p
 - Auth server config: `src/lib/auth.ts`
 - Auth client: `src/lib/authClient.ts`
 - Auth API route: `src/app/api/auth/[...all]/route.ts`
+- Shared Auth helpers (server): `src/actions/auth-helpers.ts`
 - Database client: `src/db/db.ts`
 - Drizzle schema directory: `src/db/schema`
 - Drizzle config: `drizzle.config.ts`
 - Generated SQL migrations: `drizzle/`
+- Server actions: `src/actions/`
 - Next config: `next.config.ts`
 - ESLint/Prettier config: `eslint.config.mjs`, Prettier is implicit via devDependency
 - TypeScript config: `tsconfig.json`

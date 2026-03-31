@@ -1,98 +1,15 @@
 'use server';
 
-import { cache } from 'react';
-import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { account, user } from '@/db/schema/auth';
-import { guild } from '@/db/schema/guild';
-import { auth } from '@/lib/auth';
-import { fetchUserRole, resolveRoleForGuild } from '@/lib/authn';
+import { resolveRoleForGuild } from '@/lib/authn';
 import { ActionError, asResult } from '@/actions/action-helpers';
+import { ensureAccess, ensureAdmin } from '@/actions/auth-helpers';
 import { memberPreference } from '@/db/schema/member-preferences';
 import { NO_LIMIT } from '@/lib/preferences';
 import { getGuildMembers } from '@/lib/discord/api';
-
-const getSession = async () => {
-  return await auth.api.getSession({
-    headers: await headers(),
-  });
-};
-
-const getUsersDiscordAccount = cache(
-  async (userId: string): Promise<{ accessToken: string; userId: string } | undefined> => {
-    const accounts = await db.select().from(account).where(eq(account.userId, userId));
-    const discordAccount = accounts.find((a) => a.providerId === 'discord');
-
-    if (!discordAccount?.accessToken || !discordAccount.accountId) {
-      return undefined;
-    }
-
-    const isExpired =
-      discordAccount.accessTokenExpiresAt &&
-      discordAccount.accessTokenExpiresAt.getTime() - 60000 < Date.now();
-
-    if (isExpired) {
-      return undefined;
-    }
-
-    return {
-      accessToken: discordAccount.accessToken,
-      userId: discordAccount.accountId,
-    };
-  },
-);
-
-const ensureAdmin = async (guildId: string) => {
-  const session = await getSession();
-  if (!session) {
-    throw new ActionError('Not logged in');
-  }
-
-  const discordAccount = await getUsersDiscordAccount(session.user.id);
-  if (!discordAccount) {
-    throw new ActionError('Discord account not linked or session expired. Please sign in again.');
-  }
-
-  const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
-  if (!guildData) {
-    throw new ActionError('This guild is not configured for Tavern Master.');
-  }
-
-  const role = await fetchUserRole(discordAccount.userId, guildId, guildData.allowedRoles ?? []);
-
-  if (role !== 'admin') {
-    throw new ActionError('Only guild administrators can perform this action.');
-  }
-
-  return { session, discordAccount, guildData };
-};
-
-const ensureAccess = async (guildId: string) => {
-  const session = await getSession();
-  if (!session) {
-    throw new ActionError('Not logged in');
-  }
-
-  const discordAccount = await getUsersDiscordAccount(session.user.id);
-  if (!discordAccount) {
-    throw new ActionError('Discord account not linked or session expired. Please sign in again.');
-  }
-
-  const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
-  if (!guildData) {
-    throw new ActionError('This guild is not configured for Tavern Master.');
-  }
-
-  const role = await fetchUserRole(discordAccount.userId, guildId, guildData.allowedRoles ?? []);
-
-  if (role === 'none') {
-    throw new ActionError("You don't have access to this guild.");
-  }
-
-  return { session, discordAccount, guildData, role };
-};
 
 export const getMyPreference = asResult(
   'getMyPreference',

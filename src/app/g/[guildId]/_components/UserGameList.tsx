@@ -1,0 +1,144 @@
+'use client';
+
+import * as React from 'react';
+import Paper from '@/components/Paper';
+import MarkdownPreview from '@/components/MarkdownPreview';
+import { GameStatus } from '@/db/schema/games';
+import { twMerge } from 'tailwind-merge';
+import { ChevronDownIcon, ChevronUpIcon } from '@radix-ui/react-icons';
+
+interface Member {
+  discordUserId: string;
+  isRequired: boolean;
+  displayName: string;
+  avatar: string | null;
+}
+
+interface Game {
+  id: string;
+  name: string;
+  description: string | null;
+  status: GameStatus;
+  sessionsPerMonth: number;
+  isRequired: boolean;
+  members: Member[];
+}
+
+interface UserGameListProps {
+  games: Game[];
+}
+
+const statusColors: Record<GameStatus, string> = {
+  draft: 'bg-sage-4 text-sage-11 border-sage-6',
+  active: 'bg-jade-4 text-jade-11 border-jade-6',
+  paused: 'bg-amber-4 text-amber-11 border-amber-6',
+  archived: 'bg-slate-4 text-slate-11 border-slate-6',
+};
+
+export default function UserGameList({ games }: UserGameListProps) {
+  if (games.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <h2 className="text-xl font-bold px-1">Your Games</h2>
+      <div className="grid grid-cols-1 gap-4">
+        {games.map((game) => (
+          <UserGameItem key={game.id} game={game} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UserGameItem({ game }: { game: Game }) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  return (
+    <Paper className="p-0 overflow-hidden hover:border-plum-8 transition-colors">
+      <div
+        className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer hover:bg-sage-2 transition-colors"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-lg font-bold leading-tight">{game.name}</h3>
+            <span
+              className={twMerge(
+                'px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border leading-none',
+                statusColors[game.status],
+              )}
+            >
+              {game.status}
+            </span>
+            <span
+              className={twMerge(
+                'px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border leading-none',
+                game.isRequired
+                  ? 'bg-violet-4 text-violet-11 border-violet-6'
+                  : 'bg-sage-4 text-sage-11 border-sage-6',
+              )}
+            >
+              {game.isRequired ? 'Core Participant' : 'Optional Participant'}
+            </span>
+          </div>
+          <div className="text-sm text-sage-11">
+            {game.sessionsPerMonth} sessions per month (approximate)
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-2 text-sage-11">
+          <span className="text-sm font-medium">
+            {isExpanded ? 'Hide Details' : 'Show Details'}
+          </span>
+          {isExpanded ? <ChevronUpIcon /> : <ChevronDownIcon />}
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="px-4 pb-6 pt-2 border-t border-sage-4 flex flex-col gap-6 bg-sage-1/50">
+          {game.description && (
+            <div className="flex flex-col gap-2 pt-2">
+              <h4 className="text-xs font-bold text-sage-11 uppercase tracking-wider">
+                Description
+              </h4>
+              <MarkdownPreview content={game.description} />
+            </div>
+          )}
+
+          <div className="flex flex-col gap-3">
+            <h4 className="text-xs font-bold text-sage-11 uppercase tracking-wider">Players</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {game.members.map((member) => (
+                <div
+                  key={member.discordUserId}
+                  className="flex items-center gap-3 bg-sage-3 p-2 rounded-lg border border-sage-4"
+                >
+                  <div className="w-8 h-8 rounded-full bg-sage-5 flex-shrink-0 overflow-hidden border border-sage-6">
+                    {member.avatar ? (
+                      <img
+                        src={`https://cdn.discordapp.com/avatars/${member.discordUserId}/${member.avatar}.png`}
+                        alt={member.displayName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs font-bold text-sage-11">
+                        {member.displayName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-medium truncate">{member.displayName}</span>
+                    <span className="text-[10px] text-sage-11 uppercase font-bold tracking-tight">
+                      {member.isRequired ? 'Core Participant' : 'Optional Participant'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </Paper>
+  );
+}
