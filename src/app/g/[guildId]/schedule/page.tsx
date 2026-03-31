@@ -28,10 +28,17 @@ export default async function AdminSchedulePage({ params, searchParams }: PagePr
   const { month: monthStr, year: yearStr } = await searchParams;
 
   const now = getCurrentMonth();
-  const target: YearMonth = {
-    month: monthStr ? parseInt(monthStr, 10) : now.month,
-    year: yearStr ? parseInt(yearStr, 10) : now.year,
-  };
+  let month = monthStr ? parseInt(monthStr, 10) : now.month;
+  let year = yearStr ? parseInt(yearStr, 10) : now.year;
+
+  if (isNaN(month) || month < 1 || month > 12) {
+    month = now.month;
+  }
+  if (isNaN(year) || year < 2000 || year > 2100) {
+    year = now.year;
+  }
+
+  const target: YearMonth = { month, year };
 
   const scheduleResult = await getAdminSchedule(guildId, target.year, target.month);
 

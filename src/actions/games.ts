@@ -11,6 +11,7 @@ import { memberPreference } from '@/db/schema/member-preferences';
 import { account } from '@/db/schema/auth';
 import { getGuildMembers } from '@/lib/discord/api';
 import { resolveRoleForGuild } from '@/lib/authn';
+import { TimeSpan } from 'timespan-ts';
 
 export const getGames = asResult(
   'getGames',
@@ -83,7 +84,10 @@ export const getMyGames = asResult(
       .where(inArray(gameMember.gameId, gameIds));
 
     // 3. Fetch Discord members for display names/avatars
-    const discordMembers = await getGuildMembers({ guildId });
+    const discordMembers = await getGuildMembers(
+      { guildId },
+      { cacheFor: TimeSpan.fromMinutes(5) },
+    );
     const discordMembersMap = new Map(discordMembers.map((m) => [m.user.id, m]));
 
     // 4. Combine them
@@ -267,7 +271,7 @@ export const getEligibleGameMembers = asResult(
     const { guildData } = await ensureAdmin(guildId);
     const allowedRoles = guildData?.allowedRoles ?? [];
 
-    const members = await getGuildMembers({ guildId });
+    const members = await getGuildMembers({ guildId }, { cacheFor: TimeSpan.fromMinutes(1) });
 
     const mappedResults = await Promise.all(
       members.map(async (m) => {
@@ -315,7 +319,10 @@ export const getAdminSchedule = asResult(
         : [];
 
     // 2. Fetch all Discord members to get display names, avatars, and identify unassigned players
-    const discordMembers = await getGuildMembers({ guildId });
+    const discordMembers = await getGuildMembers(
+      { guildId },
+      { cacheFor: TimeSpan.fromMinutes(1) },
+    );
 
     // 3. Fetch member preferences
     const dbPrefs = await db
@@ -352,12 +359,21 @@ export const getAdminSchedule = asResult(
             .where(inArray(availabilityDay.submissionId, submissionIds))
         : [];
 
+    const daysBySubmissionId = new Map<string, (typeof availabilityDays)[0][]>();
+    for (const d of availabilityDays) {
+      if (!daysBySubmissionId.has(d.submissionId)) {
+        daysBySubmissionId.set(d.submissionId, []);
+      }
+      daysBySubmissionId.get(d.submissionId)!.push(d);
+    }
+
     const availabilityMap = new Map<string, Map<number, string>>();
     for (const sub of submissions) {
       const userDays = new Map<number, string>();
-      availabilityDays
-        .filter((d) => d.submissionId === sub.id)
-        .forEach((d) => userDays.set(d.day, d.status));
+      const days = daysBySubmissionId.get(sub.id) ?? [];
+      for (const d of days) {
+        userDays.set(d.day, d.status);
+      }
       availabilityMap.set(sub.discordUserId, userDays);
     }
 
