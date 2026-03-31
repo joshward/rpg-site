@@ -10,6 +10,7 @@ import {
   GearIcon,
   MixerHorizontalIcon,
   RocketIcon,
+  ClockIcon,
 } from '@radix-ui/react-icons';
 import {
   DefaultTransitionStyles,
@@ -39,6 +40,7 @@ export default function GuildTabBar({ guildId, isAdmin }: GuildTabBarProps) {
     ...(isAdmin
       ? [
           { label: 'Games', href: `${basePath}/games`, icon: <RocketIcon /> },
+          { label: 'Schedule', href: `${basePath}/schedule`, icon: <ClockIcon /> },
           { label: 'Guild Settings', href: `${basePath}/admin`, icon: <GearIcon /> },
         ]
       : []),

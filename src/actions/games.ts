@@ -6,6 +6,9 @@ import { db } from '@/db/db';
 import { asResult, ActionError } from '@/actions/action-helpers';
 import { ensureAdmin, ensureAccess } from '@/actions/auth-helpers';
 import { game, gameMember, gameStatusEnum, GameStatus } from '@/db/schema/games';
+import { availabilitySubmission, availabilityDay } from '@/db/schema/availability';
+import { memberPreference } from '@/db/schema/member-preferences';
+import { account } from '@/db/schema/auth';
 import { getGuildMembers } from '@/lib/discord/api';
 import { resolveRoleForGuild } from '@/lib/authn';
 
@@ -289,4 +292,149 @@ export const getEligibleGameMembers = asResult(
     return result.sort((a, b) => a.displayName.localeCompare(b.displayName));
   },
   'Something went wrong fetching eligible members.',
+);
+
+export const getAdminSchedule = asResult(
+  'getAdminSchedule',
+  async (guildId: string, year: number, month: number) => {
+    const { guildData } = await ensureAdmin(guildId);
+    const allowedRoles = guildData?.allowedRoles ?? [];
+
+    // 1. Fetch all active and paused games with their members
+    const games = await db
+      .select()
+      .from(game)
+      .where(and(eq(game.guildId, guildId), inArray(game.status, ['active', 'paused'])))
+      .orderBy(game.status, game.name); // Active before Paused (alphabetical within status)
+
+    const gameIds = games.map((g) => g.id);
+
+    const allGameMembers =
+      gameIds.length > 0
+        ? await db.select().from(gameMember).where(inArray(gameMember.gameId, gameIds))
+        : [];
+
+    // 2. Fetch all Discord members to get display names, avatars, and identify unassigned players
+    const discordMembers = await getGuildMembers({ guildId });
+
+    // 3. Fetch member preferences
+    const dbPrefs = await db
+      .select()
+      .from(memberPreference)
+      .where(eq(memberPreference.guildId, guildId));
+    const prefsMap = new Map(dbPrefs.map((p) => [p.discordUserId, p.sessionsPerMonth]));
+
+    // 4. Fetch availability for the target month
+    const submissions = await db
+      .select({
+        id: availabilitySubmission.id,
+        discordUserId: account.accountId,
+      })
+      .from(availabilitySubmission)
+      .innerJoin(
+        account,
+        and(eq(account.userId, availabilitySubmission.userId), eq(account.providerId, 'discord')),
+      )
+      .where(
+        and(
+          eq(availabilitySubmission.guildId, guildId),
+          eq(availabilitySubmission.year, year),
+          eq(availabilitySubmission.month, month),
+        ),
+      );
+
+    const submissionIds = submissions.map((s) => s.id);
+    const availabilityDays =
+      submissionIds.length > 0
+        ? await db
+            .select()
+            .from(availabilityDay)
+            .where(inArray(availabilityDay.submissionId, submissionIds))
+        : [];
+
+    const availabilityMap = new Map<string, Map<number, string>>();
+    for (const sub of submissions) {
+      const userDays = new Map<number, string>();
+      availabilityDays
+        .filter((d) => d.submissionId === sub.id)
+        .forEach((d) => userDays.set(d.day, d.status));
+      availabilityMap.set(sub.discordUserId, userDays);
+    }
+
+    // 5. Map everything together
+    const discordMembersMap = new Map(discordMembers.map((m) => [m.user.id, m]));
+
+    const mappedGames = games.map((g) => ({
+      id: g.id,
+      name: g.name,
+      status: g.status,
+      members: allGameMembers
+        .filter((m) => m.gameId === g.id)
+        .map((m) => {
+          const dm = discordMembersMap.get(m.discordUserId);
+          const availability = Object.fromEntries(
+            availabilityMap.get(m.discordUserId) ?? new Map(),
+          );
+          return {
+            discordUserId: m.discordUserId,
+            displayName: dm ? dm.nick || dm.user.global_name || dm.user.username : 'Unknown',
+            avatar: dm?.user.avatar ?? null,
+            isRequired: m.isRequired,
+            sessionsPerMonth: prefsMap.get(m.discordUserId) ?? null,
+            availability,
+          };
+        })
+        .sort((a, b) => {
+          // 1. Core members on top
+          if (a.isRequired && !b.isRequired) return -1;
+          if (!a.isRequired && b.isRequired) return 1;
+
+          // 2. Filled out schedule
+          const aHasSchedule = Object.keys(a.availability).length > 0;
+          const bHasSchedule = Object.keys(b.availability).length > 0;
+          if (aHasSchedule && !bHasSchedule) return -1;
+          if (!aHasSchedule && bHasSchedule) return 1;
+
+          // 3. Alphabetical
+          return a.displayName.localeCompare(b.displayName);
+        }),
+    }));
+
+    // 6. Identify unassigned members (with allowed roles/admins, not in any game)
+    const assignedDiscordUserIds = new Set(allGameMembers.map((m) => m.discordUserId));
+    const unassignedMembers = [];
+
+    for (const m of discordMembers) {
+      if (m.user.bot) continue;
+      if (assignedDiscordUserIds.has(m.user.id)) continue;
+
+      const role = await resolveRoleForGuild(m.roles, guildId, allowedRoles);
+      if (role === 'none') continue;
+
+      unassignedMembers.push({
+        discordUserId: m.user.id,
+        displayName: m.nick || m.user.global_name || m.user.username,
+        avatar: m.user.avatar,
+        sessionsPerMonth: prefsMap.get(m.user.id) ?? null,
+        availability: Object.fromEntries(availabilityMap.get(m.user.id) ?? new Map()),
+      });
+    }
+
+    unassignedMembers.sort((a, b) => {
+      // 1. Filled out schedule
+      const aHasSchedule = Object.keys(a.availability).length > 0;
+      const bHasSchedule = Object.keys(b.availability).length > 0;
+      if (aHasSchedule && !bHasSchedule) return -1;
+      if (!aHasSchedule && bHasSchedule) return 1;
+
+      // 2. Alphabetical
+      return a.displayName.localeCompare(b.displayName);
+    });
+
+    return {
+      games: mappedGames,
+      unassignedMembers,
+    };
+  },
+  'Something went wrong fetching the schedule.',
 );
