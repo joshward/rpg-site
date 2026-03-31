@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @import "@radix-ui/colors/white-alpha.css";
 @import "@radix-ui/colors/black-alpha.css";
