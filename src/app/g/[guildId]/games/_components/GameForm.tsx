@@ -329,7 +329,7 @@ export default function GameForm({ initialData, eligibleMembers }: GameFormProps
                                   m.isRequired ? 'text-amber-11' : 'text-sage-10',
                                 )}
                               >
-                                {m.isRequired ? 'Required' : 'Optional'}
+                                {m.isRequired ? 'Core Participant' : 'Optional Participant'}
                               </button>
                             </div>
                           </div>

@@ -40,6 +40,68 @@ export const getGames = asResult(
   'Something went wrong fetching games.',
 );
 
+export const getMyGames = asResult(
+  'getMyGames',
+  async (guildId: string) => {
+    const { discordAccount } = await ensureAccess(guildId);
+    const discordUserId = discordAccount.userId;
+
+    // 1. Find all games where the user is a member and the status is active or paused
+    const userGames = await db
+      .select({
+        id: game.id,
+        name: game.name,
+        description: game.description,
+        status: game.status,
+        sessionsPerMonth: game.sessionsPerMonth,
+        isRequired: gameMember.isRequired,
+      })
+      .from(game)
+      .innerJoin(gameMember, eq(game.id, gameMember.gameId))
+      .where(
+        and(
+          eq(game.guildId, guildId),
+          eq(gameMember.discordUserId, discordUserId),
+          inArray(game.status, ['active', 'paused']),
+        ),
+      )
+      .orderBy(game.name);
+
+    if (userGames.length === 0) {
+      return [];
+    }
+
+    const gameIds = userGames.map((g) => g.id);
+
+    // 2. Fetch all members for these games
+    const allMembers = await db
+      .select()
+      .from(gameMember)
+      .where(inArray(gameMember.gameId, gameIds));
+
+    // 3. Fetch Discord members for display names/avatars
+    const discordMembers = await getGuildMembers({ guildId });
+    const discordMembersMap = new Map(discordMembers.map((m) => [m.user.id, m]));
+
+    // 4. Combine them
+    return userGames.map((g) => ({
+      ...g,
+      members: allMembers
+        .filter((m) => m.gameId === g.id)
+        .map((m) => {
+          const dm = discordMembersMap.get(m.discordUserId);
+          return {
+            discordUserId: m.discordUserId,
+            isRequired: m.isRequired,
+            displayName: dm ? dm.nick || dm.user.global_name || dm.user.username : 'Unknown User',
+            avatar: dm?.user.avatar ?? null,
+          };
+        }),
+    }));
+  },
+  'Something went wrong fetching your games.',
+);
+
 export const getGame = asResult(
   'getGame',
   async (guildId: string, gameId: string) => {

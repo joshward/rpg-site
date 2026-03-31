@@ -3,9 +3,11 @@ import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
 import Link from '@/components/Link';
 import { getMyPreference } from '@/actions/preferences';
+import { getMyGames } from '@/actions/games';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
 import { GuildRouteProps, getGuildName } from './helpers';
+import UserGameList from './_components/UserGameList';
 
 export async function generateMetadata({ params }: GuildRouteProps): Promise<Metadata> {
   const { guildId } = await params;
@@ -15,7 +17,10 @@ export async function generateMetadata({ params }: GuildRouteProps): Promise<Met
 
 export default async function GuildPage({ params }: GuildRouteProps) {
   const { guildId } = await params;
-  const prefResult = await getMyPreference(guildId);
+  const [prefResult, gamesResult] = await Promise.all([
+    getMyPreference(guildId),
+    getMyGames(guildId),
+  ]);
 
   let banner = null;
   if (!isFailure(prefResult)) {
@@ -38,13 +43,17 @@ export default async function GuildPage({ params }: GuildRouteProps) {
     }
   }
 
+  const myGames = isFailure(gamesResult) ? [] : gamesResult.data;
+
   return (
     <div className="flex flex-col gap-4">
       {banner}
       <Paper>
         <h2 className="text-xl font-bold">Overview</h2>
-        <p className="text-sage-11">Welcome to your guild. More features coming soon.</p>
+        <p className="text-sage-11">Welcome to your guild.</p>
       </Paper>
+
+      {myGames.length > 0 && <UserGameList games={myGames} />}
     </div>
   );
 }
