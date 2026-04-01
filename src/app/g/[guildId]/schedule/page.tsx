@@ -102,7 +102,13 @@ export default async function AdminSchedulePage({ params, searchParams }: PagePr
       <Suspense
         fallback={<div className="h-64 animate-pulse bg-sage-2 rounded-lg border border-sage-4" />}
       >
-        <ScheduleGrid target={target} games={games} unassignedMembers={unassignedMembers} />
+        <ScheduleGrid
+          guildId={guildId}
+          target={target}
+          now={now}
+          games={games}
+          unassignedMembers={unassignedMembers}
+        />
       </Suspense>
     </div>
   );

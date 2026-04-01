@@ -5,7 +5,7 @@ import Paper from '@/components/Paper';
 import MarkdownPreview from '@/components/MarkdownPreview';
 import { GameStatus } from '@/db/schema/games';
 import { twMerge } from 'tailwind-merge';
-import { ChevronDownIcon, ChevronUpIcon } from '@radix-ui/react-icons';
+import { ChevronDownIcon, ChevronUpIcon, ClockIcon } from '@radix-ui/react-icons';
 
 interface Member {
   discordUserId: string;
@@ -21,6 +21,7 @@ interface Game {
   status: GameStatus;
   sessionsPerMonth: number;
   isRequired: boolean;
+  scheduledDates?: { year: number; month: number; day: number }[];
   members: Member[];
 }
 
@@ -34,6 +35,14 @@ const statusColors: Record<GameStatus, string> = {
   paused: 'bg-amber-4 text-amber-11 border-amber-6',
   archived: 'bg-slate-4 text-slate-11 border-slate-6',
 };
+
+function formatScheduledDate(date: { year: number; month: number; day: number }) {
+  return new Date(date.year, date.month - 1, date.day).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
 
 export default function UserGameList({ games }: UserGameListProps) {
   if (games.length === 0) {
@@ -83,8 +92,16 @@ function UserGameItem({ game }: { game: Game }) {
               {game.isRequired ? 'Core Participant' : 'Optional Participant'}
             </span>
           </div>
-          <div className="text-sm text-sage-11">
-            {game.sessionsPerMonth} sessions per month (approximate)
+          <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-4">
+            <div className="text-sm text-sage-11">
+              {game.sessionsPerMonth} sessions per month (approximate)
+            </div>
+            {game.scheduledDates && game.scheduledDates.length > 0 && (
+              <div className="text-sm text-violet-11 font-bold flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-9 animate-pulse shrink-0" />
+                Next session: {formatScheduledDate(game.scheduledDates[0])}
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center justify-end gap-2 text-sage-11">
@@ -97,6 +114,24 @@ function UserGameItem({ game }: { game: Game }) {
 
       {isExpanded && (
         <div className="px-4 pb-6 pt-2 border-t border-sage-4 flex flex-col gap-6 bg-sage-1/50">
+          {game.scheduledDates && game.scheduledDates.length > 0 && (
+            <div className="flex flex-col gap-2 pt-2">
+              <h4 className="text-xs font-bold text-sage-11 uppercase tracking-wider">
+                Scheduled Sessions
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {game.scheduledDates.map((date) => (
+                  <div
+                    key={`${date.year}-${date.month}-${date.day}`}
+                    className="bg-violet-3 text-violet-11 border border-violet-6 px-3 py-1 rounded-lg text-sm font-bold flex items-center gap-1.5 shadow-sm"
+                  >
+                    <ClockIcon className="w-3.5 h-3.5" />
+                    {formatScheduledDate(date)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {game.description && (
             <div className="flex flex-col gap-2 pt-2">
               <h4 className="text-xs font-bold text-sage-11 uppercase tracking-wider">

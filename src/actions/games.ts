@@ -1,17 +1,18 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { and, eq, inArray, count } from 'drizzle-orm';
+import { and, eq, inArray, count, or, gt, gte } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { asResult, ActionError } from '@/actions/action-helpers';
 import { ensureAdmin, ensureAccess } from '@/actions/auth-helpers';
-import { game, gameMember, gameStatusEnum, GameStatus } from '@/db/schema/games';
+import { game, gameMember, gameStatusEnum, GameStatus, scheduledSession } from '@/db/schema/games';
 import { availabilitySubmission, availabilityDay } from '@/db/schema/availability';
 import { memberPreference } from '@/db/schema/member-preferences';
 import { account } from '@/db/schema/auth';
 import { getGuildMembers } from '@/lib/discord/api';
 import { resolveRoleForGuild } from '@/lib/authn';
 import { TimeSpan } from 'timespan-ts';
+import { getNow } from '@/lib/availability';
 
 export const getGames = asResult(
   'getGames',
@@ -90,9 +91,38 @@ export const getMyGames = asResult(
     );
     const discordMembersMap = new Map(discordMembers.map((m) => [m.user.id, m]));
 
-    // 4. Combine them
+    // 4. Fetch scheduled sessions from today onwards
+    const now = getNow();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const currentDay = now.getDate();
+
+    const scheduled = await db
+      .select()
+      .from(scheduledSession)
+      .where(
+        and(
+          eq(scheduledSession.guildId, guildId),
+          inArray(scheduledSession.gameId, gameIds),
+          or(
+            gt(scheduledSession.year, currentYear),
+            and(eq(scheduledSession.year, currentYear), gt(scheduledSession.month, currentMonth)),
+            and(
+              eq(scheduledSession.year, currentYear),
+              eq(scheduledSession.month, currentMonth),
+              gte(scheduledSession.day, currentDay),
+            ),
+          ),
+        ),
+      )
+      .orderBy(scheduledSession.year, scheduledSession.month, scheduledSession.day);
+
+    // 5. Combine them
     return userGames.map((g) => ({
       ...g,
+      scheduledDates: scheduled
+        .filter((s) => s.gameId === g.id)
+        .map((s) => ({ year: s.year, month: s.month, day: s.day })),
       members: allMembers
         .filter((m) => m.gameId === g.id)
         .map((m) => {
@@ -377,13 +407,35 @@ export const getAdminSchedule = asResult(
       availabilityMap.set(sub.discordUserId, userDays);
     }
 
-    // 5. Map everything together
+    // 5. Fetch scheduled sessions for the month
+    const scheduled = await db
+      .select()
+      .from(scheduledSession)
+      .where(
+        and(
+          eq(scheduledSession.guildId, guildId),
+          eq(scheduledSession.year, year),
+          eq(scheduledSession.month, month),
+        ),
+      );
+
+    const gameSchedulesMap = new Map<string, number[]>();
+    for (const s of scheduled) {
+      if (!gameSchedulesMap.has(s.gameId)) {
+        gameSchedulesMap.set(s.gameId, []);
+      }
+      gameSchedulesMap.get(s.gameId)!.push(s.day);
+    }
+
+    // 6. Map everything together
     const discordMembersMap = new Map(discordMembers.map((m) => [m.user.id, m]));
 
     const mappedGames = games.map((g) => ({
       id: g.id,
       name: g.name,
       status: g.status,
+      sessionsPerMonth: g.sessionsPerMonth,
+      scheduledDays: gameSchedulesMap.get(g.id) ?? [],
       members: allGameMembers
         .filter((m) => m.gameId === g.id)
         .map((m) => {
@@ -416,7 +468,7 @@ export const getAdminSchedule = asResult(
         }),
     }));
 
-    // 6. Identify unassigned members (with allowed roles/admins, not in any game)
+    // 7. Identify unassigned members (with allowed roles/admins, not in any game)
     const assignedDiscordUserIds = new Set(allGameMembers.map((m) => m.discordUserId));
     const unassignedMembers = [];
 
@@ -453,4 +505,61 @@ export const getAdminSchedule = asResult(
     };
   },
   'Something went wrong fetching the schedule.',
+);
+
+export const saveMonthSchedule = asResult(
+  'saveMonthSchedule',
+  async (guildId: string, year: number, month: number, gameDates: Record<string, number[]>) => {
+    await ensureAdmin(guildId);
+
+    // Validate editing window: current month or next month
+    const now = getNow();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    const targetDate = new Date(year, month - 1);
+    const currentDate = new Date(currentYear, currentMonth - 1);
+    const nextMonthDate = new Date(currentYear, currentMonth);
+
+    const isCurrent = targetDate.getTime() === currentDate.getTime();
+    const isNext = targetDate.getTime() === nextMonthDate.getTime();
+
+    if (!isCurrent && !isNext) {
+      throw new ActionError('Schedules can only be edited for the current or next month.');
+    }
+
+    await db.transaction(async (tx) => {
+      // 1. Delete all existing scheduled sessions for this guild/year/month
+      await tx
+        .delete(scheduledSession)
+        .where(
+          and(
+            eq(scheduledSession.guildId, guildId),
+            eq(scheduledSession.year, year),
+            eq(scheduledSession.month, month),
+          ),
+        );
+
+      // 2. Insert new ones
+      const values = [];
+      for (const [gameId, days] of Object.entries(gameDates)) {
+        for (const day of days) {
+          values.push({
+            guildId,
+            gameId,
+            year,
+            month,
+            day,
+          });
+        }
+      }
+
+      if (values.length > 0) {
+        await tx.insert(scheduledSession).values(values);
+      }
+    });
+
+    revalidatePath(`/g/${guildId}/schedule`);
+  },
+  'Something went wrong saving the schedule.',
 );

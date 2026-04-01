@@ -57,6 +57,13 @@
       "when": 1774917202605,
       "tag": "0007_add_games_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775005578921,
+      "tag": "0008_add_scheduled_sessions_table",
+      "breakpoints": true
     }
   ]
 }

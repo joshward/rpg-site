@@ -37,3 +37,27 @@ export const gameMember = pgTable(
   },
   (table) => [unique().on(table.gameId, table.discordUserId)],
 );
+
+export const scheduledSession = pgTable(
+  'scheduled_sessions',
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    guildId: text()
+      .notNull()
+      .references(() => guild.id, { onDelete: 'cascade' }),
+    gameId: text()
+      .notNull()
+      .references(() => game.id, { onDelete: 'cascade' }),
+    year: integer().notNull(),
+    month: integer().notNull(),
+    day: integer().notNull(),
+    createdAt: timestamp().defaultNow().notNull(),
+    updatedAt: timestamp()
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [unique().on(table.guildId, table.year, table.month, table.day)],
+);
