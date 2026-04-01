@@ -103,6 +103,7 @@ export default async function AdminSchedulePage({ params, searchParams }: PagePr
         fallback={<div className="h-64 animate-pulse bg-sage-2 rounded-lg border border-sage-4" />}
       >
         <ScheduleGrid
+          key={`${target.year}-${target.month}`}
           guildId={guildId}
           target={target}
           now={now}

@@ -15,12 +15,6 @@ import {
 import { saveMonthSchedule } from '@/actions/games';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/Button';
-import {
-  DefaultTransitionStyles,
-  FocusResetStyles,
-  ShowFocusOnKeyboardStyles,
-} from '@/styles/common';
-import { asResult } from '@/actions/action-helpers';
 
 interface Member {
   discordUserId: string;
