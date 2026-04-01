@@ -61,6 +61,12 @@ export default function ScheduleGrid({
   const daysInMonth = useMemo(() => getDaysInMonth(target.year, target.month), [target]);
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
 
+  const allScheduledDays = useMemo(() => {
+    const set = new Set<number>();
+    Object.values(gameDates).forEach((days) => days.forEach((d) => set.add(d)));
+    return set;
+  }, [gameDates]);
+
   // Editing window check: current month or next month
   const isEditable = useMemo(() => {
     const currentYear = now.year;
@@ -244,11 +250,14 @@ export default function ScheduleGrid({
           const status = member.availability[day];
           const option = status ? STATUS_MAP[status as keyof typeof STATUS_MAP] : UNSET_OPTION;
 
+          const isSelected = !isUnassigned && gameDates[keyPrefix]?.includes(day);
+          const isConflict = !isUnassigned && !isSelected && allScheduledDays.has(day);
+
           return (
             <td
               key={day}
               className={twMerge(
-                'p-0 border-r border-sage-3 text-center min-w-[32px] h-10',
+                'p-0 border-r border-sage-3 text-center min-w-[32px] h-10 transition-colors relative',
                 isWeekend && 'bg-sage-3/30',
               )}
             >
@@ -261,6 +270,10 @@ export default function ScheduleGrid({
               >
                 <option.icon className="w-3.5 h-3.5" />
               </div>
+              {isSelected && (
+                <div className="absolute inset-0 bg-violet-9/15 pointer-events-none" />
+              )}
+              {isConflict && <div className="absolute inset-0 bg-black/10 pointer-events-none" />}
             </td>
           );
         })}
@@ -405,6 +418,7 @@ export default function ScheduleGrid({
                             'p-0 border-r border-sage-4 bg-sage-3/30 min-w-[32px] h-10 transition-colors',
                             isEditable && 'cursor-pointer hover:bg-sage-4/50',
                             isSelected && 'bg-violet-9/20',
+                            otherGameId && 'bg-black/10',
                           )}
                           onClick={() => toggleDay(game.id, day)}
                         >
@@ -480,6 +494,15 @@ export default function ScheduleGrid({
             <div className="w-1.5 h-1.5 rounded-full bg-sage-11" />
           </div>
           <span className="text-sage-12">Conflict (Another Game)</span>
+        </div>
+        <div className="w-px h-4 bg-sage-4 mx-2" />
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-4 rounded-sm bg-violet-9/15 border border-violet-9/30" />
+          <span className="text-sage-12">Game Column Highlight</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-4 rounded-sm bg-black/10 border border-black/20" />
+          <span className="text-sage-12">Other Game Day Darken</span>
         </div>
       </div>
     </div>
