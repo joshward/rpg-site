@@ -12,7 +12,8 @@ import { ensureAdmin } from '@/actions/auth-helpers';
 import { getGuildMembers } from '@/lib/discord/api';
 import { getDefaultMetadata } from '@/lib/metadata';
 import {
-  getAvailableMonth,
+  getDefaultAvailabilityMonth,
+  getEditableMonths,
   getCurrentMonth,
   getNextMonth,
   getPrevYearMonth,
@@ -68,11 +69,8 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
 
   const preferenceUnset = prefResult.data.sessionsPerMonth === null;
 
-  // The editable month (if the submission window is open)
-  const editableMonth = getAvailableMonth();
-
-  // Default month: the editable month if window is open, otherwise current calendar month
-  const defaultMonth = editableMonth ?? getCurrentMonth();
+  // Default month: next month if in last 7 days of current month, otherwise current month
+  const defaultMonth = getDefaultAvailabilityMonth();
 
   // Determine which month to view from search params
   const queryYear = query.year ? Number.parseInt(query.year, 10) : NaN;
@@ -87,19 +85,21 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
     : defaultMonth;
 
   // Is this month editable?
-  // For regular users: only current available month
-  // For admins: any month that they can navigate to (currently restricted by isEditable in grid,
-  // but here let's allow admins to edit if it's current or next month)
-  const isTargetEditable = targetUserId
-    ? isSameMonth(viewedMonth, getCurrentMonth()) || isSameMonth(viewedMonth, getNextMonth())
-    : editableMonth !== null && isSameMonth(viewedMonth, editableMonth);
+  // Current month and next month are always editable
+  const editableMonths = getEditableMonths();
+  const isTargetEditable = editableMonths.some((m) => isSameMonth(viewedMonth, m));
 
   const windowOpen = isTargetEditable;
 
   // Is this a future month where the window hasn't opened yet?
+  // Since next month is now always open, we only check further future
+  const currentMonth = getCurrentMonth();
   const nextMonth = getNextMonth();
-  const isFutureMonth = isSameMonth(viewedMonth, nextMonth) && !windowOpen;
-  const windowOpensAt = isFutureMonth ? getSubmissionWindowOpen(viewedMonth).toISOString() : null;
+  const isFarFutureMonth =
+    !isSameMonth(viewedMonth, currentMonth) && !isSameMonth(viewedMonth, nextMonth);
+  const windowOpensAt = isFarFutureMonth
+    ? getSubmissionWindowOpen(viewedMonth).toISOString()
+    : null;
 
   // Fetch existing submission if any
   const existingResult = targetUserId

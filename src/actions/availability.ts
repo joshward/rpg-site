@@ -8,9 +8,10 @@ import { ensureAccess, ensureAdmin } from '@/actions/auth-helpers';
 import { availabilitySubmission, availabilityDay } from '@/db/schema/availability';
 import { account } from '@/db/schema/auth';
 import {
-  getAvailableMonth as getAvailableMonthHelper,
+  getEditableMonths,
   getDaysInMonth,
   validateDays,
+  isSameMonth,
   type YearMonth,
 } from '@/lib/availability';
 
@@ -21,14 +22,6 @@ export interface DayAvailability {
   day: number;
   status: AvailabilityStatus;
 }
-
-export const getAvailableMonthAction = asResult(
-  'getAvailableMonthAction',
-  async (): Promise<YearMonth | null> => {
-    return getAvailableMonthHelper();
-  },
-  'Something went wrong determining the availability window.',
-);
 
 export const getMyAvailability = asResult(
   'getMyAvailability',
@@ -75,14 +68,13 @@ export const submitAvailability = asResult(
   async (guildId: string, year: number, month: number, days: DayAvailability[]) => {
     const { session, discordAccount } = await ensureAccess(guildId);
 
-    // Verify the submission window is open
-    const availableMonth = getAvailableMonthHelper();
-    if (!availableMonth) {
-      throw new ActionError('The availability submission window is not currently open.');
-    }
+    // Verify the submission is for an allowed month (current or next)
+    const editableMonths = getEditableMonths();
+    const targetMonth: YearMonth = { year, month };
+    const isAllowed = editableMonths.some((m) => isSameMonth(targetMonth, m));
 
-    if (year !== availableMonth.year || month !== availableMonth.month) {
-      throw new ActionError('You can only submit availability for the upcoming month.');
+    if (!isAllowed) {
+      throw new ActionError('You can only submit availability for the current or upcoming month.');
     }
 
     // Validate that all days are valid for this month
@@ -154,6 +146,9 @@ export const submitAvailability = asResult(
 
       return { submissionId: submission.id };
     });
+
+    revalidatePath(`/g/${guildId}/availability`);
+    revalidatePath(`/g/${guildId}/schedule`);
 
     return { submissionId };
   },

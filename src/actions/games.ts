@@ -388,6 +388,28 @@ export const getEligibleGameMembers = asResult(
   'Something went wrong fetching eligible members.',
 );
 
+export const isMonthScheduled = asResult(
+  'isMonthScheduled',
+  async (guildId: string, year: number, month: number) => {
+    await ensureAccess(guildId);
+
+    const scheduled = await db
+      .select()
+      .from(scheduledSession)
+      .where(
+        and(
+          eq(scheduledSession.guildId, guildId),
+          eq(scheduledSession.year, year),
+          eq(scheduledSession.month, month),
+        ),
+      )
+      .limit(1);
+
+    return (scheduled?.length ?? 0) > 0;
+  },
+  'Something went wrong checking the schedule.',
+);
+
 export const getAdminSchedule = asResult(
   'getAdminSchedule',
   async (guildId: string, year: number, month: number) => {

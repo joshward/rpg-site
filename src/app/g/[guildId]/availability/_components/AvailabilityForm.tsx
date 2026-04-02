@@ -13,6 +13,7 @@ import {
   adminSubmitMemberAvailability,
   type AvailabilityStatus,
 } from '@/actions/availability';
+import { isMonthScheduled } from '@/actions/games';
 import { isFailure } from '@/actions/result';
 import {
   getDaysInMonth,
@@ -65,7 +66,17 @@ export default function AvailabilityForm({
   const [showResetConfirm, setShowResetConfirm] = React.useState(false);
   const [showUnsetConfirm, setShowUnsetConfirm] = React.useState(false);
   const [showCopyConfirm, setShowCopyConfirm] = React.useState(false);
+  const [showScheduleConfirm, setShowScheduleConfirm] = React.useState(false);
+  const [isScheduled, setIsScheduled] = React.useState(false);
   const [copyMode, setCopyMode] = React.useState<'date' | 'weekday'>('weekday');
+
+  React.useEffect(() => {
+    isMonthScheduled(guildId, target.year, target.month).then((res) => {
+      if (!isFailure(res)) {
+        setIsScheduled(res.data);
+      }
+    });
+  }, [guildId, target.year, target.month]);
   const defaultDays = React.useMemo(() => {
     if (initialDays) {
       const lookup = new Map(initialDays.map((d) => [d.day, d.status]));
@@ -134,7 +145,22 @@ export default function AvailabilityForm({
         title="Unset days remaining"
         description="Some days don't have a status yet. Would you like to set all remaining days to Unavailable and submit?"
         confirmLabel="Set to Unavailable & Submit"
-        onConfirm={() => doSubmit(form.state.values.days)}
+        onConfirm={() => {
+          const days = form.state.values.days.map((d) => ({
+            day: d.day,
+            status: d.status ?? ('unavailable' as AvailabilityStatus),
+          }));
+          doSubmit(days);
+        }}
+      />
+
+      <ConfirmDialog
+        open={showScheduleConfirm}
+        onOpenChange={setShowScheduleConfirm}
+        title="Schedule already created"
+        description="The schedule for this month has already been created. Please also let your Guild Admin know your availability has changed."
+        confirmLabel="Confirm & Save"
+        onConfirm={() => form.handleSubmit()}
       />
 
       <h2 className="text-xl font-bold">Availability for {formatMonthYear(target)}</h2>
@@ -162,7 +188,16 @@ export default function AvailabilityForm({
         onSubmit={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          form.handleSubmit();
+
+          const currentDays = form.state.values.days;
+          const lookup = new Map((initialDays ?? []).map((d) => [d.day, d.status]));
+          const altered = currentDays.some((d) => d.status !== (lookup.get(d.day) ?? null));
+
+          if (isScheduled && altered) {
+            setShowScheduleConfirm(true);
+          } else {
+            form.handleSubmit();
+          }
         }}
         className="flex flex-col gap-4"
       >
