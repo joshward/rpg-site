@@ -21,6 +21,7 @@ interface AvailabilityViewProps {
   previousMonthDays?: DayAvailability[] | null;
   /** ISO string of when the submission window opens, if this is a future month */
   windowOpensAt?: string | null;
+  userId?: string;
 }
 
 export default function AvailabilityView({
@@ -29,6 +30,7 @@ export default function AvailabilityView({
   windowOpen,
   previousMonthDays,
   windowOpensAt,
+  userId,
 }: AvailabilityViewProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(!existing && windowOpen);
@@ -45,6 +47,7 @@ export default function AvailabilityView({
         initialDays={existing?.days}
         previousMonthDays={previousMonthDays ?? undefined}
         onSubmitted={handleSubmitted}
+        userId={userId}
       />
     );
   }

@@ -60,6 +60,7 @@ export default function GameForm({ initialData, eligibleMembers }: GameFormProps
   const { guildId } = useParams<{ guildId: string }>();
   const router = useRouter();
   const notification = useNotification();
+  const [selectedMember, setSelectedMember] = React.useState<ComboboxOption | null>(null);
   const [previewMode, setPreviewMode] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
@@ -139,11 +140,6 @@ export default function GameForm({ initialData, eligibleMembers }: GameFormProps
     },
   });
 
-  const memberOptions: ComboboxOption[] = eligibleMembers.map((m) => ({
-    id: m.discordUserId,
-    label: m.displayName,
-  }));
-
   const handleAddMember = (option: ComboboxOption | null) => {
     if (!option) return;
     const discordUserId = option.id as string;
@@ -151,11 +147,15 @@ export default function GameForm({ initialData, eligibleMembers }: GameFormProps
     // Check if already added
     const currentMembers = form.getFieldValue('members');
     if (currentMembers.some((m) => m.discordUserId === discordUserId)) {
+      setSelectedMember(null);
       return;
     }
 
     const memberInfo = eligibleMembers.find((m) => m.discordUserId === discordUserId);
-    if (!memberInfo) return;
+    if (!memberInfo) {
+      setSelectedMember(null);
+      return;
+    }
 
     form.setFieldValue('members', [
       ...currentMembers,
@@ -166,6 +166,7 @@ export default function GameForm({ initialData, eligibleMembers }: GameFormProps
         avatar: memberInfo.avatar,
       },
     ]);
+    setSelectedMember(null);
   };
 
   const removeMember = (discordUserId: string) => {
@@ -284,12 +285,27 @@ export default function GameForm({ initialData, eligibleMembers }: GameFormProps
           </div>
 
           <div className="flex flex-col gap-4">
-            <ComboBox
-              items={memberOptions}
-              onValueChange={(val) => handleAddMember(val as ComboboxOption)}
-              placeholder="Search members to add..."
-              className="max-w-md"
-            />
+            <form.Subscribe selector={(state) => state.values.members}>
+              {(members) => {
+                const memberIds = new Set(members.map((m) => m.discordUserId));
+                const filteredOptions = eligibleMembers
+                  .filter((m) => !memberIds.has(m.discordUserId))
+                  .map((m) => ({
+                    id: m.discordUserId,
+                    label: m.displayName,
+                  }));
+
+                return (
+                  <ComboBox
+                    items={filteredOptions}
+                    value={selectedMember}
+                    onValueChange={(val) => handleAddMember(val as ComboboxOption | null)}
+                    placeholder="Search members to add..."
+                    className="max-w-md"
+                  />
+                );
+              }}
+            </form.Subscribe>
 
             <form.Field name="members">
               {(field) => (

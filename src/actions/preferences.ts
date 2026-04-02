@@ -69,6 +69,31 @@ export const setMyPreference = asResult(
   'Something went wrong saving your preferences.',
 );
 
+export const getAdminMemberPreference = asResult(
+  'getAdminMemberPreference',
+  async (guildId: string, discordUserId: string) => {
+    await ensureAdmin(guildId);
+
+    const prefs = await db
+      .select()
+      .from(memberPreference)
+      .where(
+        and(
+          eq(memberPreference.guildId, guildId),
+          eq(memberPreference.discordUserId, discordUserId),
+        ),
+      );
+
+    const pref = prefs[0];
+    if (!pref) {
+      return { sessionsPerMonth: null };
+    }
+
+    return { sessionsPerMonth: pref.sessionsPerMonth };
+  },
+  'Something went wrong fetching member preference.',
+);
+
 export const getAdminMemberPreferences = asResult(
   'getAdminMemberPreferences',
   async (guildId: string) => {

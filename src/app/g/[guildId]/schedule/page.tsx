@@ -20,12 +20,12 @@ import { twMerge } from 'tailwind-merge';
 
 interface PageProps {
   params: Promise<{ guildId: string }>;
-  searchParams: Promise<{ month?: string; year?: string }>;
+  searchParams: Promise<{ month?: string; year?: string; userId?: string }>;
 }
 
 export default async function AdminSchedulePage({ params, searchParams }: PageProps) {
   const { guildId } = await params;
-  const { month: monthStr, year: yearStr } = await searchParams;
+  const { month: monthStr, year: yearStr, userId: highlightUserId } = await searchParams;
 
   const now = getCurrentMonth();
   let month = monthStr ? parseInt(monthStr, 10) : now.month;
@@ -102,7 +102,15 @@ export default async function AdminSchedulePage({ params, searchParams }: PagePr
       <Suspense
         fallback={<div className="h-64 animate-pulse bg-sage-2 rounded-lg border border-sage-4" />}
       >
-        <ScheduleGrid target={target} games={games} unassignedMembers={unassignedMembers} />
+        <ScheduleGrid
+          key={`${target.year}-${target.month}`}
+          guildId={guildId}
+          target={target}
+          now={now}
+          games={games}
+          unassignedMembers={unassignedMembers}
+          highlightUserId={highlightUserId}
+        />
       </Suspense>
     </div>
   );

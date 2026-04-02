@@ -48,14 +48,31 @@ export function getSubmissionWindowOpen(target: YearMonth): Date {
 }
 
 /**
- * Determines the target month a user can currently submit availability for.
- * Returns the year/month if the submission window is open, otherwise null.
+ * Returns true if we are in the last 7 days of the current month.
  */
-export function getAvailableMonth(now: Date = getNow()): YearMonth | null {
-  const target = getNextMonth(now);
-  const windowOpen = getSubmissionWindowOpen(target);
+export function isLast7DaysOfCurrentMonth(now: Date = getNow()): boolean {
+  const nextMonth = getNextMonth(now);
+  const windowOpen = getSubmissionWindowOpen(nextMonth);
+  return now >= windowOpen;
+}
 
-  return now >= windowOpen ? target : null;
+/**
+ * Determines the target months a user can currently submit availability for.
+ * Returns an array of YearMonth.
+ */
+export function getEditableMonths(now: Date = getNow()): YearMonth[] {
+  return [getCurrentMonth(now), getNextMonth(now)];
+}
+
+/**
+ * Returns the default month for the availability view.
+ * Default to current month until the last 7 days of the current month, then default to next month.
+ */
+export function getDefaultAvailabilityMonth(now: Date = getNow()): YearMonth {
+  if (isLast7DaysOfCurrentMonth(now)) {
+    return getNextMonth(now);
+  }
+  return getCurrentMonth(now);
 }
 
 /**

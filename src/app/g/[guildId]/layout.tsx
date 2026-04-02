@@ -9,6 +9,7 @@ import { isFailure } from '@/actions/result';
 import { getNow, isDateOverridden } from '@/lib/availability';
 import { GuildRouteProps } from './helpers';
 import GuildTabBar from './_components/GuildTabBar';
+import ImpersonationBanner from './_components/ImpersonationBanner';
 
 interface GuildLayoutProps extends GuildRouteProps {
   children: ReactNode;
@@ -50,7 +51,7 @@ export default async function GuildLayout({ params, children }: GuildLayoutProps
     );
   }
 
-  const { role, isConfigured } = guildInfoResult.data;
+  const { role, isConfigured, isImpersonating } = guildInfoResult.data;
 
   if (role === 'none') {
     return (
@@ -61,19 +62,23 @@ export default async function GuildLayout({ params, children }: GuildLayoutProps
     );
   }
 
-  if (!isConfigured) {
+  if (!isConfigured && role !== 'admin') {
     return (
       <Paper className="items-center">
-        <Alert type={role === 'admin' ? 'warning' : 'error'}>
-          This guild is not yet configured for Tavern Master.{' '}
-          {role === 'admin' && <Link href={`/g/${guildId}/admin`}>Configure it here.</Link>}
-        </Alert>
+        <Alert type="error">This guild is not yet configured for Tavern Master.</Alert>
       </Paper>
     );
   }
 
   return (
     <div className="flex flex-col gap-4 mb-8">
+      {isImpersonating && <ImpersonationBanner guildId={guildId} />}
+      {!isConfigured && role === 'admin' && (
+        <Alert type="warning">
+          This guild is not yet configured for Tavern Master. Go to{' '}
+          <Link href={`/g/${guildId}/admin`}>Guild Settings</Link> to configure allowed roles.
+        </Alert>
+      )}
       {isDateOverridden() && (
         <div className="rounded-md bg-violet-5 text-violet-12 px-3 py-1.5 text-xs font-medium text-center">
           Date override active:{' '}

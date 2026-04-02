@@ -22,9 +22,10 @@ interface MonthNavProps {
   current: YearMonth;
   /** The default month the page shows when no params are set */
   defaultMonth: YearMonth;
+  userId?: string;
 }
 
-export default function MonthNav({ current, defaultMonth }: MonthNavProps) {
+export default function MonthNav({ current, defaultMonth, userId }: MonthNavProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
