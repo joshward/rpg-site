@@ -1,9 +1,13 @@
 'use client';
 
 import { twMerge } from 'tailwind-merge';
-import { useState, useMemo, Fragment } from 'react';
+import { useState, useMemo, Fragment, useRef, useEffect } from 'react';
 import { getDaysInMonth, YearMonth } from '@/lib/availability';
-import { STATUS_MAP, UNSET_OPTION } from '../../availability/_components/availability-status';
+import {
+  STATUS_MAP,
+  STATUS_OPTIONS,
+  UNSET_OPTION,
+} from '../../availability/_components/availability-status';
 import { NO_LIMIT } from '@/lib/preferences';
 import {
   EyeOpenIcon,
@@ -11,6 +15,7 @@ import {
   ExclamationTriangleIcon,
   TrashIcon,
   CheckIcon,
+  PersonIcon,
 } from '@radix-ui/react-icons';
 import { saveMonthSchedule } from '@/actions/games';
 import { useRouter } from 'next/navigation';
@@ -41,6 +46,7 @@ interface ScheduleGridProps {
   now: YearMonth;
   games: Game[];
   unassignedMembers: Member[];
+  highlightUserId?: string;
 }
 
 const DAY_NAMES = ['Su', 'M', 'Tu', 'W', 'Th', 'F', 'Sa'] as const;
@@ -51,6 +57,7 @@ export default function ScheduleGrid({
   now,
   games,
   unassignedMembers,
+  highlightUserId,
 }: ScheduleGridProps) {
   const [showUnsetOptional, setShowUnsetOptional] = useState(true);
   const [gameDates, setGameDates] = useState<Record<string, number[]>>(() => {
@@ -58,6 +65,13 @@ export default function ScheduleGrid({
   });
   const [saving, setSaving] = useState(false);
   const router = useRouter();
+  const highlightedRowRef = useRef<HTMLTableRowElement>(null);
+
+  useEffect(() => {
+    if (highlightUserId && highlightedRowRef.current) {
+      highlightedRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlightUserId]);
 
   const daysInMonth = useMemo(() => getDaysInMonth(target.year, target.month), [target]);
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
@@ -149,6 +163,7 @@ export default function ScheduleGrid({
     }
     return warnings;
   }, [games, gameDates]);
+
   const gameUnavailabilities = useMemo(() => {
     const unavailabilities = new Map<string, Set<number>>();
     for (const game of games) {
@@ -236,6 +251,13 @@ export default function ScheduleGrid({
     }));
   }, [games, showUnsetOptional]);
 
+  const filteredUnassigned = useMemo(() => {
+    if (showUnsetOptional) return unassignedMembers;
+    return unassignedMembers.filter((member) => {
+      return Object.keys(member.availability).length > 0;
+    });
+  }, [unassignedMembers, showUnsetOptional]);
+
   const getDayInfo = (day: number) => {
     const date = new Date(Date.UTC(target.year, target.month - 1, day));
     const dayOfWeek = date.getUTCDay();
@@ -256,16 +278,30 @@ export default function ScheduleGrid({
 
     const warning = memberWarnings.get(member.discordUserId);
 
+    const isHighlighted = member.discordUserId === highlightUserId;
+
     return (
       <tr
         key={`${keyPrefix}-${member.discordUserId}`}
-        className="border-b border-sage-4 hover:bg-sage-3/50 transition-colors"
+        ref={isHighlighted ? highlightedRowRef : null}
+        className={twMerge(
+          'border-b border-sage-4 hover:bg-sage-3/50 transition-colors',
+          isHighlighted && 'bg-violet-3/50',
+        )}
       >
-        <td className="sticky left-0 z-20 bg-sage-2 border-r border-sage-4 p-2 w-[200px] min-w-[200px] overflow-hidden">
+        <td
+          className={twMerge(
+            'sticky left-0 z-20 border-r border-sage-4 p-2 w-[200px] min-w-[200px] overflow-hidden',
+            isHighlighted ? 'bg-violet-4 shadow-[2px_0_5px_rgba(0,0,0,0.1)]' : 'bg-sage-2',
+          )}
+        >
           <div className="flex flex-col min-w-0 relative">
             <div className="flex items-center gap-1 min-w-0">
               <span
-                className="font-medium text-xs truncate text-sage-12"
+                className={twMerge(
+                  'font-medium text-xs truncate',
+                  isHighlighted ? 'text-violet-12' : 'text-sage-12',
+                )}
                 title={member.displayName}
               >
                 {member.displayName}
@@ -304,13 +340,13 @@ export default function ScheduleGrid({
             <td
               key={day}
               className={twMerge(
-                'p-0 border-r border-sage-3 text-center min-w-[32px] h-10 transition-colors relative',
-                isWeekend && 'bg-sage-3/30',
+                'p-0 border-r border-sage-3 text-center min-w-[32px] h-10 transition-colors relative group',
+                isWeekend && (isHighlighted ? 'bg-violet-3/30' : 'bg-sage-3/30'),
               )}
             >
               <div
                 className={twMerge(
-                  'w-full h-full flex items-center justify-center',
+                  'w-full h-full flex items-center justify-center transition-opacity',
                   option.activeClass,
                 )}
                 title={`Day ${day}: ${option.label}`}
@@ -512,7 +548,7 @@ export default function ScheduleGrid({
                     ></td>
                   ))}
                 </tr>
-                {unassignedMembers.map((member) => renderMemberRow(member, 'unassigned', true))}
+                {filteredUnassigned.map((member) => renderMemberRow(member, 'unassigned', true))}
               </Fragment>
             )}
           </tbody>

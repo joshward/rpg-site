@@ -8,6 +8,7 @@ import { ActionError, asResult } from '@/actions/action-helpers';
 import { ensureAdmin, getEffectiveUserContext } from '@/actions/auth-helpers';
 import { guild } from '@/db/schema/guild';
 import { memberPreference } from '@/db/schema/member-preferences';
+import { availabilitySubmission } from '@/db/schema/availability';
 import { getGuildRoles } from '@/lib/discord/api';
 import { TimeSpan } from 'timespan-ts';
 import { revalidatePath } from 'next/cache';
@@ -50,6 +51,30 @@ export const getUsersGuilds = asResult(
             and(
               eq(memberPreference.discordUserId, discordAccount.userId),
               isNull(memberPreference.userId),
+            ),
+          );
+      }
+
+      // Backfill userId in availability_submissions if it's missing
+      const availabilityNeedsBackfill = await db
+        .select({ id: availabilitySubmission.id })
+        .from(availabilitySubmission)
+        .where(
+          and(
+            eq(availabilitySubmission.discordUserId, discordAccount.userId),
+            isNull(availabilitySubmission.userId),
+          ),
+        )
+        .limit(1);
+
+      if (availabilityNeedsBackfill.length > 0) {
+        await db
+          .update(availabilitySubmission)
+          .set({ userId: session.user.id })
+          .where(
+            and(
+              eq(availabilitySubmission.discordUserId, discordAccount.userId),
+              isNull(availabilitySubmission.userId),
             ),
           );
       }

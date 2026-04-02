@@ -8,7 +8,11 @@ import Button from '@/components/Button';
 import Paper from '@/components/Paper';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useNotification } from '@/components/Notification';
-import { submitAvailability, type AvailabilityStatus } from '@/actions/availability';
+import {
+  submitAvailability,
+  adminSubmitMemberAvailability,
+  type AvailabilityStatus,
+} from '@/actions/availability';
 import { isFailure } from '@/actions/result';
 import {
   getDaysInMonth,
@@ -31,6 +35,7 @@ interface AvailabilityFormProps {
   /** Previous month's submitted days, used for the copy feature */
   previousMonthDays?: { day: number; status: AvailabilityStatus }[];
   onSubmitted?: () => void;
+  userId?: string;
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
@@ -51,6 +56,7 @@ export default function AvailabilityForm({
   initialDays,
   previousMonthDays,
   onSubmitted,
+  userId,
 }: AvailabilityFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
@@ -78,7 +84,10 @@ export default function AvailabilityForm({
         day: d.day,
         status: d.status ?? ('unavailable' as AvailabilityStatus),
       }));
-      const result = await submitAvailability(guildId, target.year, target.month, resolved);
+
+      const result = userId
+        ? await adminSubmitMemberAvailability(guildId, target.year, target.month, userId, resolved)
+        : await submitAvailability(guildId, target.year, target.month, resolved);
 
       if (isFailure(result)) {
         notification.add({
@@ -90,12 +99,14 @@ export default function AvailabilityForm({
         notification.add({
           type: 'success',
           title: 'Success',
-          description: 'Your availability has been submitted.',
+          description: userId
+            ? "Member's availability has been updated."
+            : 'Your availability has been submitted.',
         });
         onSubmitted?.();
       }
     },
-    [guildId, target.year, target.month, notification, onSubmitted],
+    [guildId, target.year, target.month, notification, onSubmitted, userId],
   );
 
   const form = useForm({

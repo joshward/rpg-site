@@ -211,18 +211,31 @@ export default function UsersConfig() {
                         />
                       </td>
                       <td className="py-3 px-2 text-right">
-                        {member.hasLoggedIn && (
+                        <div className="flex items-center justify-end gap-2">
+                          {member.hasLoggedIn && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleImpersonate(member.discordUserId)}
+                              disabled={impersonatingId === member.discordUserId}
+                              title="Impersonate User"
+                              className="bg-violet-1 border-violet-7 hover:bg-violet-4 text-violet-11"
+                            >
+                              <PersonIcon className="mr-2 h-4 w-4" />
+                              Impersonate
+                            </Button>
+                          )}
                           <Button
                             size="sm"
-                            onClick={() => handleImpersonate(member.discordUserId)}
-                            disabled={impersonatingId === member.discordUserId}
-                            title="Impersonate User"
-                            className="bg-violet-1 border-violet-7 hover:bg-violet-4 text-violet-11"
+                            onClick={() =>
+                              router.push(
+                                `/g/${guildId}/availability?userId=${member.discordUserId}`,
+                              )
+                            }
+                            title="Edit User Availability"
                           >
-                            <PersonIcon className="mr-2 h-4 w-4" />
-                            Impersonate
+                            Edit Availability
                           </Button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}

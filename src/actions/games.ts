@@ -365,13 +365,9 @@ export const getAdminSchedule = asResult(
     const submissions = await db
       .select({
         id: availabilitySubmission.id,
-        discordUserId: account.accountId,
+        discordUserId: availabilitySubmission.discordUserId,
       })
       .from(availabilitySubmission)
-      .innerJoin(
-        account,
-        and(eq(account.userId, availabilitySubmission.userId), eq(account.providerId, 'discord')),
-      )
       .where(
         and(
           eq(availabilitySubmission.guildId, guildId),

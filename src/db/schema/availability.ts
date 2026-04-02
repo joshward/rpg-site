@@ -11,9 +11,8 @@ export const availabilitySubmission = pgTable(
     guildId: text()
       .notNull()
       .references(() => guild.id, { onDelete: 'cascade' }),
-    userId: text()
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+    discordUserId: text().notNull(),
+    userId: text().references(() => user.id, { onDelete: 'cascade' }),
     year: integer().notNull(),
     month: integer().notNull(),
     createdAt: timestamp().defaultNow().notNull(),
@@ -22,7 +21,7 @@ export const availabilitySubmission = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [unique().on(table.guildId, table.userId, table.year, table.month)],
+  (table) => [unique().on(table.guildId, table.discordUserId, table.year, table.month)],
 );
 
 export const availabilityDay = pgTable(
