@@ -15,6 +15,7 @@ import {
 import { saveMonthSchedule } from '@/actions/games';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/Button';
+import { getOptimalDays } from '@/lib/scoring';
 
 interface Member {
   discordUserId: string;
@@ -148,6 +149,51 @@ export default function ScheduleGrid({
     }
     return warnings;
   }, [games, gameDates]);
+  const gameUnavailabilities = useMemo(() => {
+    const unavailabilities = new Map<string, Set<number>>();
+    for (const game of games) {
+      const gameUnavailDays = new Set<number>();
+      const requiredMembers = game.members.filter((m) => m.isRequired);
+      for (const day of days) {
+        const anyRequiredUnavailable = requiredMembers.some((m) => {
+          const status = m.availability[day];
+          return !status || status === 'unavailable';
+        });
+        if (anyRequiredUnavailable) {
+          gameUnavailDays.add(day);
+        }
+      }
+      unavailabilities.set(game.id, gameUnavailDays);
+    }
+    return unavailabilities;
+  }, [games, days]);
+
+  const optimalDays = useMemo(() => {
+    const gameOptimalDays = new Map<string, Set<number>>();
+
+    for (const game of games) {
+      const excludedDays = new Set<number>();
+      for (const [otherId, d] of Object.entries(gameDates)) {
+        if (otherId !== game.id) {
+          d.forEach((day) => excludedDays.add(day));
+        }
+      }
+
+      const selectedDays = getOptimalDays(
+        game.sessionsPerMonth,
+        game.members.map((m) => ({
+          isRequired: !!m.isRequired,
+          availability: m.availability as any,
+        })),
+        days,
+        excludedDays,
+      );
+
+      gameOptimalDays.set(game.id, selectedDays);
+    }
+
+    return gameOptimalDays;
+  }, [games, days, gameDates]);
 
   const memberWarnings = useMemo(() => {
     const warnings = new Map<string, string>();
@@ -252,6 +298,7 @@ export default function ScheduleGrid({
 
           const isSelected = !isUnassigned && gameDates[keyPrefix]?.includes(day);
           const isConflict = !isUnassigned && !isSelected && allScheduledDays.has(day);
+          const isUnavailable = !isUnassigned && gameUnavailabilities.get(keyPrefix)?.has(day);
 
           return (
             <td
@@ -270,10 +317,13 @@ export default function ScheduleGrid({
               >
                 <option.icon className="w-3.5 h-3.5" />
               </div>
-              {isSelected && (
+              {isSelected ? (
                 <div className="absolute inset-0 bg-violet-9/15 pointer-events-none" />
-              )}
-              {isConflict && <div className="absolute inset-0 bg-black/10 pointer-events-none" />}
+              ) : isUnavailable ? (
+                <div className="absolute inset-0 bg-black/20 pointer-events-none" />
+              ) : isConflict ? (
+                <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+              ) : null}
             </td>
           );
         })}
@@ -410,6 +460,8 @@ export default function ScheduleGrid({
                       const otherGameName = otherGameId
                         ? games.find((g) => g.id === otherGameId)?.name
                         : null;
+                      const isUnavailable = gameUnavailabilities.get(game.id)?.has(day);
+                      const isOptimal = optimalDays.get(game.id)?.has(day);
 
                       return (
                         <td
@@ -418,7 +470,9 @@ export default function ScheduleGrid({
                             'p-0 border-r border-sage-4 bg-sage-3/30 min-w-[32px] h-10 transition-colors',
                             isEditable && 'cursor-pointer hover:bg-sage-4/50',
                             isSelected && 'bg-violet-9/20',
-                            otherGameId && 'bg-black/10',
+                            !isSelected && isUnavailable && 'bg-black/20',
+                            !isSelected && !isUnavailable && otherGameId && 'bg-black/10',
+                            isOptimal && 'bg-jade-9/20',
                           )}
                           onClick={() => toggleDay(game.id, day)}
                         >
@@ -503,6 +557,14 @@ export default function ScheduleGrid({
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-4 rounded-sm bg-black/10 border border-black/20" />
           <span className="text-sage-12">Other Game Day Darken</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-4 rounded-sm bg-black/20 border border-black/30" />
+          <span className="text-sage-12">Required Member Unavailable Darken</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-4 h-4 rounded-sm bg-jade-9/20 border border-jade-9/30" />
+          <span className="text-sage-12">Optimal Scheduling Day</span>
         </div>
       </div>
     </div>
