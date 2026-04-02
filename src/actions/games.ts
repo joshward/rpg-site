@@ -7,8 +7,8 @@ import { asResult, ActionError } from '@/actions/action-helpers';
 import { ensureAdmin, ensureAccess } from '@/actions/auth-helpers';
 import { game, gameMember, gameStatusEnum, GameStatus, scheduledSession } from '@/db/schema/games';
 import { availabilitySubmission, availabilityDay } from '@/db/schema/availability';
+import { AvailabilityStatus } from '@/actions/availability';
 import { memberPreference } from '@/db/schema/member-preferences';
-import { account } from '@/db/schema/auth';
 import { getGuildMembers } from '@/lib/discord/api';
 import { resolveRoleForGuild } from '@/lib/authn';
 import { TimeSpan } from 'timespan-ts';
@@ -117,12 +117,72 @@ export const getMyGames = asResult(
       )
       .orderBy(scheduledSession.year, scheduledSession.month, scheduledSession.day);
 
+    // 4b. Fetch current user's availability for these sessions
+    const scheduledMonths = [...new Set(scheduled.map((s) => `${s.year}-${s.month}`))];
+    const availabilityMap = new Map<string, AvailabilityStatus>(); // "year-month-day" -> status
+
+    if (scheduledMonths.length > 0) {
+      const submissions = await db
+        .select({
+          id: availabilitySubmission.id,
+          year: availabilitySubmission.year,
+          month: availabilitySubmission.month,
+        })
+        .from(availabilitySubmission)
+        .where(
+          and(
+            eq(availabilitySubmission.guildId, guildId),
+            eq(availabilitySubmission.discordUserId, discordUserId),
+            or(
+              ...scheduledMonths.map((m) => {
+                const [y, mon] = m.split('-').map(Number);
+                return and(
+                  eq(availabilitySubmission.year, y),
+                  eq(availabilitySubmission.month, mon),
+                );
+              }),
+            ),
+          ),
+        );
+
+      if (submissions.length > 0) {
+        const days = await db
+          .select({
+            submissionId: availabilityDay.submissionId,
+            day: availabilityDay.day,
+            status: availabilityDay.status,
+          })
+          .from(availabilityDay)
+          .where(
+            inArray(
+              availabilityDay.submissionId,
+              submissions.map((s) => s.id),
+            ),
+          );
+
+        for (const day of days) {
+          const sub = submissions.find((s) => s.id === day.submissionId);
+          if (sub) {
+            availabilityMap.set(
+              `${sub.year}-${sub.month}-${day.day}`,
+              day.status as AvailabilityStatus,
+            );
+          }
+        }
+      }
+    }
+
     // 5. Combine them
     return userGames.map((g) => ({
       ...g,
       scheduledDates: scheduled
         .filter((s) => s.gameId === g.id)
-        .map((s) => ({ year: s.year, month: s.month, day: s.day })),
+        .map((s) => ({
+          year: s.year,
+          month: s.month,
+          day: s.day,
+          availability: availabilityMap.get(`${s.year}-${s.month}-${s.day}`) ?? null,
+        })),
       members: allMembers
         .filter((m) => m.gameId === g.id)
         .map((m) => {
