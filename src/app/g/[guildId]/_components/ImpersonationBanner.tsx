@@ -4,6 +4,7 @@ import { useTransition } from 'react';
 import { stopImpersonation } from '@/actions/auth-actions';
 import Button from '@/components/Button';
 import { ExitIcon } from '@radix-ui/react-icons';
+import { useRouter } from 'next/navigation';
 
 interface ImpersonationBannerProps {
   guildId: string;
@@ -11,10 +12,12 @@ interface ImpersonationBannerProps {
 
 export default function ImpersonationBanner({ guildId }: ImpersonationBannerProps) {
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   const handleStop = () => {
     startTransition(async () => {
       await stopImpersonation(guildId);
+      router.refresh();
     });
   };
 

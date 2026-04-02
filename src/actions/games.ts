@@ -12,7 +12,7 @@ import { memberPreference } from '@/db/schema/member-preferences';
 import { getGuildMembers } from '@/lib/discord/api';
 import { resolveRoleForGuild } from '@/lib/authn';
 import { TimeSpan } from 'timespan-ts';
-import { getNow } from '@/lib/availability';
+import { getNow, getDaysInMonth } from '@/lib/availability';
 
 export const getGames = asResult(
   'getGames',
@@ -146,6 +146,7 @@ export const getMyGames = asResult(
         );
 
       if (submissions.length > 0) {
+        const submissionMap = new Map(submissions.map((s) => [s.id, s]));
         const days = await db
           .select({
             submissionId: availabilityDay.submissionId,
@@ -161,7 +162,7 @@ export const getMyGames = asResult(
           );
 
         for (const day of days) {
-          const sub = submissions.find((s) => s.id === day.submissionId);
+          const sub = submissionMap.get(day.submissionId);
           if (sub) {
             availabilityMap.set(
               `${sub.year}-${sub.month}-${day.day}`,
@@ -604,6 +605,27 @@ export const saveMonthSchedule = asResult(
 
     if (!isCurrent && !isNext) {
       throw new ActionError('Schedules can only be edited for the current or next month.');
+    }
+
+    // Validate game data
+    const guildGames = await db.select({ id: game.id }).from(game).where(eq(game.guildId, guildId));
+    const guildGameIds = new Set(guildGames.map((g) => g.id));
+    const daysInMonth = getDaysInMonth(year, month);
+    const scheduledDays = new Set<number>();
+
+    for (const [gameId, days] of Object.entries(gameDates)) {
+      if (!guildGameIds.has(gameId)) {
+        throw new ActionError(`Game ID ${gameId} does not belong to this guild.`);
+      }
+      for (const day of days) {
+        if (day < 1 || day > daysInMonth) {
+          throw new ActionError(`Invalid day ${day} for month ${month}/${year}.`);
+        }
+        if (scheduledDays.has(day)) {
+          throw new ActionError(`Multiple games scheduled for day ${day}.`);
+        }
+        scheduledDays.add(day);
+      }
     }
 
     await db.transaction(async (tx) => {

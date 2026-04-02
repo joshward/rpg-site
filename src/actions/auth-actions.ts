@@ -20,7 +20,7 @@ export const startImpersonation = asResult(
   'startImpersonation',
   async (guildId: string, discordUserId: string) => {
     // We check admin status of the real user first.
-    const { isImpersonating } = await ensureAccess(guildId);
+    await ensureAccess(guildId);
 
     // To be safe, let's re-verify the real user's role.
     const session = await getSession();

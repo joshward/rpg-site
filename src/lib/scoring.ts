@@ -2,7 +2,7 @@ export type AvailabilityStatus = 'available' | 'if_needed' | 'late' | 'unavailab
 
 export interface ScorableMember {
   isRequired: boolean;
-  availability: Record<number, AvailabilityStatus>;
+  availability: Record<number, AvailabilityStatus | undefined>;
 }
 
 /**
@@ -202,8 +202,10 @@ function scoreDay(
   };
 }
 
-function normalizeStatus(status: AvailabilityStatus): Exclude<AvailabilityStatus, null> {
-  return status ?? 'unavailable';
+function normalizeStatus(
+  status: AvailabilityStatus | undefined,
+): Exclude<AvailabilityStatus, null> {
+  return (status ?? 'unavailable') as Exclude<AvailabilityStatus, null>;
 }
 
 function compareDayScores(a: DayScore, b: DayScore): number {

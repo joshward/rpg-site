@@ -3,19 +3,15 @@
 import { twMerge } from 'tailwind-merge';
 import { useState, useMemo, Fragment, useRef, useEffect } from 'react';
 import { getDaysInMonth, YearMonth } from '@/lib/availability';
-import {
-  STATUS_MAP,
-  STATUS_OPTIONS,
-  UNSET_OPTION,
-} from '../../availability/_components/availability-status';
+import { STATUS_MAP, UNSET_OPTION } from '../../availability/_components/availability-status';
 import { NO_LIMIT } from '@/lib/preferences';
+import { AvailabilityStatus } from '@/actions/availability';
 import {
   EyeOpenIcon,
   EyeNoneIcon,
   ExclamationTriangleIcon,
   TrashIcon,
   CheckIcon,
-  PersonIcon,
 } from '@radix-ui/react-icons';
 import { saveMonthSchedule } from '@/actions/games';
 import { useRouter } from 'next/navigation';
@@ -28,7 +24,7 @@ interface Member {
   displayName: string;
   avatar: string | null | undefined;
   sessionsPerMonth: number | null;
-  availability: Record<number, string>;
+  availability: Record<number, AvailabilityStatus | undefined>;
   isRequired?: boolean;
 }
 
@@ -97,7 +93,7 @@ export default function ScheduleGrid({
       targetDate.getTime() === currentDate.getTime() ||
       targetDate.getTime() === nextMonthDate.getTime()
     );
-  }, [target]);
+  }, [target, now]);
 
   const toggleDay = (gameId: string, day: number) => {
     if (!isEditable) return;
@@ -222,7 +218,7 @@ export default function ScheduleGrid({
         game.sessionsPerMonth,
         game.members.map((m) => ({
           isRequired: !!m.isRequired,
-          availability: m.availability as any,
+          availability: m.availability,
         })),
         days,
         excludedDays,

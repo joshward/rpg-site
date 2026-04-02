@@ -1,11 +1,11 @@
 import { cache } from 'react';
 import { headers, cookies } from 'next/headers';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { account } from '@/db/schema/auth';
 import { guild } from '@/db/schema/guild';
 import { auth } from '@/lib/auth';
-import { fetchUserRole, Role } from '@/lib/authn';
+import { fetchUserRole } from '@/lib/authn';
 import { ActionError } from '@/actions/action-helpers';
 
 export const IMPERSONATION_COOKIE = 'tm_impersonate_user_id';
@@ -17,7 +17,7 @@ export const getSession = async () => {
   });
 };
 
-export const getEffectiveUserContext = async (guildId?: string) => {
+export const getEffectiveUserContext = async (_guildId?: string) => {
   const session = await getSession();
   if (!session) return null;
 
