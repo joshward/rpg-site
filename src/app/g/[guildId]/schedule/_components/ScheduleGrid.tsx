@@ -21,6 +21,7 @@ import { saveMonthSchedule } from '@/actions/games';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/Button';
 import { getOptimalDays } from '@/lib/scoring';
+import { useNotification } from '@/components/Notification';
 
 interface Member {
   discordUserId: string;
@@ -65,6 +66,7 @@ export default function ScheduleGrid({
   });
   const [saving, setSaving] = useState(false);
   const router = useRouter();
+  const { add: addNotification } = useNotification();
   const highlightedRowRef = useRef<HTMLTableRowElement>(null);
 
   useEffect(() => {
@@ -100,10 +102,15 @@ export default function ScheduleGrid({
   const toggleDay = (gameId: string, day: number) => {
     if (!isEditable) return;
 
+    let conflictGame: Game | undefined;
+    const isSelected = gameDates[gameId]?.includes(day);
+
+    if (!isSelected) {
+      conflictGame = games.find((g) => g.id !== gameId && gameDates[g.id]?.includes(day));
+    }
+
     setGameDates((prev) => {
       const currentDays = prev[gameId] || [];
-      const isSelected = currentDays.includes(day);
-
       const newState = { ...prev };
 
       if (isSelected) {
@@ -120,6 +127,14 @@ export default function ScheduleGrid({
 
       return newState;
     });
+
+    if (conflictGame) {
+      addNotification({
+        type: 'warning',
+        title: 'Schedule conflict',
+        description: `Removed ${conflictGame.name} from this day to avoid double-booking.`,
+      });
+    }
   };
 
   const clearGame = (gameId: string) => {
@@ -143,8 +158,17 @@ export default function ScheduleGrid({
     setSaving(true);
     const result = await saveMonthSchedule(guildId, target.year, target.month, gameDates);
     if (result.type === 'failure') {
-      alert(result.error);
+      addNotification({
+        type: 'error',
+        title: 'Failed to save schedule',
+        description: result.error,
+      });
     } else {
+      addNotification({
+        type: 'success',
+        title: 'Schedule saved',
+        description: 'The schedule has been successfully saved.',
+      });
       router.refresh();
     }
     setSaving(false);

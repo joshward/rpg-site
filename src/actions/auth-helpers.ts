@@ -106,15 +106,19 @@ export const ensureAccess = async (guildId: string) => {
   const impersonatedGuildId = cookieStore.get(IMPERSONATION_GUILD_COOKIE)?.value;
 
   const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
-  if (!guildData) {
-    throw new ActionError('This guild is not configured for Tavern Master.');
-  }
-
   const realRole = await fetchUserRole(
     realDiscordAccount.userId,
     guildId,
-    guildData.allowedRoles ?? [],
+    guildData?.allowedRoles ?? [],
   );
+
+  if (realRole === 'none') {
+    throw new ActionError("You don't have access to this guild.");
+  }
+
+  if (!guildData && realRole !== 'admin') {
+    throw new ActionError('This guild is not configured for Tavern Master.');
+  }
 
   if (impersonatedUserId && impersonatedGuildId && realRole === 'admin') {
     const impersonatedDiscordAccount = await getUsersDiscordAccount(impersonatedUserId);
@@ -123,7 +127,7 @@ export const ensureAccess = async (guildId: string) => {
       const impersonatedRole = await fetchUserRole(
         impersonatedDiscordAccount.userId,
         guildId,
-        guildData.allowedRoles ?? [],
+        guildData?.allowedRoles ?? [],
       );
 
       if (impersonatedRole !== 'none') {
@@ -140,10 +144,6 @@ export const ensureAccess = async (guildId: string) => {
         };
       }
     }
-  }
-
-  if (realRole === 'none') {
-    throw new ActionError("You don't have access to this guild.");
   }
 
   return {
