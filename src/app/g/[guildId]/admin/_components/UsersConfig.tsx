@@ -5,16 +5,20 @@ import { useParams } from 'next/navigation';
 import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
 import { getAdminMemberPreferences, setAdminMemberPreference } from '@/actions/preferences';
+import { startImpersonation } from '@/actions/auth-actions';
 import { isFailure } from '@/actions/result';
 import {
   ChevronDownIcon,
   ChevronUpIcon,
   CheckCircledIcon,
   CrossCircledIcon,
+  PersonIcon,
 } from '@radix-ui/react-icons';
 import ComboBox, { ComboboxOption } from '@/components/Combobox';
+import Button from '@/components/Button';
 import { SESSIONS_PER_MONTH_OPTIONS } from '@/lib/preferences';
 import { useNotification } from '@/components/Notification';
+import { useRouter } from 'next/navigation';
 
 interface MemberPreference {
   discordUserId: string;
@@ -34,6 +38,8 @@ export default function UsersConfig() {
   const [members, setMembers] = React.useState<MemberPreference[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const notification = useNotification();
+  const router = useRouter();
+  const [impersonatingId, setImpersonatingId] = React.useState<string | null>(null);
 
   const fetchMembers = React.useCallback(async () => {
     setLoading(true);
@@ -82,6 +88,27 @@ export default function UsersConfig() {
     }
   };
 
+  const handleImpersonate = async (discordUserId: string) => {
+    setImpersonatingId(discordUserId);
+    const result = await startImpersonation(guildId, discordUserId);
+
+    if (isFailure(result)) {
+      notification.add({
+        type: 'error',
+        title: 'Error',
+        description: result.error,
+      });
+      setImpersonatingId(null);
+    } else {
+      notification.add({
+        type: 'success',
+        title: 'Success',
+        description: 'Impersonation started. Redirecting...',
+      });
+      router.push(`/g/${guildId}`);
+    }
+  };
+
   return (
     <Paper className="gap-0 p-0 overflow-hidden">
       <button
@@ -120,6 +147,7 @@ export default function UsersConfig() {
                     <th className="py-2 px-2">Member</th>
                     <th className="py-2 px-2 text-center">Tavern Master Login</th>
                     <th className="py-2 px-2">Sessions / Month</th>
+                    <th className="py-2 px-2 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-sage-4">
@@ -181,6 +209,20 @@ export default function UsersConfig() {
                           }
                           placeholder="Unset"
                         />
+                      </td>
+                      <td className="py-3 px-2 text-right">
+                        {member.hasLoggedIn && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleImpersonate(member.discordUserId)}
+                            disabled={impersonatingId === member.discordUserId}
+                            title="Impersonate User"
+                            className="bg-violet-1 border-violet-7 hover:bg-violet-4 text-violet-11"
+                          >
+                            <PersonIcon className="mr-2 h-4 w-4" />
+                            Impersonate
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}

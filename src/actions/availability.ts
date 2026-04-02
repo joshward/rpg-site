@@ -1,14 +1,9 @@
 'use server';
 
-import { cache } from 'react';
-import { headers } from 'next/headers';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/db';
-import { account } from '@/db/schema/auth';
-import { guild } from '@/db/schema/guild';
-import { auth } from '@/lib/auth';
-import { fetchUserRole } from '@/lib/authn';
 import { ActionError, asResult } from '@/actions/action-helpers';
+import { ensureAccess } from '@/actions/auth-helpers';
 import { availabilitySubmission, availabilityDay } from '@/db/schema/availability';
 import {
   getAvailableMonth as getAvailableMonthHelper,
@@ -25,58 +20,6 @@ export interface DayAvailability {
   status: AvailabilityStatus;
 }
 
-const getSession = async () => {
-  return await auth.api.getSession({
-    headers: await headers(),
-  });
-};
-
-const getUsersDiscordAccount = cache(
-  async (userId: string): Promise<{ accessToken: string; userId: string } | undefined> => {
-    const accounts = await db.select().from(account).where(eq(account.userId, userId));
-    const discordAccount = accounts.find((a) => a.providerId === 'discord');
-
-    if (!discordAccount?.accessToken || !discordAccount.accountId) {
-      return undefined;
-    }
-
-    const isExpired =
-      discordAccount.accessTokenExpiresAt &&
-      discordAccount.accessTokenExpiresAt.getTime() - 60000 < Date.now();
-
-    if (isExpired) {
-      return undefined;
-    }
-
-    return {
-      accessToken: discordAccount.accessToken,
-      userId: discordAccount.accountId,
-    };
-  },
-);
-
-/**
- * Validates that the current user is a member (or admin) of the given guild.
- * Throws an ActionError if not.
- */
-async function requireGuildMembership(sessionUserId: string, guildId: string): Promise<void> {
-  const discordAccount = await getUsersDiscordAccount(sessionUserId);
-  if (!discordAccount) {
-    throw new ActionError('Discord account not linked or session expired. Please sign in again.');
-  }
-
-  const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
-  if (!guildData) {
-    throw new ActionError('This guild is not configured.');
-  }
-
-  const role = await fetchUserRole(discordAccount.userId, guildId, guildData.allowedRoles);
-
-  if (role === 'none') {
-    throw new ActionError('You do not have access to this guild.');
-  }
-}
-
 export const getAvailableMonthAction = asResult(
   'getAvailableMonthAction',
   async (): Promise<YearMonth | null> => {
@@ -88,12 +31,7 @@ export const getAvailableMonthAction = asResult(
 export const getMyAvailability = asResult(
   'getMyAvailability',
   async (guildId: string, year: number, month: number) => {
-    const session = await getSession();
-    if (!session) {
-      throw new ActionError('Not logged in');
-    }
-
-    await requireGuildMembership(session.user.id, guildId);
+    const { session } = await ensureAccess(guildId);
 
     const submissions = await db
       .select()
@@ -133,12 +71,7 @@ export const getMyAvailability = asResult(
 export const submitAvailability = asResult(
   'submitAvailability',
   async (guildId: string, year: number, month: number, days: DayAvailability[]) => {
-    const session = await getSession();
-    if (!session) {
-      throw new ActionError('Not logged in');
-    }
-
-    await requireGuildMembership(session.user.id, guildId);
+    const { session } = await ensureAccess(guildId);
 
     // Verify the submission window is open
     const availableMonth = getAvailableMonthHelper();

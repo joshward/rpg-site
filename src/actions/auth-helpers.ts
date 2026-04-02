@@ -1,17 +1,65 @@
 import { cache } from 'react';
-import { headers } from 'next/headers';
-import { eq } from 'drizzle-orm';
+import { headers, cookies } from 'next/headers';
+import { eq, and } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { account } from '@/db/schema/auth';
 import { guild } from '@/db/schema/guild';
 import { auth } from '@/lib/auth';
-import { fetchUserRole } from '@/lib/authn';
+import { fetchUserRole, Role } from '@/lib/authn';
 import { ActionError } from '@/actions/action-helpers';
+
+export const IMPERSONATION_COOKIE = 'tm_impersonate_user_id';
+export const IMPERSONATION_GUILD_COOKIE = 'tm_impersonate_guild_id';
 
 export const getSession = async () => {
   return await auth.api.getSession({
     headers: await headers(),
   });
+};
+
+export const getEffectiveUserContext = async (guildId?: string) => {
+  const session = await getSession();
+  if (!session) return null;
+
+  const realDiscordAccount = await getUsersDiscordAccount(session.user.id);
+  if (!realDiscordAccount) return null;
+
+  const cookieStore = await cookies();
+  const impersonatedUserId = cookieStore.get(IMPERSONATION_COOKIE)?.value;
+  const impersonatedGuildId = cookieStore.get(IMPERSONATION_GUILD_COOKIE)?.value;
+
+  if (impersonatedUserId && impersonatedGuildId) {
+    // We verify against the impersonatedGuildId context.
+    // If the admin started impersonation in Guild X, they act as the user in all guilds
+    // as long as they remain an admin in Guild X.
+    const impGuildData = (
+      await db.select().from(guild).where(eq(guild.id, impersonatedGuildId))
+    )[0];
+    const realRoleInImpGuild = await fetchUserRole(
+      realDiscordAccount.userId,
+      impersonatedGuildId,
+      impGuildData?.allowedRoles ?? [],
+    );
+
+    if (realRoleInImpGuild === 'admin') {
+      const impDiscordAccount = await getUsersDiscordAccount(impersonatedUserId);
+      if (impDiscordAccount) {
+        return {
+          session: { ...session, user: { ...session.user, id: impersonatedUserId } },
+          discordAccount: impDiscordAccount,
+          isImpersonating: true,
+          realUser: session.user,
+          impersonatedGuildId,
+        };
+      }
+    }
+  }
+
+  return {
+    session,
+    discordAccount: realDiscordAccount,
+    isImpersonating: false,
+  };
 };
 
 export const getUsersDiscordAccount = cache(
@@ -48,23 +96,63 @@ export const ensureAccess = async (guildId: string) => {
     throw new ActionError('Not logged in');
   }
 
-  const discordAccount = await getUsersDiscordAccount(session.user.id);
-  if (!discordAccount) {
+  const realDiscordAccount = await getUsersDiscordAccount(session.user.id);
+  if (!realDiscordAccount) {
     throw new ActionError('Discord account not linked or session expired. Please sign in again.');
   }
+
+  const cookieStore = await cookies();
+  const impersonatedUserId = cookieStore.get(IMPERSONATION_COOKIE)?.value;
+  const impersonatedGuildId = cookieStore.get(IMPERSONATION_GUILD_COOKIE)?.value;
 
   const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
   if (!guildData) {
     throw new ActionError('This guild is not configured for Tavern Master.');
   }
 
-  const role = await fetchUserRole(discordAccount.userId, guildId, guildData.allowedRoles ?? []);
+  const realRole = await fetchUserRole(
+    realDiscordAccount.userId,
+    guildId,
+    guildData.allowedRoles ?? [],
+  );
 
-  if (role === 'none') {
+  if (impersonatedUserId && impersonatedGuildId && realRole === 'admin') {
+    const impersonatedDiscordAccount = await getUsersDiscordAccount(impersonatedUserId);
+
+    if (impersonatedDiscordAccount) {
+      const impersonatedRole = await fetchUserRole(
+        impersonatedDiscordAccount.userId,
+        guildId,
+        guildData.allowedRoles ?? [],
+      );
+
+      if (impersonatedRole !== 'none') {
+        return {
+          session: {
+            ...session,
+            user: { ...session.user, id: impersonatedUserId },
+          },
+          discordAccount: impersonatedDiscordAccount,
+          guildData,
+          role: impersonatedRole,
+          isImpersonating: true,
+          realUser: session.user,
+        };
+      }
+    }
+  }
+
+  if (realRole === 'none') {
     throw new ActionError("You don't have access to this guild.");
   }
 
-  return { session, discordAccount, guildData, role };
+  return {
+    session,
+    discordAccount: realDiscordAccount,
+    guildData,
+    role: realRole,
+    isImpersonating: false,
+  };
 };
 
 export const ensureAdmin = async (guildId: string) => {

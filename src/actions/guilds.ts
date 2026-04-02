@@ -5,7 +5,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { fetchUserRole, fetchUsersGuilds } from '@/lib/authn';
 import { ActionError, asResult } from '@/actions/action-helpers';
-import { getSession, getUsersDiscordAccount } from '@/actions/auth-helpers';
+import { ensureAdmin, getEffectiveUserContext } from '@/actions/auth-helpers';
 import { guild } from '@/db/schema/guild';
 import { memberPreference } from '@/db/schema/member-preferences';
 import { getGuildRoles } from '@/lib/discord/api';
@@ -20,13 +20,13 @@ const getGuildRolesCached = cache((guildId: string) =>
 export const getUsersGuilds = asResult(
   'getUsersGuilds',
   async () => {
-    const session = await getSession();
+    const context = await getEffectiveUserContext();
 
-    if (!session) {
+    if (!context) {
       return null;
     }
 
-    const discordAccount = await getUsersDiscordAccount(session.user.id);
+    const { session, discordAccount } = context;
 
     if (discordAccount) {
       // Backfill userId in member_preferences if it's missing (requirement 71)
@@ -65,13 +65,13 @@ export const getUsersGuilds = asResult(
 export const getGuildInfo = asResult(
   'getGuildInfo',
   async (guildId: string) => {
-    const session = await getSession();
+    const context = await getEffectiveUserContext(guildId);
 
-    if (!session) {
+    if (!context) {
       throw new ActionError('Not logged in');
     }
 
-    const discordAccount = await getUsersDiscordAccount(session.user.id);
+    const { discordAccount } = context;
     if (!discordAccount) {
       throw new ActionError('Discord account not linked or session expired. Please sign in again.');
     }
@@ -92,6 +92,7 @@ export const getGuildInfo = asResult(
       isConfigured: Boolean(guildData),
       role,
       allowedRoles: guildData?.allowedRoles ?? [],
+      isImpersonating: context.isImpersonating,
     };
   },
   'Something went wrong fetching guild info. Please try again later.',
@@ -100,24 +101,7 @@ export const getGuildInfo = asResult(
 export const getGuildRolesAction = asResult(
   'getGuildRolesAction',
   async (guildId: string) => {
-    const session = await getSession();
-
-    if (!session) {
-      throw new ActionError('Not logged in');
-    }
-
-    const discordAccount = await getUsersDiscordAccount(session.user.id);
-    if (!discordAccount) {
-      throw new ActionError('Discord account not linked or session expired. Please sign in again.');
-    }
-
-    const guildData = (await db.select().from(guild).where(eq(guild.id, guildId)))[0];
-
-    const role = await fetchUserRole(discordAccount.userId, guildId, guildData?.allowedRoles ?? []);
-
-    if (role !== 'admin') {
-      throw new ActionError('Only guild administrators can perform this action.');
-    }
+    await ensureAdmin(guildId);
 
     const roles = await getGuildRolesCached(guildId);
 
@@ -132,22 +116,7 @@ export const getGuildRolesAction = asResult(
 export const saveGuildConfig = asResult(
   'saveGuildConfig',
   async (guildId: string, allowedRoles: string[]) => {
-    const session = await getSession();
-
-    if (!session) {
-      throw new ActionError('Not logged in');
-    }
-
-    const discordAccount = await getUsersDiscordAccount(session.user.id);
-    if (!discordAccount) {
-      throw new ActionError('Discord account not linked or session expired. Please sign in again.');
-    }
-
-    const role = await fetchUserRole(discordAccount.userId, guildId, []);
-
-    if (role !== 'admin') {
-      throw new ActionError('Only guild administrators can change guild settings');
-    }
+    await ensureAdmin(guildId);
 
     await db
       .insert(guild)
