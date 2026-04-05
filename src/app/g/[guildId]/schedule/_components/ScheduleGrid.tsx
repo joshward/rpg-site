@@ -15,9 +15,11 @@ import {
 } from '@radix-ui/react-icons';
 import { saveMonthSchedule } from '@/actions/games';
 import { useRouter } from 'next/navigation';
+import { usePlausible } from 'next-plausible';
 import Button from '@/components/Button';
 import { getOptimalDays } from '@/lib/scoring';
 import { useNotification } from '@/components/Notification';
+import type { PlausibleEvents } from '@/lib/plausible-events';
 
 interface Member {
   discordUserId: string;
@@ -62,6 +64,7 @@ export default function ScheduleGrid({
   });
   const [saving, setSaving] = useState(false);
   const router = useRouter();
+  const plausible = usePlausible<PlausibleEvents>();
   const { add: addNotification } = useNotification();
   const highlightedRowRef = useRef<HTMLTableRowElement>(null);
 
@@ -160,6 +163,9 @@ export default function ScheduleGrid({
         description: result.error,
       });
     } else {
+      plausible('save_schedule', {
+        props: { guildId, year: target.year, month: target.month },
+      });
       addNotification({
         type: 'success',
         title: 'Schedule saved',

@@ -16,9 +16,11 @@ import {
 } from '@radix-ui/react-icons';
 import ComboBox, { ComboboxOption } from '@/components/Combobox';
 import Button from '@/components/Button';
+import { usePlausible } from 'next-plausible';
 import { SESSIONS_PER_MONTH_OPTIONS } from '@/lib/preferences';
 import { useNotification } from '@/components/Notification';
 import { useRouter } from 'next/navigation';
+import type { PlausibleEvents } from '@/lib/plausible-events';
 
 interface MemberPreference {
   discordUserId: string;
@@ -38,6 +40,7 @@ export default function UsersConfig() {
   const [members, setMembers] = React.useState<MemberPreference[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const notification = useNotification();
+  const plausible = usePlausible<PlausibleEvents>();
   const router = useRouter();
   const [impersonatingId, setImpersonatingId] = React.useState<string | null>(null);
 
@@ -74,6 +77,9 @@ export default function UsersConfig() {
         description: result.error,
       });
     } else {
+      plausible('update_member_preference', {
+        props: { guildId, discordUserId, sessionsPerMonth: option.id as number },
+      });
       notification.add({
         type: 'success',
         title: 'Success',

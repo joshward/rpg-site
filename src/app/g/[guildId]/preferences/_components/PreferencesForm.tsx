@@ -7,10 +7,12 @@ import { FormComboBox } from '@/components/FormComboBox';
 import { ComboboxOption } from '@/components/Combobox';
 import Paper from '@/components/Paper';
 import Button from '@/components/Button';
+import { usePlausible } from 'next-plausible';
 import { setMyPreference } from '@/actions/preferences';
-import { NO_LIMIT, SESSIONS_PER_MONTH_OPTIONS } from '@/lib/preferences';
+import { SESSIONS_PER_MONTH_OPTIONS } from '@/lib/preferences';
 import { isFailure } from '@/actions/result';
 import { useNotification } from '@/components/Notification';
+import type { PlausibleEvents } from '@/lib/plausible-events';
 
 const options: ComboboxOption[] = SESSIONS_PER_MONTH_OPTIONS;
 
@@ -21,6 +23,7 @@ interface PreferencesFormProps {
 export default function PreferencesForm({ initialSessionsPerMonth }: PreferencesFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
+  const plausible = usePlausible<PlausibleEvents>();
 
   const initialOption = options.find((opt) => opt.id === initialSessionsPerMonth) || null;
 
@@ -40,6 +43,9 @@ export default function PreferencesForm({ initialSessionsPerMonth }: Preferences
           description: result.error,
         });
       } else {
+        plausible('update_preferences', {
+          props: { guildId, sessionsPerMonth: value.sessionsPerMonth!.id as number },
+        });
         notification.add({
           type: 'success',
           title: 'Success',

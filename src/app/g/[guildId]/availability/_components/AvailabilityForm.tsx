@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useParams } from 'next/navigation';
 import { useForm } from '@tanstack/react-form';
 import { twMerge } from 'tailwind-merge';
+import { usePlausible } from 'next-plausible';
 import Button from '@/components/Button';
 import Paper from '@/components/Paper';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -28,6 +29,7 @@ import {
   FocusResetStyles,
   ShowFocusOnKeyboardStyles,
 } from '@/styles/common';
+import type { PlausibleEvents } from '@/lib/plausible-events';
 
 interface AvailabilityFormProps {
   target: YearMonth;
@@ -61,6 +63,7 @@ export default function AvailabilityForm({
 }: AvailabilityFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
+  const plausible = usePlausible<PlausibleEvents>();
   const [expandedDay, setExpandedDay] = React.useState<number | null>(null);
   const [fillStatus, setFillStatus] = React.useState<AvailabilityStatus>('available');
   const [showResetConfirm, setShowResetConfirm] = React.useState(false);
@@ -107,6 +110,9 @@ export default function AvailabilityForm({
           description: result.error,
         });
       } else {
+        plausible('submit_availability', {
+          props: { guildId, year: target.year, month: target.month },
+        });
         notification.add({
           type: 'success',
           title: 'Success',
