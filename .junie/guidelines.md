@@ -24,6 +24,7 @@ Primary goals for automation: keep changes minimal, safe, and aligned with the p
 - Generated SQL migrations: `drizzle/`
 - Server actions: `src/actions/`
 - Next config: `next.config.ts`
+- Plausible events: `src/lib/plausible-events.ts`
 - ESLint/Prettier config: `eslint.config.mjs`, Prettier is implicit via devDependency
 - TypeScript config: `tsconfig.json`
 - Junie files: `.junie/context.yml`, `.junie/guidelines.md`

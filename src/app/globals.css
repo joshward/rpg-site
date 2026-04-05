@@ -192,7 +192,6 @@
 }
 
 @plugin "@tailwindcss/typography";
-
 @layer components {
   .loader {
     width: 65px;

@@ -11,6 +11,7 @@ import { ComboboxOption } from '@/components/Combobox';
 import Paper from '@/components/Paper';
 import Button from '@/components/Button';
 import MarkdownPreview from '@/components/MarkdownPreview';
+import { usePlausible } from 'next-plausible';
 import { createGame, updateGame, deleteGame } from '@/actions/games';
 import { GameStatus } from '@/db/schema/games';
 import { isFailure } from '@/actions/result';
@@ -19,6 +20,7 @@ import { TrashIcon, PersonIcon } from '@radix-ui/react-icons';
 import ComboBox from '@/components/Combobox';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { twMerge } from 'tailwind-merge';
+import type { PlausibleEvents } from '@/lib/plausible-events';
 
 const GAME_STATUS_OPTIONS: ComboboxOption[] = [
   { id: 'draft', label: 'Draft' },
@@ -60,6 +62,7 @@ export default function GameForm({ initialData, eligibleMembers }: GameFormProps
   const { guildId } = useParams<{ guildId: string }>();
   const router = useRouter();
   const notification = useNotification();
+  const plausible = usePlausible<PlausibleEvents>();
   const [selectedMember, setSelectedMember] = React.useState<ComboboxOption | null>(null);
   const [previewMode, setPreviewMode] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
@@ -130,6 +133,15 @@ export default function GameForm({ initialData, eligibleMembers }: GameFormProps
           description: result.error,
         });
       } else {
+        if (initialData) {
+          plausible('update_game', {
+            props: { guildId, gameId: initialData.id },
+          });
+        } else {
+          plausible('create_game', {
+            props: { guildId },
+          });
+        }
         notification.add({
           type: 'success',
           title: 'Success',

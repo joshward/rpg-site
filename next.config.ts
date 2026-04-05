@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withPlausibleProxy } from 'next-plausible';
 
 const nextConfig: NextConfig = {
   logging: {
@@ -8,4 +9,6 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withPlausibleProxy({
+  src: 'https://plausible.io/js/pa-IPpbfnj0EHCGbPErvYox1.js',
+})(nextConfig);
