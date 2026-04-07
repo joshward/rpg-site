@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { useForm } from '@tanstack/react-form';
 import * as v from 'valibot';
 import { FormComboBox } from '@/components/FormComboBox';
+import { FormInput } from '@/components/FormInput';
 import { ComboboxOption } from '@/components/Combobox';
 import Paper from '@/components/Paper';
 import Button from '@/components/Button';
@@ -15,20 +16,36 @@ import { useNotification } from '@/components/Notification';
 interface GuildAdminFormProps {
   roles: ComboboxOption[];
   initialAllowedRoles: string[];
+  channels: ComboboxOption[];
+  initialSupportChannelId?: string;
+  initialSupportChannelName?: string;
+  initialAdminContactInfo?: string;
 }
 
-export default function GuildAdminForm({ roles, initialAllowedRoles }: GuildAdminFormProps) {
+export default function GuildAdminForm({
+  roles,
+  initialAllowedRoles,
+  channels,
+  initialSupportChannelId,
+  initialSupportChannelName,
+  initialAdminContactInfo,
+}: GuildAdminFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
 
   const form = useForm({
     defaultValues: {
       allowedRoles: roles.filter((role) => initialAllowedRoles.includes(role.id as string)),
+      supportChannel: channels.find((c) => c.id === initialSupportChannelId) ?? null,
+      adminContactInfo: initialAdminContactInfo ?? '',
     },
     onSubmit: async ({ value }) => {
       const result = await saveGuildConfig(
         guildId,
         value.allowedRoles.map((role) => role.id as string),
+        value.supportChannel?.id as string | undefined,
+        value.supportChannel?.label as string | undefined,
+        value.adminContactInfo,
       );
 
       if (isFailure(result)) {
@@ -80,6 +97,35 @@ export default function GuildAdminForm({ roles, initialAllowedRoles }: GuildAdmi
               placeholder="Select roles..."
               value={field.state.value}
               onValueChange={(val) => field.handleChange(val as ComboboxOption[])}
+              error={field.state.meta.errors.join(', ')}
+              invalid={field.state.meta.errors.length > 0}
+            />
+          )}
+        </form.Field>
+
+        <form.Field name="supportChannel">
+          {(field) => (
+            <FormComboBox
+              label="Support Channel"
+              description="Select a channel where users can reach out for help. A link to this channel will be included in error messages."
+              items={channels}
+              placeholder="Select a channel..."
+              value={field.state.value}
+              onValueChange={(val) => field.handleChange(val as ComboboxOption | null)}
+              error={field.state.meta.errors.join(', ')}
+              invalid={field.state.meta.errors.length > 0}
+            />
+          )}
+        </form.Field>
+
+        <form.Field name="adminContactInfo">
+          {(field) => (
+            <FormInput
+              label="Admin Contact Info"
+              description="Provide the name or handle of the admin(s) users should contact (e.g., 'Jane Doe (@janedoe)')."
+              placeholder="e.g. @janedoe"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
               error={field.state.meta.errors.join(', ')}
               invalid={field.state.meta.errors.length > 0}
             />

@@ -22,6 +22,11 @@ interface AvailabilityViewProps {
   /** ISO string of when the submission window opens, if this is a future month */
   windowOpensAt?: string | null;
   userId?: string;
+  guildInfo?: {
+    supportChannelId?: string;
+    supportChannelName?: string;
+    adminContactInfo?: string;
+  };
 }
 
 export default function AvailabilityView({
@@ -31,6 +36,7 @@ export default function AvailabilityView({
   previousMonthDays,
   windowOpensAt,
   userId,
+  guildInfo,
 }: AvailabilityViewProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(!existing && windowOpen);
@@ -48,6 +54,7 @@ export default function AvailabilityView({
         previousMonthDays={previousMonthDays ?? undefined}
         onSubmitted={handleSubmitted}
         userId={userId}
+        guildInfo={guildInfo}
       />
     );
   }

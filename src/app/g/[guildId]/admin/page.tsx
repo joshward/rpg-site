@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
-import { getGuildInfo, getGuildRolesAction } from '@/actions/guilds';
+import { getGuildInfo, getGuildRolesAction, getGuildChannelsAction } from '@/actions/guilds';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
 import { GuildRouteProps, getGuildName } from '../helpers';
@@ -29,13 +29,18 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
     );
   }
 
-  const { role, allowedRoles } = guildInfoResult.data;
+  const { role, allowedRoles, supportChannelId, supportChannelName, adminContactInfo } =
+    guildInfoResult.data;
 
   if (role !== 'admin') {
     notFound();
   }
 
-  const rolesResult = await getGuildRolesAction(guildId);
+  const [rolesResult, channelsResult] = await Promise.all([
+    getGuildRolesAction(guildId),
+    getGuildChannelsAction(guildId),
+  ]);
+
   if (isFailure(rolesResult)) {
     return (
       <Paper className="items-center">
@@ -44,10 +49,25 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
     );
   }
 
+  if (isFailure(channelsResult)) {
+    return (
+      <Paper className="items-center">
+        <Alert type="error">{channelsResult.error}</Alert>
+      </Paper>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">Guild Administration</h1>
-      <GuildAdminForm roles={rolesResult.data} initialAllowedRoles={allowedRoles} />
+      <GuildAdminForm
+        roles={rolesResult.data}
+        initialAllowedRoles={allowedRoles}
+        channels={channelsResult.data}
+        initialSupportChannelId={supportChannelId}
+        initialSupportChannelName={supportChannelName}
+        initialAdminContactInfo={adminContactInfo}
+      />
       <UsersConfig />
     </div>
   );

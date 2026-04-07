@@ -11,6 +11,7 @@ import {
   GuildMembersResponseSchema,
   GuildsResponseSchema,
   RolesResponseSchema,
+  ChannelsResponseSchema,
 } from '@/lib/discord/models';
 import * as v from 'valibot';
 import { TimeSpan } from 'timespan-ts';
@@ -146,6 +147,9 @@ const $fetch = createFetch({
     '/guilds/:guildId/roles': {
       output: RolesResponseSchema,
     },
+    '/guilds/:guildId/channels': {
+      output: ChannelsResponseSchema,
+    },
     '/guilds/:guildId/members/:userId': {
       output: GuildMemberSchema,
     },
@@ -209,6 +213,14 @@ export async function getGuildRoles(params: { guildId: string }, options: Option
     ...handleOptions(options),
   });
   return toError('/guilds/:guildId/roles', result);
+}
+
+export async function getGuildChannels(params: { guildId: string }, options: Options = {}) {
+  const result = await $fetch('/guilds/:guildId/channels', {
+    params,
+    ...handleOptions(options),
+  });
+  return toError('/guilds/:guildId/channels', result);
 }
 
 export async function getGuildMember(

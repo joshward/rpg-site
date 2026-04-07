@@ -7,6 +7,7 @@ import { twMerge } from 'tailwind-merge';
 import { usePlausible } from 'next-plausible';
 import Button from '@/components/Button';
 import Paper from '@/components/Paper';
+import Link from '@/components/Link';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useNotification } from '@/components/Notification';
 import {
@@ -23,6 +24,7 @@ import {
   formatMonthYear,
   type YearMonth,
 } from '@/lib/availability';
+import { getContactInfo } from '../../helpers';
 import { STATUS_OPTIONS, UNSET_OPTION } from './availability-status';
 import {
   DefaultTransitionStyles,
@@ -39,6 +41,11 @@ interface AvailabilityFormProps {
   previousMonthDays?: { day: number; status: AvailabilityStatus }[];
   onSubmitted?: () => void;
   userId?: string;
+  guildInfo?: {
+    supportChannelId?: string;
+    supportChannelName?: string;
+    adminContactInfo?: string;
+  };
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
@@ -60,6 +67,7 @@ export default function AvailabilityForm({
   previousMonthDays,
   onSubmitted,
   userId,
+  guildInfo,
 }: AvailabilityFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
@@ -72,6 +80,13 @@ export default function AvailabilityForm({
   const [showScheduleConfirm, setShowScheduleConfirm] = React.useState(false);
   const [isScheduled, setIsScheduled] = React.useState(false);
   const [copyMode, setCopyMode] = React.useState<'date' | 'weekday'>('weekday');
+
+  const { adminText, channelLink, channelName } = getContactInfo(
+    guildId,
+    guildInfo?.supportChannelId,
+    guildInfo?.supportChannelName,
+    guildInfo?.adminContactInfo,
+  );
 
   React.useEffect(() => {
     isMonthScheduled(guildId, target.year, target.month).then((res) => {
@@ -164,7 +179,19 @@ export default function AvailabilityForm({
         open={showScheduleConfirm}
         onOpenChange={setShowScheduleConfirm}
         title="Schedule already created"
-        description="The schedule for this month has already been created. Please also let your Guild Admin know your availability has changed."
+        description={
+          <>
+            The schedule for this month has already been created. Please also let your {adminText}{' '}
+            know your availability has changed.
+            {channelLink && (
+              <>
+                {' '}
+                Alternatively, reach out in{' '}
+                <Link href={channelLink}>#{channelName || 'support'}</Link>.
+              </>
+            )}
+          </>
+        }
         confirmLabel="Confirm & Save"
         onConfirm={() => form.handleSubmit()}
       />

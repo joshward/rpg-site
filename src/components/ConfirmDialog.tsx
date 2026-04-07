@@ -10,7 +10,7 @@ interface ConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   children?: React.ReactNode;
   confirmLabel?: string;
   confirmVariant?: ButtonProps['variant'];

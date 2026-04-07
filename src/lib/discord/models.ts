@@ -46,3 +46,13 @@ export type GuildMemberModel = v.InferOutput<typeof GuildMemberSchema>;
 
 export const GuildMembersResponseSchema = v.array(GuildMemberSchema);
 export type GuildMembersResponseModel = v.InferOutput<typeof GuildMembersResponseSchema>;
+
+export const ChannelSchema = v.object({
+  id: v.string(),
+  name: v.string(),
+  type: v.number(),
+});
+export type ChannelModel = v.InferOutput<typeof ChannelSchema>;
+
+export const ChannelsResponseSchema = v.array(ChannelSchema);
+export type ChannelsResponseModel = v.InferOutput<typeof ChannelsResponseSchema>;

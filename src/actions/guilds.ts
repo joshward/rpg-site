@@ -9,13 +9,16 @@ import { ensureAdmin, getEffectiveUserContext } from '@/actions/auth-helpers';
 import { guild } from '@/db/schema/guild';
 import { memberPreference } from '@/db/schema/member-preferences';
 import { availabilitySubmission } from '@/db/schema/availability';
-import { getGuildRoles } from '@/lib/discord/api';
+import { getGuildRoles, getGuildChannels } from '@/lib/discord/api';
 import { TimeSpan } from 'timespan-ts';
 import { revalidatePath } from 'next/cache';
 
 const fetchUsersGuildsCached = cache(fetchUsersGuilds);
 const getGuildRolesCached = cache((guildId: string) =>
   getGuildRoles({ guildId }, { cacheFor: TimeSpan.fromMinutes(30) }),
+);
+const getGuildChannelsCached = cache((guildId: string) =>
+  getGuildChannels({ guildId }, { cacheFor: TimeSpan.fromMinutes(30) }),
 );
 
 export const getUsersGuilds = asResult(
@@ -117,6 +120,9 @@ export const getGuildInfo = asResult(
       isConfigured: Boolean(guildData),
       role,
       allowedRoles: guildData?.allowedRoles ?? [],
+      supportChannelId: guildData?.supportChannelId ?? undefined,
+      supportChannelName: guildData?.supportChannelName ?? undefined,
+      adminContactInfo: guildData?.adminContactInfo ?? undefined,
       isImpersonating: context.isImpersonating,
     };
   },
@@ -138,9 +144,33 @@ export const getGuildRolesAction = asResult(
   'Something went wrong fetching guild roles. Please try again later.',
 );
 
+export const getGuildChannelsAction = asResult(
+  'getGuildChannelsAction',
+  async (guildId: string) => {
+    await ensureAdmin(guildId);
+
+    const channels = await getGuildChannelsCached(guildId);
+
+    // Filter for text channels (0) and announcement channels (5)
+    return channels
+      .filter((channel) => channel.type === 0 || channel.type === 5)
+      .map((channel) => ({
+        id: channel.id,
+        label: channel.name,
+      }));
+  },
+  'Something went wrong fetching guild channels. Please try again later.',
+);
+
 export const saveGuildConfig = asResult(
   'saveGuildConfig',
-  async (guildId: string, allowedRoles: string[]) => {
+  async (
+    guildId: string,
+    allowedRoles: string[],
+    supportChannelId?: string,
+    supportChannelName?: string,
+    adminContactInfo?: string,
+  ) => {
     await ensureAdmin(guildId);
 
     await db
@@ -148,11 +178,17 @@ export const saveGuildConfig = asResult(
       .values({
         id: guildId,
         allowedRoles,
+        supportChannelId,
+        supportChannelName,
+        adminContactInfo,
       })
       .onConflictDoUpdate({
         target: guild.id,
         set: {
           allowedRoles,
+          supportChannelId,
+          supportChannelName,
+          adminContactInfo,
         },
       });
 
