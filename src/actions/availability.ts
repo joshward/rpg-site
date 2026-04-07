@@ -4,7 +4,10 @@ import { revalidatePath } from 'next/cache';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { ActionError, asResult } from '@/actions/action-helpers';
+import { isSuccess } from '@/actions/result';
 import { ensureAccess, ensureAdmin } from '@/actions/auth-helpers';
+import { isMonthScheduled } from '@/actions/games';
+import { notifyAdmin } from '@/lib/notifications';
 import { availabilitySubmission, availabilityDay } from '@/db/schema/availability';
 import { account } from '@/db/schema/auth';
 import {
@@ -107,6 +110,24 @@ export const submitAvailability = asResult(
       }
     }
 
+    const existingSubmission = await db
+      .select({ id: availabilitySubmission.id })
+      .from(availabilitySubmission)
+      .where(
+        and(
+          eq(availabilitySubmission.guildId, guildId),
+          eq(availabilitySubmission.discordUserId, discordAccount.userId),
+          eq(availabilitySubmission.year, year),
+          eq(availabilitySubmission.month, month),
+        ),
+      )
+      .limit(1);
+
+    const isFirstTime = existingSubmission.length === 0;
+
+    const monthScheduledResult = await isMonthScheduled(guildId, year, month);
+    const isScheduled = isSuccess(monthScheduledResult) && monthScheduledResult.data;
+
     // Upsert submission + replace days in a transaction
     const { submissionId } = await db.transaction(async (tx) => {
       const [submission] = await tx
@@ -149,6 +170,15 @@ export const submitAvailability = asResult(
 
     revalidatePath(`/g/${guildId}/availability`);
     revalidatePath(`/g/${guildId}/schedule`);
+
+    if (isFirstTime || isScheduled) {
+      const displayName = session.user.name || 'Unknown User';
+      let message = `📅 **Availability Saved**: ${displayName} for ${month}/${year}`;
+      if (isScheduled && !isFirstTime) {
+        message = `⚠️ **Availability Updated (Schedule Modified)**: ${displayName} for ${month}/${year}`;
+      }
+      await notifyAdmin(guildId, message);
+    }
 
     return { submissionId };
   },

@@ -29,8 +29,15 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
     );
   }
 
-  const { role, allowedRoles, supportChannelId, supportChannelName, adminContactInfo } =
-    guildInfoResult.data;
+  const {
+    role,
+    allowedRoles,
+    supportChannelId,
+    supportChannelName,
+    adminContactInfo,
+    adminNotificationChannelId,
+    adminNotificationChannelName,
+  } = guildInfoResult.data;
 
   if (role !== 'admin') {
     notFound();
@@ -67,6 +74,8 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
         initialSupportChannelId={supportChannelId}
         initialSupportChannelName={supportChannelName}
         initialAdminContactInfo={adminContactInfo}
+        initialAdminNotificationChannelId={adminNotificationChannelId}
+        initialAdminNotificationChannelName={adminNotificationChannelName}
       />
       <UsersConfig />
     </div>

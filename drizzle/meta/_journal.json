@@ -78,6 +78,13 @@
       "when": 1775520515453,
       "tag": "0010_add_guild_support_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1775524163817,
+      "tag": "0011_add_admin_notification_fields",
+      "breakpoints": true
     }
   ]
 }

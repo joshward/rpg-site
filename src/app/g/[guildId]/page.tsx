@@ -12,6 +12,7 @@ import { NO_LIMIT } from '@/lib/preferences';
 import { getNextMonth, isLast7DaysOfCurrentMonth, formatMonthYear } from '@/lib/availability';
 import { GuildRouteProps, getGuildName, getContactInfo } from './helpers';
 import UserGameList from './_components/UserGameList';
+import { ReactNode } from 'react';
 
 export async function generateMetadata({ params }: GuildRouteProps): Promise<Metadata> {
   const { guildId } = await params;
@@ -31,7 +32,7 @@ export default async function GuildPage({ params }: GuildRouteProps) {
     getGuildInfo(guildId),
   ]);
 
-  const banners: React.ReactNode[] = [];
+  const banners: ReactNode[] = [];
   const myGames = isFailure(gamesResult) ? [] : gamesResult.data;
 
   // 1. Availability alert (only in last 7 days and if not filled)

@@ -10,8 +10,19 @@ import {
   GuildMemberSchema,
   GuildMembersResponseSchema,
   GuildsResponseSchema,
+  UserSchema,
   RolesResponseSchema,
   ChannelsResponseSchema,
+  MessageSchema,
+  ChannelSchema,
+  type GuildsResponseModel,
+  type UserModel,
+  type RolesResponseModel,
+  type ChannelsResponseModel,
+  type GuildMemberModel,
+  type GuildMembersResponseModel,
+  type ChannelModel,
+  type MessageModel,
 } from '@/lib/discord/models';
 import * as v from 'valibot';
 import { TimeSpan } from 'timespan-ts';
@@ -23,7 +34,7 @@ export interface Options {
 }
 
 const defaultHeaders = {
-  'Content-Type': 'application/json',
+  Accept: 'application/json',
   'User-Agent': `DiscordBot (${config.siteUrl}, 1.0.0)`,
   Authorization: `Bot ${config.discord.botToken}`,
 } as const;
@@ -144,6 +155,9 @@ const $fetch = createFetch({
     '/users/@me/guilds': {
       output: GuildsResponseSchema,
     },
+    '/users/@me': {
+      output: UserSchema,
+    },
     '/guilds/:guildId/roles': {
       output: RolesResponseSchema,
     },
@@ -159,6 +173,16 @@ const $fetch = createFetch({
         limit: v.optional(v.number()),
         after: v.optional(v.string()),
       }),
+    },
+    '/channels/:channelId': {
+      output: ChannelSchema,
+    },
+    '/channels/:channelId/messages': {
+      method: 'post',
+      input: v.object({
+        content: v.string(),
+      }),
+      output: MessageSchema,
     },
   }),
   defaultError: ErrorSchema,
@@ -200,14 +224,24 @@ function toError<TData>(
   return result.data;
 }
 
-export async function getGuilds(options: Options = {}) {
+export async function getGuilds(options: Options = {}): Promise<GuildsResponseModel> {
   const result = await $fetch('/users/@me/guilds', {
     ...handleOptions(options),
   });
   return toError('/users/@me/guilds', result);
 }
 
-export async function getGuildRoles(params: { guildId: string }, options: Options = {}) {
+export async function getCurrentUser(options: Options = {}): Promise<UserModel> {
+  const result = await $fetch('/users/@me', {
+    ...handleOptions(options),
+  });
+  return toError('/users/@me', result);
+}
+
+export async function getGuildRoles(
+  params: { guildId: string },
+  options: Options = {},
+): Promise<RolesResponseModel> {
   const result = await $fetch('/guilds/:guildId/roles', {
     params,
     ...handleOptions(options),
@@ -215,7 +249,10 @@ export async function getGuildRoles(params: { guildId: string }, options: Option
   return toError('/guilds/:guildId/roles', result);
 }
 
-export async function getGuildChannels(params: { guildId: string }, options: Options = {}) {
+export async function getGuildChannels(
+  params: { guildId: string },
+  options: Options = {},
+): Promise<ChannelsResponseModel> {
   const result = await $fetch('/guilds/:guildId/channels', {
     params,
     ...handleOptions(options),
@@ -226,7 +263,7 @@ export async function getGuildChannels(params: { guildId: string }, options: Opt
 export async function getGuildMember(
   params: { guildId: string; userId: string },
   options: Options = {},
-) {
+): Promise<GuildMemberModel> {
   const result = await $fetch('/guilds/:guildId/members/:userId', {
     params,
     ...handleOptions(options),
@@ -234,8 +271,11 @@ export async function getGuildMember(
   return toError('/guilds/:guildId/members/:userId', result);
 }
 
-export async function getGuildMembers(params: { guildId: string }, options: Options = {}) {
-  let result = await $fetch('/guilds/:guildId/members', {
+export async function getGuildMembers(
+  params: { guildId: string },
+  options: Options = {},
+): Promise<GuildMembersResponseModel> {
+  const result = await $fetch('/guilds/:guildId/members', {
     params,
     query: {
       limit: 1000,
@@ -243,4 +283,29 @@ export async function getGuildMembers(params: { guildId: string }, options: Opti
     ...handleOptions(options),
   });
   return toError('/guilds/:guildId/members', result);
+}
+
+export async function getChannel(
+  params: { channelId: string },
+  options: Options = {},
+): Promise<ChannelModel> {
+  const result = await $fetch('/channels/:channelId', {
+    params,
+    ...handleOptions(options),
+  });
+  return toError('/channels/:channelId', result);
+}
+
+export async function sendDiscordMessage(
+  params: { channelId: string },
+  body: { content: string },
+  options: Options = {},
+): Promise<MessageModel> {
+  const result = await $fetch('/channels/:channelId/messages', {
+    method: 'post',
+    params,
+    body,
+    ...handleOptions(options),
+  });
+  return toError('/channels/:channelId/messages', result);
 }

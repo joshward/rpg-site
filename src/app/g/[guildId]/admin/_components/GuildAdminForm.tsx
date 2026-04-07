@@ -9,8 +9,8 @@ import { FormInput } from '@/components/FormInput';
 import { ComboboxOption } from '@/components/Combobox';
 import Paper from '@/components/Paper';
 import Button from '@/components/Button';
-import { saveGuildConfig } from '@/actions/guilds';
-import { isFailure } from '@/actions/result';
+import { saveGuildConfig, checkBotPermissionsAction } from '@/actions/guilds';
+import { isFailure, isSuccess } from '@/actions/result';
 import { useNotification } from '@/components/Notification';
 
 interface GuildAdminFormProps {
@@ -20,6 +20,8 @@ interface GuildAdminFormProps {
   initialSupportChannelId?: string;
   initialSupportChannelName?: string;
   initialAdminContactInfo?: string;
+  initialAdminNotificationChannelId?: string;
+  initialAdminNotificationChannelName?: string;
 }
 
 export default function GuildAdminForm({
@@ -29,6 +31,8 @@ export default function GuildAdminForm({
   initialSupportChannelId,
   initialSupportChannelName,
   initialAdminContactInfo,
+  initialAdminNotificationChannelId,
+  initialAdminNotificationChannelName,
 }: GuildAdminFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
@@ -38,6 +42,8 @@ export default function GuildAdminForm({
       allowedRoles: roles.filter((role) => initialAllowedRoles.includes(role.id as string)),
       supportChannel: channels.find((c) => c.id === initialSupportChannelId) ?? null,
       adminContactInfo: initialAdminContactInfo ?? '',
+      adminNotificationChannel:
+        channels.find((c) => c.id === initialAdminNotificationChannelId) ?? null,
     },
     onSubmit: async ({ value }) => {
       const result = await saveGuildConfig(
@@ -46,6 +52,8 @@ export default function GuildAdminForm({
         value.supportChannel?.id as string | undefined,
         value.supportChannel?.label as string | undefined,
         value.adminContactInfo,
+        value.adminNotificationChannel?.id as string | undefined,
+        value.adminNotificationChannel?.label as string | undefined,
       );
 
       if (isFailure(result)) {
@@ -108,6 +116,35 @@ export default function GuildAdminForm({
             <FormComboBox
               label="Support Channel"
               description="Select a channel where users can reach out for help. A link to this channel will be included in error messages."
+              items={channels}
+              placeholder="Select a channel..."
+              value={field.state.value}
+              onValueChange={(val) => field.handleChange(val as ComboboxOption | null)}
+              error={field.state.meta.errors.join(', ')}
+              invalid={field.state.meta.errors.length > 0}
+            />
+          )}
+        </form.Field>
+
+        <form.Field
+          name="adminNotificationChannel"
+          validators={{
+            onChangeAsync: async ({ value }) => {
+              if (!value) return undefined;
+              const result = await checkBotPermissionsAction(guildId, value.id as string);
+              if (isFailure(result)) return result.error;
+              if (isSuccess(result) && !result.data.hasPermissions) {
+                return `Bot is missing permissions in this channel: ${result.data.missing.join(', ')}`;
+              }
+              return undefined;
+            },
+            onChangeAsyncDebounceMs: 500,
+          }}
+        >
+          {(field) => (
+            <FormComboBox
+              label="Admin Notification Channel"
+              description="Select a channel where the bot will send notifications to admins (e.g. availability updates)."
               items={channels}
               placeholder="Select a channel..."
               value={field.state.value}

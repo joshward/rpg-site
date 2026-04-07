@@ -11,4 +11,6 @@ export const guild = pgTable('guilds', {
   supportChannelId: text(),
   supportChannelName: text(),
   adminContactInfo: text(),
+  adminNotificationChannelId: text(),
+  adminNotificationChannelName: text(),
 });

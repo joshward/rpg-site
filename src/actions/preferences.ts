@@ -7,6 +7,7 @@ import { account, user } from '@/db/schema/auth';
 import { resolveRoleForGuild } from '@/lib/authn';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { ensureAccess, ensureAdmin } from '@/actions/auth-helpers';
+import { notifyAdmin } from '@/lib/notifications';
 import { memberPreference } from '@/db/schema/member-preferences';
 import { NO_LIMIT } from '@/lib/preferences';
 import { getGuildMembers } from '@/lib/discord/api';
@@ -50,6 +51,19 @@ export const setMyPreference = asResult(
       throw new ActionError('Invalid sessions per month value.');
     }
 
+    const existing = await db
+      .select({ sessionsPerMonth: memberPreference.sessionsPerMonth })
+      .from(memberPreference)
+      .where(
+        and(
+          eq(memberPreference.guildId, guildId),
+          eq(memberPreference.discordUserId, discordAccount.userId),
+        ),
+      )
+      .limit(1);
+
+    const hasChanged = existing.length === 0 || existing[0].sessionsPerMonth !== sessionsPerMonth;
+
     await db
       .insert(memberPreference)
       .values({
@@ -65,6 +79,15 @@ export const setMyPreference = asResult(
           userId: session.user.id,
         },
       });
+
+    if (hasChanged) {
+      const displayName = session.user.name || 'Unknown User';
+      const displayValue = sessionsPerMonth === NO_LIMIT ? 'No Limit' : sessionsPerMonth;
+      await notifyAdmin(
+        guildId,
+        `🎮 **Preferences Updated**: ${displayName} changed preferred games to **${displayValue}**`,
+      );
+    }
   },
   'Something went wrong saving your preferences.',
 );

@@ -51,8 +51,25 @@ export const ChannelSchema = v.object({
   id: v.string(),
   name: v.string(),
   type: v.number(),
+  guild_id: v.optional(v.string()),
+  permission_overwrites: v.optional(
+    v.array(
+      v.object({
+        id: v.string(),
+        type: v.number(),
+        allow: v.string(),
+        deny: v.string(),
+      }),
+    ),
+  ),
 });
 export type ChannelModel = v.InferOutput<typeof ChannelSchema>;
+
+export const MessageSchema = v.object({
+  id: v.string(),
+  content: v.string(),
+});
+export type MessageModel = v.InferOutput<typeof MessageSchema>;
 
 export const ChannelsResponseSchema = v.array(ChannelSchema);
 export type ChannelsResponseModel = v.InferOutput<typeof ChannelsResponseSchema>;
