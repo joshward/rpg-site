@@ -22,6 +22,8 @@ interface GuildAdminFormProps {
   initialAdminContactInfo?: string;
   initialAdminNotificationChannelId?: string;
   initialAdminNotificationChannelName?: string;
+  initialGlobalNotificationChannelId?: string;
+  initialGlobalNotificationChannelName?: string;
 }
 
 export default function GuildAdminForm({
@@ -33,6 +35,8 @@ export default function GuildAdminForm({
   initialAdminContactInfo,
   initialAdminNotificationChannelId,
   initialAdminNotificationChannelName,
+  initialGlobalNotificationChannelId,
+  initialGlobalNotificationChannelName,
 }: GuildAdminFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
@@ -44,6 +48,8 @@ export default function GuildAdminForm({
       adminContactInfo: initialAdminContactInfo ?? '',
       adminNotificationChannel:
         channels.find((c) => c.id === initialAdminNotificationChannelId) ?? null,
+      globalNotificationChannel:
+        channels.find((c) => c.id === initialGlobalNotificationChannelId) ?? null,
     },
     onSubmit: async ({ value }) => {
       const result = await saveGuildConfig(
@@ -54,6 +60,8 @@ export default function GuildAdminForm({
         value.adminContactInfo,
         value.adminNotificationChannel?.id as string | undefined,
         value.adminNotificationChannel?.label as string | undefined,
+        value.globalNotificationChannel?.id as string | undefined,
+        value.globalNotificationChannel?.label as string | undefined,
       );
 
       if (isFailure(result)) {
@@ -145,6 +153,35 @@ export default function GuildAdminForm({
             <FormComboBox
               label="Admin Notification Channel"
               description="Select a channel where the bot will send notifications to admins (e.g. availability updates)."
+              items={channels}
+              placeholder="Select a channel..."
+              value={field.state.value}
+              onValueChange={(val) => field.handleChange(val as ComboboxOption | null)}
+              error={field.state.meta.errors.join(', ')}
+              invalid={field.state.meta.errors.length > 0}
+            />
+          )}
+        </form.Field>
+
+        <form.Field
+          name="globalNotificationChannel"
+          validators={{
+            onChangeAsync: async ({ value }) => {
+              if (!value) return undefined;
+              const result = await checkBotPermissionsAction(guildId, value.id as string);
+              if (isFailure(result)) return result.error;
+              if (isSuccess(result) && !result.data.hasPermissions) {
+                return `Bot is missing permissions in this channel: ${result.data.missing.join(', ')}`;
+              }
+              return undefined;
+            },
+            onChangeAsyncDebounceMs: 500,
+          }}
+        >
+          {(field) => (
+            <FormComboBox
+              label="Global Notification Channel"
+              description="Select a channel where the bot will send global notifications to all players (e.g. availability reminders)."
               items={channels}
               placeholder="Select a channel..."
               value={field.state.value}

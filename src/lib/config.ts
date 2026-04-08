@@ -16,4 +16,5 @@ export const config = {
   databaseUrl: requireEnvVar('DATABASE_URL'),
   siteUrl: requireEnvVar('SITE_URL'),
   cronSecret: requireEnvVar('CRON_SECRET'),
+  allowedDmRecipients: process.env.ALLOWED_DM_RECIPIENTS?.split(',').filter(Boolean) || [],
 } as const;

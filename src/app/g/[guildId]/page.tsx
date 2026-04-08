@@ -9,7 +9,7 @@ import { getMyAvailability } from '@/actions/availability';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
 import { NO_LIMIT } from '@/lib/preferences';
-import { getNextMonth, isLast7DaysOfCurrentMonth, formatMonthYear } from '@/lib/availability';
+import { getNextMonth, isLast10DaysOfCurrentMonth, formatMonthYear } from '@/lib/availability';
 import { GuildRouteProps, getGuildName, getContactInfo } from './helpers';
 import UserGameList from './_components/UserGameList';
 import { ReactNode } from 'react';
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: GuildRouteProps): Promise<Met
 export default async function GuildPage({ params }: GuildRouteProps) {
   const { guildId } = await params;
   const nextMonth = getNextMonth();
-  const showAvailabilityAlert = isLast7DaysOfCurrentMonth();
+  const showAvailabilityAlert = isLast10DaysOfCurrentMonth();
 
   const [prefResult, gamesResult, availabilityResult, guildInfoResult] = await Promise.all([
     getMyPreference(guildId),

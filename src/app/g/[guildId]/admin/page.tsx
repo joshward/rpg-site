@@ -37,6 +37,8 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
     adminContactInfo,
     adminNotificationChannelId,
     adminNotificationChannelName,
+    globalNotificationChannelId,
+    globalNotificationChannelName,
   } = guildInfoResult.data;
 
   if (role !== 'admin') {
@@ -76,6 +78,8 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
         initialAdminContactInfo={adminContactInfo}
         initialAdminNotificationChannelId={adminNotificationChannelId}
         initialAdminNotificationChannelName={adminNotificationChannelName}
+        initialGlobalNotificationChannelId={globalNotificationChannelId}
+        initialGlobalNotificationChannelName={globalNotificationChannelName}
       />
       <UsersConfig />
     </div>

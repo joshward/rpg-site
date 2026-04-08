@@ -181,8 +181,22 @@ const $fetch = createFetch({
       method: 'post',
       input: v.object({
         content: v.string(),
+        allowed_mentions: v.optional(
+          v.object({
+            users: v.optional(v.array(v.string())),
+            roles: v.optional(v.array(v.string())),
+            everyone: v.optional(v.boolean()),
+          }),
+        ),
       }),
       output: MessageSchema,
+    },
+    '/users/@me/channels': {
+      method: 'post',
+      input: v.object({
+        recipient_id: v.string(),
+      }),
+      output: ChannelSchema,
     },
   }),
   defaultError: ErrorSchema,
@@ -298,7 +312,14 @@ export async function getChannel(
 
 export async function sendDiscordMessage(
   params: { channelId: string },
-  body: { content: string },
+  body: {
+    content: string;
+    allowed_mentions?: {
+      users?: string[];
+      roles?: string[];
+      everyone?: boolean;
+    };
+  },
   options: Options = {},
 ): Promise<MessageModel> {
   const result = await $fetch('/channels/:channelId/messages', {
@@ -308,4 +329,16 @@ export async function sendDiscordMessage(
     ...handleOptions(options),
   });
   return toError('/channels/:channelId/messages', result);
+}
+
+export async function createDM(
+  params: { recipient_id: string },
+  options: Options = {},
+): Promise<ChannelModel> {
+  const result = await $fetch('/users/@me/channels', {
+    method: 'post',
+    body: params,
+    ...handleOptions(options),
+  });
+  return toError('/users/@me/channels', result);
 }

@@ -132,6 +132,8 @@ export const getGuildInfo = asResult(
       adminContactInfo: guildData?.adminContactInfo ?? undefined,
       adminNotificationChannelId: guildData?.adminNotificationChannelId ?? undefined,
       adminNotificationChannelName: guildData?.adminNotificationChannelName ?? undefined,
+      globalNotificationChannelId: guildData?.globalNotificationChannelId ?? undefined,
+      globalNotificationChannelName: guildData?.globalNotificationChannelName ?? undefined,
       isImpersonating: context.isImpersonating,
     };
   },
@@ -165,7 +167,7 @@ export const getGuildChannelsAction = asResult(
       .filter((channel) => channel.type === 0 || channel.type === 5)
       .map((channel) => ({
         id: channel.id,
-        label: channel.name,
+        label: channel.name ?? 'Unknown Channel',
       }));
   },
   'Something went wrong fetching guild channels. Please try again later.',
@@ -286,6 +288,8 @@ export const saveGuildConfig = asResult(
     adminContactInfo?: string,
     adminNotificationChannelId?: string,
     adminNotificationChannelName?: string,
+    globalNotificationChannelId?: string,
+    globalNotificationChannelName?: string,
   ) => {
     await ensureAdmin(guildId);
 
@@ -299,6 +303,8 @@ export const saveGuildConfig = asResult(
         adminContactInfo,
         adminNotificationChannelId,
         adminNotificationChannelName,
+        globalNotificationChannelId,
+        globalNotificationChannelName,
       })
       .onConflictDoUpdate({
         target: guild.id,
@@ -309,6 +315,8 @@ export const saveGuildConfig = asResult(
           adminContactInfo,
           adminNotificationChannelId,
           adminNotificationChannelName,
+          globalNotificationChannelId,
+          globalNotificationChannelName,
         },
       });
 

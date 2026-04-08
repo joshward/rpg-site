@@ -49,7 +49,7 @@ export type GuildMembersResponseModel = v.InferOutput<typeof GuildMembersRespons
 
 export const ChannelSchema = v.object({
   id: v.string(),
-  name: v.string(),
+  name: v.nullish(v.string()),
   type: v.number(),
   guild_id: v.optional(v.string()),
   permission_overwrites: v.optional(

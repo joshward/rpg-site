@@ -15,8 +15,12 @@ export async function GET(request: NextRequest) {
 
   console.log('Cron job /api/cron/notifications started at', new Date().toISOString());
 
-  // Logic for notifications will be added here in future tasks.
-  // For now, we just log and return success.
+  const { searchParams } = new URL(request.url);
+  const dateOverrideParam = searchParams.get('date');
+  const dateOverride = dateOverrideParam ? new Date(dateOverrideParam) : undefined;
+
+  const { processNotifications } = await import('@/lib/notification-service');
+  await processNotifications(dateOverride);
 
   return NextResponse.json({
     success: true,

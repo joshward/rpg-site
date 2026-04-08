@@ -1,7 +1,11 @@
 import { config } from '../src/lib/config';
 
 async function main() {
-  const url = `${config.siteUrl}/api/cron/notifications`;
+  const dateArg = process.argv[2];
+  let url = `${config.siteUrl}/api/cron/notifications`;
+  if (dateArg) {
+    url += `?date=${encodeURIComponent(dateArg)}`;
+  }
   console.log(`Triggering cron job at ${url}...`);
   const response = await fetch(url, {
     method: 'GET',
