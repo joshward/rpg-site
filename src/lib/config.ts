@@ -15,4 +15,5 @@ export const config = {
   },
   databaseUrl: requireEnvVar('DATABASE_URL'),
   siteUrl: requireEnvVar('SITE_URL'),
+  cronSecret: requireEnvVar('CRON_SECRET'),
 } as const;
