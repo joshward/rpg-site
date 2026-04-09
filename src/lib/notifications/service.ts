@@ -1,41 +1,25 @@
 import { db } from '@/db/db';
 import { guild as guildTable } from '@/db/schema/guild';
-import { sendDiscordMessage, getGuilds } from '@/lib/discord/api';
+import { getGuilds } from '@/lib/discord/api';
 import { getNow, getNextMonth } from '@/lib/availability';
 import { config } from '@/lib/config';
 import { getDaysUntilEndOfMonth, getPrefix } from './utils';
-import {
-  getNotificationContext,
-  generateT10GlobalMessage,
-  generateT3AdminReport,
-  generateT2FinalCallGlobal,
-  generateT2AdminReport,
-  type DiscordMessage,
-} from './messages';
+import { getNotificationContext } from './messages';
 import {
   sendT7Reminder,
   sendT4CoreReminder,
   sendT4OptionalReminder,
   sendT2FinalCall,
 } from './dm-actions';
+import {
+  sendT10Global,
+  sendT3AdminReportAction,
+  sendT2FinalCallGlobalAction,
+  sendT2AdminReportAction,
+} from './global-actions';
 import { getPlayerCohorts } from './cohorts';
 
 const NOTIFICATION_DAYS = [10, 7, 4, 3, 2];
-
-async function sendGlobalMessage(channelId: string, message: DiscordMessage, prefix: string) {
-  const body = { ...message };
-  if (body.content && !body.content.startsWith(prefix)) {
-    body.content = `${prefix}${body.content}`;
-  } else if (prefix) {
-    const inEmbed = body.embeds?.some(
-      (e) => e.author?.name?.startsWith(prefix) || e.title?.startsWith(prefix),
-    );
-    if (!inEmbed) {
-      body.content = prefix.trim();
-    }
-  }
-  await sendDiscordMessage({ channelId }, body);
-}
 
 export async function processNotifications(dateOverride?: Date) {
   const now = dateOverride || getNow();
@@ -79,11 +63,7 @@ export async function processNotifications(dateOverride?: Date) {
       if (daysUntilEnd === 10) {
         console.log(`[T-10] Sending global channel notification for ${guildName}`);
         if (guildData.globalNotificationChannelId) {
-          await sendGlobalMessage(
-            guildData.globalNotificationChannelId,
-            generateT10GlobalMessage(context),
-            prefix,
-          );
+          await sendT10Global(guildData.globalNotificationChannelId, context);
         }
       }
 
@@ -114,13 +94,12 @@ export async function processNotifications(dateOverride?: Date) {
       if (daysUntilEnd === 3) {
         console.log(`[T-3] Sending admin report for ${guildName}`);
         if (guildData.adminNotificationChannelId) {
-          const message = generateT3AdminReport({
+          await sendT3AdminReportAction(guildData.adminNotificationChannelId, {
             corePlayersCount: corePlayers.length,
             missingCoreCount: missingCore.length,
             optionalPlayersCount: optionalPlayers.length,
             missingOptionalCount: missingOptional.length,
           });
-          await sendGlobalMessage(guildData.adminNotificationChannelId, message, prefix);
         }
       }
 
@@ -139,18 +118,19 @@ export async function processNotifications(dateOverride?: Date) {
             missingCore.length +
             (optionalPlayers.length - missingOptional.length);
           const totalActive = corePlayers.length + optionalPlayers.length;
-          const message = generateT2FinalCallGlobal({ submittedCount, totalActive });
-          await sendGlobalMessage(guildData.globalNotificationChannelId, message, prefix);
+          await sendT2FinalCallGlobalAction(guildData.globalNotificationChannelId, context, {
+            submittedCount,
+            totalActive,
+          });
         }
 
         if (guildData.adminNotificationChannelId) {
-          const message = generateT2AdminReport({
+          await sendT2AdminReportAction(guildData.adminNotificationChannelId, {
             corePlayersCount: corePlayers.length,
             missingCoreCount: missingCore.length,
             optionalPlayersCount: optionalPlayers.length,
             missingOptionalCount: missingOptional.length,
           });
-          await sendGlobalMessage(guildData.adminNotificationChannelId, message, prefix);
         }
       }
     } catch (error) {

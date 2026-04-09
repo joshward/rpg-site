@@ -76,7 +76,7 @@ export function generateStandardDM({
               {
                 type: ComponentType.BUTTON,
                 style: ButtonStyle.LINK,
-                label: 'Submit Availability',
+                label: '📅 Submit Availability',
                 url: webappLink,
               },
             ],
@@ -164,22 +164,21 @@ export function generateT3AdminReport({
   };
 }
 
-export function generateT2FinalCallGlobal({
-  submittedCount,
-  totalActive,
-}: {
-  submittedCount: number;
-  totalActive: number;
-}): DiscordMessage {
-  return {
-    embeds: [
-      {
-        title: 'Final Call for Availability! 📢',
-        description: `The schedule will be created today.\n\n**${submittedCount}/${totalActive}** players (core + optional) have filled out their schedule.`,
-        color: COLORS.DANGER,
-      },
-    ],
-  };
+export function generateT2FinalCallGlobal(
+  context: NotificationContext,
+  {
+    submittedCount,
+    totalActive,
+  }: {
+    submittedCount: number;
+    totalActive: number;
+  },
+): DiscordMessage {
+  return generateStandardDM({
+    ...context,
+    messageText: `**Final call for availability! 📢** The schedule will be created today.\n\n**${submittedCount}/${totalActive}** players have filled out their schedule.`,
+    color: COLORS.DANGER,
+  });
 }
 
 export function generateT2AdminReport({

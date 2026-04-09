@@ -21,6 +21,7 @@
     "test:coverage": "vitest run --coverage",
     "cron:notifications!": "npm run op -- npx tsx scripts/trigger-notifications.ts",
     "dev:test-dm!": "npm run op -- npx tsx scripts/test-dm.ts",
+    "dev:test-global!": "npm run op -- npx tsx scripts/test-global.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
