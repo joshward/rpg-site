@@ -10,6 +10,7 @@ import {
   generateT3AdminReport,
   generateT2FinalCallGlobal,
   generateT2AdminReport,
+  type DiscordMessage,
 } from './messages';
 import {
   sendT7Reminder,
@@ -20,6 +21,21 @@ import {
 import { getPlayerCohorts } from './cohorts';
 
 const NOTIFICATION_DAYS = [10, 7, 4, 3, 2];
+
+async function sendGlobalMessage(channelId: string, message: DiscordMessage, prefix: string) {
+  const body = { ...message };
+  if (body.content && !body.content.startsWith(prefix)) {
+    body.content = `${prefix}${body.content}`;
+  } else if (prefix) {
+    const inEmbed = body.embeds?.some(
+      (e) => e.author?.name?.startsWith(prefix) || e.title?.startsWith(prefix),
+    );
+    if (!inEmbed) {
+      body.content = prefix.trim();
+    }
+  }
+  await sendDiscordMessage({ channelId }, body);
+}
 
 export async function processNotifications(dateOverride?: Date) {
   const now = dateOverride || getNow();
@@ -34,7 +50,6 @@ export async function processNotifications(dateOverride?: Date) {
   }
 
   const target = getNextMonth(now);
-  const webappLink = config.siteUrl;
   const prefix = getPrefix();
 
   const guilds = await db.select().from(guildTable);
@@ -45,7 +60,8 @@ export async function processNotifications(dateOverride?: Date) {
     try {
       const discordGuild = discordGuildsMap.get(guildData.id);
       const guildName = discordGuild?.name || 'Discord Server';
-      const context = getNotificationContext(now, guildName, webappLink);
+      const guildWebappLink = `${config.siteUrl}/g/${guildData.id}/availability`;
+      const context = getNotificationContext(now, guildName, guildWebappLink, prefix);
 
       console.log(
         `Processing notifications for ${guildName} (T-${daysUntilEnd}). Target: ${context.targetMonthName} ${target.year}`,
@@ -63,11 +79,10 @@ export async function processNotifications(dateOverride?: Date) {
       if (daysUntilEnd === 10) {
         console.log(`[T-10] Sending global channel notification for ${guildName}`);
         if (guildData.globalNotificationChannelId) {
-          await sendDiscordMessage(
-            { channelId: guildData.globalNotificationChannelId },
-            {
-              content: `${prefix}${generateT10GlobalMessage(context)}`,
-            },
+          await sendGlobalMessage(
+            guildData.globalNotificationChannelId,
+            generateT10GlobalMessage(context),
+            prefix,
           );
         }
       }
@@ -99,16 +114,13 @@ export async function processNotifications(dateOverride?: Date) {
       if (daysUntilEnd === 3) {
         console.log(`[T-3] Sending admin report for ${guildName}`);
         if (guildData.adminNotificationChannelId) {
-          const content = generateT3AdminReport({
+          const message = generateT3AdminReport({
             corePlayersCount: corePlayers.length,
             missingCoreCount: missingCore.length,
             optionalPlayersCount: optionalPlayers.length,
             missingOptionalCount: missingOptional.length,
           });
-          await sendDiscordMessage(
-            { channelId: guildData.adminNotificationChannelId },
-            { content: `${prefix}${content}` },
-          );
+          await sendGlobalMessage(guildData.adminNotificationChannelId, message, prefix);
         }
       }
 
@@ -127,24 +139,18 @@ export async function processNotifications(dateOverride?: Date) {
             missingCore.length +
             (optionalPlayers.length - missingOptional.length);
           const totalActive = corePlayers.length + optionalPlayers.length;
-          const content = generateT2FinalCallGlobal({ submittedCount, totalActive });
-          await sendDiscordMessage(
-            { channelId: guildData.globalNotificationChannelId },
-            { content: `${prefix}${content}` },
-          );
+          const message = generateT2FinalCallGlobal({ submittedCount, totalActive });
+          await sendGlobalMessage(guildData.globalNotificationChannelId, message, prefix);
         }
 
         if (guildData.adminNotificationChannelId) {
-          const content = generateT2AdminReport({
+          const message = generateT2AdminReport({
             corePlayersCount: corePlayers.length,
             missingCoreCount: missingCore.length,
             optionalPlayersCount: optionalPlayers.length,
             missingOptionalCount: missingOptional.length,
           });
-          await sendDiscordMessage(
-            { channelId: guildData.adminNotificationChannelId },
-            { content: `${prefix}${content}` },
-          );
+          await sendGlobalMessage(guildData.adminNotificationChannelId, message, prefix);
         }
       }
     } catch (error) {

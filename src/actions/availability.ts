@@ -7,7 +7,7 @@ import { ActionError, asResult } from '@/actions/action-helpers';
 import { isSuccess } from '@/actions/result';
 import { ensureAccess, ensureAdmin } from '@/actions/auth-helpers';
 import { isMonthScheduled } from '@/actions/games';
-import { notifyAdmin } from '@/lib/notifications';
+import { notifyAdmin, generateSimpleEmbed } from '@/lib/notifications';
 import { availabilitySubmission, availabilityDay } from '@/db/schema/availability';
 import { account } from '@/db/schema/auth';
 import {
@@ -173,10 +173,19 @@ export const submitAvailability = asResult(
 
     if (isFirstTime || isScheduled) {
       const displayName = session.user.name || 'Unknown User';
-      let message = `📅 **Availability Saved**: ${displayName} for ${month}/${year}`;
+      let title = 'Availability Saved';
+      let type: 'info' | 'warning' = 'info';
+
       if (isScheduled && !isFirstTime) {
-        message = `⚠️ **Availability Updated (Schedule Modified)**: ${displayName} for ${month}/${year}`;
+        title = 'Availability Updated (Schedule Modified)';
+        type = 'warning';
       }
+
+      const message = generateSimpleEmbed(
+        `📅 ${title}`,
+        `**${displayName}** submitted availability for **${month}/${year}**`,
+        type,
+      );
       await notifyAdmin(guildId, message);
     }
 

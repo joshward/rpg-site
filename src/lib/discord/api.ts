@@ -15,6 +15,7 @@ import {
   ChannelsResponseSchema,
   MessageSchema,
   ChannelSchema,
+  EmbedSchema,
   type GuildsResponseModel,
   type UserModel,
   type RolesResponseModel,
@@ -23,6 +24,8 @@ import {
   type GuildMembersResponseModel,
   type ChannelModel,
   type MessageModel,
+  type EmbedModel,
+  type MessageComponentModel,
 } from '@/lib/discord/models';
 import * as v from 'valibot';
 import { TimeSpan } from 'timespan-ts';
@@ -180,7 +183,10 @@ const $fetch = createFetch({
     '/channels/:channelId/messages': {
       method: 'post',
       input: v.object({
-        content: v.string(),
+        content: v.optional(v.string()),
+        embeds: v.optional(v.array(EmbedSchema)),
+        flags: v.optional(v.number()),
+        components: v.optional(v.array(v.looseObject({}))),
         allowed_mentions: v.optional(
           v.object({
             users: v.optional(v.array(v.string())),
@@ -313,7 +319,10 @@ export async function getChannel(
 export async function sendDiscordMessage(
   params: { channelId: string },
   body: {
-    content: string;
+    content?: string;
+    embeds?: EmbedModel[];
+    flags?: number;
+    components?: MessageComponentModel[];
     allowed_mentions?: {
       users?: string[];
       roles?: string[];

@@ -7,7 +7,7 @@ import { account, user } from '@/db/schema/auth';
 import { resolveRoleForGuild } from '@/lib/authn';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { ensureAccess, ensureAdmin } from '@/actions/auth-helpers';
-import { notifyAdmin } from '@/lib/notifications';
+import { notifyAdmin, generateSimpleEmbed } from '@/lib/notifications';
 import { memberPreference } from '@/db/schema/member-preferences';
 import { NO_LIMIT } from '@/lib/preferences';
 import { getGuildMembers } from '@/lib/discord/api';
@@ -83,10 +83,12 @@ export const setMyPreference = asResult(
     if (hasChanged) {
       const displayName = session.user.name || 'Unknown User';
       const displayValue = sessionsPerMonth === NO_LIMIT ? 'No Limit' : sessionsPerMonth;
-      await notifyAdmin(
-        guildId,
-        `🎮 **Preferences Updated**: ${displayName} changed preferred games to **${displayValue}**`,
+      const message = generateSimpleEmbed(
+        '🎮 Preferences Updated',
+        `**${displayName}** changed preferred games to **${displayValue}**`,
+        'info',
       );
+      await notifyAdmin(guildId, message);
     }
   },
   'Something went wrong saving your preferences.',

@@ -11,5 +11,5 @@ export function getOrdinalDate(date: number): string {
 
 export function getPrefix(): string {
   const isLocal = process.env.NODE_ENV === 'development';
-  return isLocal ? '[LOCAL] ' : '';
+  return isLocal ? '[Local] ' : '';
 }

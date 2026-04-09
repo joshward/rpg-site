@@ -1,44 +1,134 @@
 import { getOrdinalDate } from './utils';
 import { getDaysInMonth, getNextMonth } from '@/lib/availability';
+import {
+  type EmbedModel,
+  type MessageComponentModel,
+  ComponentType,
+  ButtonStyle,
+  MessageFlags,
+} from '@/lib/discord/models';
 
 export interface NotificationContext {
   guildName: string;
   targetMonthName: string;
   deadlineDate: string;
   webappLink: string;
+  prefix?: string;
 }
 
-export function generateT10GlobalMessage({
-  targetMonthName,
-  deadlineDate,
-  webappLink,
-}: NotificationContext) {
-  return `Availability for ${targetMonthName} is now open 👍 Please fill it out when you get a chance. ${webappLink} (Due by the ${deadlineDate})`;
+export interface DiscordMessage {
+  content?: string;
+  embeds?: EmbedModel[];
+  components?: MessageComponentModel[];
+  flags?: number;
 }
 
-export function generateT7ReminderMessage({
+const COLORS = {
+  INFO: 0x3b82f6,
+  SUCCESS: 0x10b981,
+  WARNING: 0xf59e0b,
+  DANGER: 0xef4444,
+} as const;
+
+export function generateStandardDM({
   guildName,
   targetMonthName,
-  deadlineDate,
+  messageText,
+  subMessage,
   webappLink,
-}: NotificationContext) {
-  return `From ${guildName}: Hey! Roleplaying availability for ${targetMonthName} is open. When you get a chance, please fill it out. Thanks 👍! ${webappLink} (Due by the ${deadlineDate}).`;
+  color = COLORS.INFO,
+  prefix = '',
+}: {
+  guildName: string;
+  targetMonthName: string;
+  messageText: string;
+  subMessage?: string;
+  webappLink: string;
+  color?: number;
+  prefix?: string;
+}): DiscordMessage {
+  const header1 = `${prefix}Roleplaying in ${guildName}`;
+  const header2 = `${targetMonthName} Availability`;
+
+  const textContent = [
+    `**${header1}**`,
+    `# ${header2}`,
+    messageText,
+    subMessage ? `-# ${subMessage}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return {
+    flags: MessageFlags.IS_COMPONENTS_V2,
+    components: [
+      {
+        type: ComponentType.CONTAINER,
+        accent_color: color,
+        components: [
+          {
+            type: ComponentType.TEXT_DISPLAY,
+            content: textContent,
+          },
+          {
+            type: ComponentType.ACTION_ROW,
+            components: [
+              {
+                type: ComponentType.BUTTON,
+                style: ButtonStyle.LINK,
+                label: 'Submit Availability',
+                url: webappLink,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
 }
 
-export function generateT4CoreReminderMessage({
-  guildName,
-  targetMonthName,
-  webappLink,
-}: NotificationContext) {
-  return `From ${guildName}: Reminder to fill out your roleplaying availability for ${targetMonthName}. I’ll be building the schedule in 4 days. ${webappLink}`;
+export function generateT10GlobalMessage(context: NotificationContext): DiscordMessage {
+  return generateStandardDM({
+    ...context,
+    messageText: `Availability for **${context.targetMonthName}** is now open! 👍 Please fill it out when you get a chance.`,
+    subMessage: `**Due by the ${context.deadlineDate}**`,
+    color: COLORS.SUCCESS,
+  });
 }
 
-export function generateT4OptionalReminderMessage({
-  guildName,
-  targetMonthName,
-  webappLink,
-}: NotificationContext) {
-  return `From ${guildName}: Hey! If you’re interested in joining any roleplaying games in ${targetMonthName}, feel free to fill out your availability 👍. I’ll be building the schedule in 4 days. ${webappLink}`;
+export function generateT7ReminderMessage(context: NotificationContext): DiscordMessage {
+  return generateStandardDM({
+    ...context,
+    messageText: `Hey! Roleplaying availability for **${context.targetMonthName}** is open. When you get a chance, please fill it out. Thanks! 👍`,
+    subMessage: `**Due by the ${context.deadlineDate}**`,
+    color: COLORS.INFO,
+  });
+}
+
+export function generateT4CoreReminderMessage(context: NotificationContext): DiscordMessage {
+  return generateStandardDM({
+    ...context,
+    messageText: `Just a reminder to fill out your roleplaying availability for **${context.targetMonthName}**.`,
+    subMessage: `I’ll be building the schedule in 4 days.`,
+    color: COLORS.WARNING,
+  });
+}
+
+export function generateT4OptionalReminderMessage(context: NotificationContext): DiscordMessage {
+  return generateStandardDM({
+    ...context,
+    messageText: `Hey! If you’re interested in joining any roleplaying games in **${context.targetMonthName}**, feel free to fill out your availability! 👍`,
+    subMessage: `I’ll be building the schedule in 4 days.`,
+    color: COLORS.INFO,
+  });
+}
+
+export function generateT2FinalCallDM(context: NotificationContext): DiscordMessage {
+  return generateStandardDM({
+    ...context,
+    messageText: `**Final call! 📢** I’m building the schedule today with whoever has submitted availability.`,
+    color: COLORS.DANGER,
+  });
 }
 
 export function generateT3AdminReport({
@@ -51,18 +141,27 @@ export function generateT3AdminReport({
   missingCoreCount: number;
   optionalPlayersCount: number;
   missingOptionalCount: number;
-}) {
-  return `Heads up — availability deadline is tomorrow.\nCurrent: ${corePlayersCount - missingCoreCount}/${corePlayersCount} core players, ${optionalPlayersCount - missingOptionalCount}/${optionalPlayersCount} optional players submitted.`;
-}
-
-export function generateT2FinalCallDM({
-  guildName,
-  webappLink,
-}: {
-  guildName: string;
-  webappLink: string;
-}) {
-  return `From ${guildName}: Final call — I’m building the schedule today with whoever has submitted availability. ${webappLink}`;
+}): DiscordMessage {
+  return {
+    embeds: [
+      {
+        title: 'Heads up — availability deadline is tomorrow!',
+        color: COLORS.WARNING,
+        fields: [
+          {
+            name: 'Core Players',
+            value: `${corePlayersCount - missingCoreCount}/${corePlayersCount} submitted`,
+            inline: true,
+          },
+          {
+            name: 'Optional Players',
+            value: `${optionalPlayersCount - missingOptionalCount}/${optionalPlayersCount} submitted`,
+            inline: true,
+          },
+        ],
+      },
+    ],
+  };
 }
 
 export function generateT2FinalCallGlobal({
@@ -71,8 +170,16 @@ export function generateT2FinalCallGlobal({
 }: {
   submittedCount: number;
   totalActive: number;
-}) {
-  return `Final call for availability schedule will be created today. ${submittedCount}/${totalActive} players (core + optional) have filled out their schedule.`;
+}): DiscordMessage {
+  return {
+    embeds: [
+      {
+        title: 'Final Call for Availability! 📢',
+        description: `The schedule will be created today.\n\n**${submittedCount}/${totalActive}** players (core + optional) have filled out their schedule.`,
+        color: COLORS.DANGER,
+      },
+    ],
+  };
 }
 
 export function generateT2AdminReport({
@@ -85,14 +192,57 @@ export function generateT2AdminReport({
   missingCoreCount: number;
   optionalPlayersCount: number;
   missingOptionalCount: number;
-}) {
-  return `Build the schedule today.\nCurrent: ${corePlayersCount - missingCoreCount}/${corePlayersCount} core players, ${optionalPlayersCount - missingOptionalCount}/${optionalPlayersCount} optional players submitted.`;
+}): DiscordMessage {
+  return {
+    embeds: [
+      {
+        title: 'Build the schedule today! 📅',
+        color: COLORS.DANGER,
+        fields: [
+          {
+            name: 'Core Players',
+            value: `${corePlayersCount - missingCoreCount}/${corePlayersCount} submitted`,
+            inline: true,
+          },
+          {
+            name: 'Optional Players',
+            value: `${optionalPlayersCount - missingOptionalCount}/${optionalPlayersCount} submitted`,
+            inline: true,
+          },
+        ],
+      },
+    ],
+  };
+}
+
+export function generateSimpleEmbed(
+  title: string,
+  description: string,
+  type: 'info' | 'success' | 'warning' | 'danger' = 'info',
+): DiscordMessage {
+  const colorMap = {
+    info: COLORS.INFO,
+    success: COLORS.SUCCESS,
+    warning: COLORS.WARNING,
+    danger: COLORS.DANGER,
+  };
+
+  return {
+    embeds: [
+      {
+        title,
+        description,
+        color: colorMap[type],
+      },
+    ],
+  };
 }
 
 export function getNotificationContext(
   now: Date,
   guildName: string,
   webappLink: string,
+  prefix?: string,
 ): NotificationContext {
   const target = getNextMonth(now);
   const targetMonthName = new Date(Date.UTC(target.year, target.month - 1, 1)).toLocaleDateString(
@@ -108,5 +258,6 @@ export function getNotificationContext(
     targetMonthName,
     deadlineDate,
     webappLink,
+    prefix,
   };
 }

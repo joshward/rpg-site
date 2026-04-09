@@ -9,6 +9,7 @@ import {
   sendT4OptionalReminder,
   sendT2FinalCall,
   getNotificationContext,
+  getPrefix,
 } from '@/lib/notifications';
 import { config } from '@/lib/config';
 import { getNow } from '@/lib/availability';
@@ -42,7 +43,9 @@ export async function POST(request: Request) {
     const username = member?.user.username || 'Unknown User';
 
     const now = getNow();
-    const context = getNotificationContext(now, guildName, config.siteUrl);
+    const prefix = getPrefix();
+    const guildWebappLink = `${config.siteUrl}/g/${guildId}/availability`;
+    const context = getNotificationContext(now, guildName, guildWebappLink, prefix);
 
     let success = false;
     const force = !!ignoreAllowedRecipients;
