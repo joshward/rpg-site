@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const dateOverrideParam = searchParams.get('date');
   const dateOverride = dateOverrideParam ? new Date(dateOverrideParam) : undefined;
 
-  const { processNotifications } = await import('@/lib/notification-service');
+  const { processNotifications } = await import('@/lib/notifications/service');
   await processNotifications(dateOverride);
 
   return NextResponse.json({
