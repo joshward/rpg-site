@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const now = getNow();
     const prefix = getPrefix();
     const guildWebappLink = `${config.siteUrl}/g/${guildId}/availability`;
-    const context = getNotificationContext(now, guildName, guildWebappLink, prefix);
+    const context = getNotificationContext(now, guildId, guildName, guildWebappLink, prefix);
 
     let success = false;
 

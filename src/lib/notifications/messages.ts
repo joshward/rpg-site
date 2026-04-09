@@ -1,5 +1,5 @@
 import { getOrdinalDate } from './utils';
-import { getDaysInMonth, getNextMonth } from '@/lib/availability';
+import { getDaysInMonth, getNextMonth, type YearMonth } from '@/lib/availability';
 import {
   type EmbedModel,
   type MessageComponentModel,
@@ -9,11 +9,13 @@ import {
 } from '@/lib/discord/models';
 
 export interface NotificationContext {
+  guildId: string;
   guildName: string;
   targetMonthName: string;
   deadlineDate: string;
   webappLink: string;
   prefix?: string;
+  target: YearMonth;
 }
 
 export interface DiscordMessage {
@@ -31,6 +33,8 @@ const COLORS = {
 } as const;
 
 export function generateStandardDM({
+  guildId,
+  target,
   guildName,
   targetMonthName,
   messageText,
@@ -38,7 +42,10 @@ export function generateStandardDM({
   webappLink,
   color = COLORS.INFO,
   prefix = '',
+  includeInteractiveButtons = false,
 }: {
+  guildId: string;
+  target: YearMonth;
   guildName: string;
   targetMonthName: string;
   messageText: string;
@@ -46,6 +53,7 @@ export function generateStandardDM({
   webappLink: string;
   color?: number;
   prefix?: string;
+  includeInteractiveButtons?: boolean;
 }): DiscordMessage {
   const header1 = `${prefix}Roleplaying in ${guildName}`;
   const header2 = `${targetMonthName} Availability`;
@@ -59,6 +67,37 @@ export function generateStandardDM({
     .filter(Boolean)
     .join('\n');
 
+  const monthStr = `${target.year}-${target.month.toString().padStart(2, '0')}`;
+
+  const actionRow: MessageComponentModel = {
+    type: ComponentType.ACTION_ROW,
+    components: [
+      {
+        type: ComponentType.BUTTON,
+        style: ButtonStyle.LINK,
+        label: '📅 Submit Availability',
+        url: webappLink,
+      },
+    ],
+  };
+
+  if (includeInteractiveButtons) {
+    actionRow.components.push(
+      {
+        type: ComponentType.BUTTON,
+        style: ButtonStyle.SECONDARY,
+        label: '⏩ Skip this month',
+        custom_id: `skip_month:${guildId}:${monthStr}`,
+      },
+      {
+        type: ComponentType.BUTTON,
+        style: ButtonStyle.SECONDARY,
+        label: '⏸️ Pause participation for now',
+        custom_id: `pause_participation:${guildId}:${monthStr}`,
+      },
+    );
+  }
+
   return {
     flags: MessageFlags.IS_COMPONENTS_V2,
     components: [
@@ -70,17 +109,7 @@ export function generateStandardDM({
             type: ComponentType.TEXT_DISPLAY,
             content: textContent,
           },
-          {
-            type: ComponentType.ACTION_ROW,
-            components: [
-              {
-                type: ComponentType.BUTTON,
-                style: ButtonStyle.LINK,
-                label: '📅 Submit Availability',
-                url: webappLink,
-              },
-            ],
-          },
+          actionRow,
         ],
       },
     ],
@@ -102,6 +131,7 @@ export function generateT7ReminderMessage(context: NotificationContext): Discord
     messageText: `Hey! Roleplaying availability for **${context.targetMonthName}** is open. When you get a chance, please fill it out. Thanks! 👍`,
     subMessage: `**Due by the ${context.deadlineDate}**`,
     color: COLORS.INFO,
+    includeInteractiveButtons: true,
   });
 }
 
@@ -111,6 +141,7 @@ export function generateT4CoreReminderMessage(context: NotificationContext): Dis
     messageText: `Just a reminder to fill out your roleplaying availability for **${context.targetMonthName}**.`,
     subMessage: `I’ll be building the schedule in 4 days.`,
     color: COLORS.WARNING,
+    includeInteractiveButtons: true,
   });
 }
 
@@ -120,6 +151,7 @@ export function generateT4OptionalReminderMessage(context: NotificationContext):
     messageText: `Hey! If you’re interested in joining any roleplaying games in **${context.targetMonthName}**, feel free to fill out your availability! 👍`,
     subMessage: `I’ll be building the schedule in 4 days.`,
     color: COLORS.INFO,
+    includeInteractiveButtons: true,
   });
 }
 
@@ -128,6 +160,7 @@ export function generateT2FinalCallDM(context: NotificationContext): DiscordMess
     ...context,
     messageText: `**Final call! 📢** I’m building the schedule today with whoever has submitted availability.`,
     color: COLORS.DANGER,
+    includeInteractiveButtons: true,
   });
 }
 
@@ -239,6 +272,7 @@ export function generateSimpleEmbed(
 
 export function getNotificationContext(
   now: Date,
+  guildId: string,
   guildName: string,
   webappLink: string,
   prefix?: string,
@@ -253,10 +287,12 @@ export function getNotificationContext(
   );
 
   return {
+    guildId,
     guildName,
     targetMonthName,
     deadlineDate,
     webappLink,
     prefix,
+    target,
   };
 }

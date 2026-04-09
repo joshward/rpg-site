@@ -10,7 +10,76 @@ import { ensureAccess, ensureAdmin } from '@/actions/auth-helpers';
 import { notifyAdmin, generateSimpleEmbed } from '@/lib/notifications';
 import { memberPreference } from '@/db/schema/member-preferences';
 import { NO_LIMIT } from '@/lib/preferences';
-import { getGuildMembers } from '@/lib/discord/api';
+import { getGuildMember, getGuildMembers } from '@/lib/discord/api';
+
+export async function saveMemberPreference({
+  guildId,
+  discordUserId,
+  sessionsPerMonth,
+  displayName,
+  userId,
+  notify = false,
+  source,
+}: {
+  guildId: string;
+  discordUserId: string;
+  sessionsPerMonth: number;
+  displayName: string;
+  userId?: string | null;
+  notify?: boolean;
+  source?: string;
+}) {
+  let finalUserId = userId;
+  if (finalUserId === undefined) {
+    const dbAccount = (
+      await db
+        .select()
+        .from(account)
+        .where(and(eq(account.providerId, 'discord'), eq(account.accountId, discordUserId)))
+    )[0];
+    finalUserId = dbAccount?.userId || null;
+  }
+
+  // 2. Check current preference to see if it changed
+  const existing = await db
+    .select({ sessionsPerMonth: memberPreference.sessionsPerMonth })
+    .from(memberPreference)
+    .where(
+      and(eq(memberPreference.guildId, guildId), eq(memberPreference.discordUserId, discordUserId)),
+    )
+    .limit(1);
+
+  const hasChanged = existing.length === 0 || existing[0].sessionsPerMonth !== sessionsPerMonth;
+
+  // 3. Update preference
+  await db
+    .insert(memberPreference)
+    .values({
+      guildId,
+      discordUserId,
+      userId: finalUserId,
+      sessionsPerMonth,
+    })
+    .onConflictDoUpdate({
+      target: [memberPreference.guildId, memberPreference.discordUserId],
+      set: {
+        sessionsPerMonth,
+        userId: finalUserId,
+      },
+    });
+
+  // 4. Notify admin if changed
+  if (notify && hasChanged) {
+    const displayValue = sessionsPerMonth === NO_LIMIT ? 'No Limit' : sessionsPerMonth;
+    const sourceSuffix = source ? ` ${source}` : '';
+    const message = generateSimpleEmbed(
+      '🎮 Preferences Updated',
+      `**${displayName}** changed preferred games to **${displayValue}**${sourceSuffix}`,
+      'info',
+    );
+    await notifyAdmin(guildId, message);
+  }
+}
 
 export const getMyPreference = asResult(
   'getMyPreference',
@@ -51,45 +120,14 @@ export const setMyPreference = asResult(
       throw new ActionError('Invalid sessions per month value.');
     }
 
-    const existing = await db
-      .select({ sessionsPerMonth: memberPreference.sessionsPerMonth })
-      .from(memberPreference)
-      .where(
-        and(
-          eq(memberPreference.guildId, guildId),
-          eq(memberPreference.discordUserId, discordAccount.userId),
-        ),
-      )
-      .limit(1);
-
-    const hasChanged = existing.length === 0 || existing[0].sessionsPerMonth !== sessionsPerMonth;
-
-    await db
-      .insert(memberPreference)
-      .values({
-        guildId,
-        discordUserId: discordAccount.userId,
-        userId: session.user.id,
-        sessionsPerMonth,
-      })
-      .onConflictDoUpdate({
-        target: [memberPreference.guildId, memberPreference.discordUserId],
-        set: {
-          sessionsPerMonth,
-          userId: session.user.id,
-        },
-      });
-
-    if (hasChanged) {
-      const displayName = session.user.name || 'Unknown User';
-      const displayValue = sessionsPerMonth === NO_LIMIT ? 'No Limit' : sessionsPerMonth;
-      const message = generateSimpleEmbed(
-        '🎮 Preferences Updated',
-        `**${displayName}** changed preferred games to **${displayValue}**`,
-        'info',
-      );
-      await notifyAdmin(guildId, message);
-    }
+    await saveMemberPreference({
+      guildId,
+      discordUserId: discordAccount.userId,
+      userId: session.user.id,
+      sessionsPerMonth,
+      displayName: session.user.name || 'Unknown User',
+      notify: true,
+    });
   },
   'Something went wrong saving your preferences.',
 );
@@ -207,29 +245,22 @@ export const setAdminMemberPreference = asResult(
       throw new ActionError('Invalid sessions per month value.');
     }
 
-    // Check if user has an account in our DB
-    const dbAccount = (
-      await db
-        .select()
-        .from(account)
-        .where(and(eq(account.providerId, 'discord'), eq(account.accountId, discordUserId)))
-    )[0];
+    // Fetch member from Discord to get a good display name
+    let displayName = 'Unknown User';
+    try {
+      const member = await getGuildMember({ guildId, userId: discordUserId });
+      displayName = member.nick || member.user.global_name || member.user.username;
+    } catch (e) {
+      console.warn(`Failed to fetch Discord member info for ${discordUserId}:`, e);
+    }
 
-    await db
-      .insert(memberPreference)
-      .values({
-        guildId,
-        discordUserId,
-        userId: dbAccount?.userId || null,
-        sessionsPerMonth,
-      })
-      .onConflictDoUpdate({
-        target: [memberPreference.guildId, memberPreference.discordUserId],
-        set: {
-          sessionsPerMonth,
-          userId: dbAccount?.userId || null,
-        },
-      });
+    await saveMemberPreference({
+      guildId,
+      discordUserId,
+      sessionsPerMonth,
+      displayName,
+      notify: false,
+    });
 
     revalidatePath(`/g/${guildId}/admin`);
   },

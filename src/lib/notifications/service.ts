@@ -45,7 +45,7 @@ export async function processNotifications(dateOverride?: Date) {
       const discordGuild = discordGuildsMap.get(guildData.id);
       const guildName = discordGuild?.name || 'Discord Server';
       const guildWebappLink = `${config.siteUrl}/g/${guildData.id}/availability`;
-      const context = getNotificationContext(now, guildName, guildWebappLink, prefix);
+      const context = getNotificationContext(now, guildData.id, guildName, guildWebappLink, prefix);
 
       console.log(
         `Processing notifications for ${guildName} (T-${daysUntilEnd}). Target: ${context.targetMonthName} ${target.year}`,
