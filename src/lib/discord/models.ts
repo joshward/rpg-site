@@ -73,3 +73,17 @@ export type MessageModel = v.InferOutput<typeof MessageSchema>;
 
 export const ChannelsResponseSchema = v.array(ChannelSchema);
 export type ChannelsResponseModel = v.InferOutput<typeof ChannelsResponseSchema>;
+
+export const InteractionSchema = v.object({
+  id: v.string(),
+  application_id: v.string(),
+  type: v.number(),
+  token: v.string(),
+  version: v.number(),
+  guild_id: v.optional(v.string()),
+  channel_id: v.optional(v.string()),
+  member: v.optional(GuildMemberSchema),
+  user: v.optional(UserSchema),
+  data: v.optional(v.looseObject({})),
+});
+export type InteractionModel = v.InferOutput<typeof InteractionSchema>;
