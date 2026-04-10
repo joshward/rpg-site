@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Paper from '@/components/Paper';
+import Link from '@/components/Link';
 import MarkdownPreview from '@/components/MarkdownPreview';
 import { GameStatus } from '@/db/schema/games';
 import { twMerge } from 'tailwind-merge';
@@ -34,6 +35,12 @@ interface Game {
 
 interface UserGameListProps {
   games: Game[];
+  adminContact?: {
+    adminText: string;
+    channelLink: string | null;
+    channelName: string | undefined;
+    adminContactInfo?: string | null;
+  };
 }
 
 const statusColors: Record<GameStatus, string> = {
@@ -51,19 +58,54 @@ function formatScheduledDate(date: { year: number; month: number; day: number })
   });
 }
 
-export default function UserGameList({ games }: UserGameListProps) {
-  if (games.length === 0) {
-    return null;
-  }
+export default function UserGameList({ games, adminContact }: UserGameListProps) {
+  const activeGames = games
+    .filter((g) => g.status === 'active')
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const pausedGames = games
+    .filter((g) => g.status === 'paused')
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const hasAnyGames = activeGames.length > 0 || pausedGames.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-bold px-1">Your Games</h2>
-      <div className="grid grid-cols-1 gap-4">
-        {games.map((game) => (
-          <UserGameItem key={game.id} game={game} />
-        ))}
-      </div>
+
+      {!hasAnyGames && adminContact && (
+        <Paper className="p-4 text-sage-11">
+          <p>
+            You&apos;re not currently part of any ongoing games. Reach out to{' '}
+            {adminContact.adminContactInfo || 'your guild admin'}
+            {adminContact.channelLink && (
+              <>
+                {' '}
+                or in{' '}
+                <Link href={adminContact.channelLink}>
+                  #{adminContact.channelName || 'support'}
+                </Link>
+              </>
+            )}{' '}
+            to get started.
+          </p>
+        </Paper>
+      )}
+
+      {hasAnyGames && (
+        <div className="grid grid-cols-1 gap-4">
+          {activeGames.map((game) => (
+            <UserGameItem key={game.id} game={game} />
+          ))}
+
+          {activeGames.length > 0 && pausedGames.length > 0 && (
+            <hr className="border-sage-4 my-2" />
+          )}
+
+          {pausedGames.map((game) => (
+            <UserGameItem key={game.id} game={game} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

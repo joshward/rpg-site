@@ -26,5 +26,5 @@ export function getContactInfo(
     ? `https://discord.com/channels/${guildId}/${supportChannelId}`
     : null;
 
-  return { adminText, channelLink, channelName: supportChannelName };
+  return { adminText, channelLink, channelName: supportChannelName, adminContactInfo };
 }

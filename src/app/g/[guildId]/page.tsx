@@ -34,6 +34,13 @@ export default async function GuildPage({ params }: GuildRouteProps) {
 
   const banners: ReactNode[] = [];
   const myGames = isFailure(gamesResult) ? [] : gamesResult.data;
+  const guildData = isFailure(guildInfoResult) ? null : guildInfoResult.data;
+  const adminContact = getContactInfo(
+    guildId,
+    guildData?.supportChannelId,
+    guildData?.supportChannelName,
+    guildData?.adminContactInfo,
+  );
 
   // 1. Availability alert (only in last 7 days and if not filled)
   if (
@@ -74,25 +81,21 @@ export default async function GuildPage({ params }: GuildRouteProps) {
       const isOverScheduled = sessionsPerMonth !== NO_LIMIT && totalSessions > sessionsPerMonth;
 
       if (isOverScheduled) {
-        const guildData = isFailure(guildInfoResult) ? null : guildInfoResult.data;
-        const { adminText, channelLink, channelName } = getContactInfo(
-          guildId,
-          guildData?.supportChannelId,
-          guildData?.supportChannelName,
-          guildData?.adminContactInfo,
-        );
-
         banners.push(
           <Alert key="over-scheduled" type="warning">
             <p>
               You are a core participant in games totalling more days ({totalSessions}) than your
               set preferences ({sessionsPerMonth}).
             </p>
-            <Link href={`/g/${guildId}/preferences`}>Update your preferences</Link> or {adminText}
-            {channelLink && (
+            <Link href={`/g/${guildId}/preferences`}>Update your preferences</Link> or{' '}
+            {adminContact.adminText}
+            {adminContact.channelLink && (
               <>
                 {' '}
-                or reach out in <Link href={channelLink}>#{channelName || 'support'}</Link>
+                or reach out in{' '}
+                <Link href={adminContact.channelLink}>
+                  #{adminContact.channelName || 'support'}
+                </Link>
               </>
             )}{' '}
             if you cannot participate.
@@ -118,7 +121,7 @@ export default async function GuildPage({ params }: GuildRouteProps) {
         <p className="text-sage-11">Welcome to your guild.</p>
       </Paper>
 
-      {myGames.length > 0 && <UserGameList games={myGames} />}
+      <UserGameList games={myGames} adminContact={adminContact} />
     </div>
   );
 }

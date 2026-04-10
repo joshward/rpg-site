@@ -7,6 +7,7 @@ interface GameInfo {
   name: string;
   sessionsPerMonth: number;
   isRequired: boolean;
+  status: string;
 }
 
 interface MemberAvailabilitySummaryProps {
@@ -28,8 +29,9 @@ export default function MemberAvailabilitySummary({
   adminContactInfo,
   isReadOnly,
 }: MemberAvailabilitySummaryProps) {
-  const coreGames = games.filter((g) => g.isRequired);
-  const optionalGames = games.filter((g) => !g.isRequired);
+  const activeGames = games.filter((g) => g.status === 'active');
+  const coreGames = activeGames.filter((g) => g.isRequired);
+  const optionalGames = activeGames.filter((g) => !g.isRequired);
 
   const coreSessions = coreGames.reduce((acc, g) => acc + g.sessionsPerMonth, 0);
   const optionalSessions = optionalGames.reduce((acc, g) => acc + g.sessionsPerMonth, 0);

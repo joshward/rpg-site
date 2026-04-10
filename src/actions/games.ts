@@ -60,6 +60,7 @@ export const getMemberGames = asResult(
         id: game.id,
         name: game.name,
         sessionsPerMonth: game.sessionsPerMonth,
+        status: game.status,
         isRequired: gameMember.isRequired,
       })
       .from(game)
