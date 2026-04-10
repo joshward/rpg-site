@@ -26,6 +26,57 @@ export interface DiscordMessage {
   flags?: number;
 }
 
+export function applyPrefix(message: DiscordMessage, prefix: string): DiscordMessage {
+  if (!prefix) return message;
+
+  const body = { ...message };
+  const isV2 = !!(body.flags && body.flags & MessageFlags.IS_COMPONENTS_V2);
+
+  if (isV2) {
+    // For V2 messages, ensure the prefix is in the text content
+    body.components = body.components?.map((c) => {
+      if (c.type === ComponentType.TEXT_DISPLAY) {
+        if (!c.content.startsWith(prefix)) {
+          return { ...c, content: `${prefix}${c.content}` };
+        }
+      }
+      if (c.type === ComponentType.CONTAINER) {
+        return {
+          ...c,
+          components: c.components?.map((cc: any) => {
+            if (cc.type === ComponentType.TEXT_DISPLAY && !cc.content.startsWith(prefix)) {
+              return { ...cc, content: `${prefix}${cc.content}` };
+            }
+            return cc;
+          }),
+        };
+      }
+      return c;
+    });
+  } else if (body.content && !body.content.startsWith(prefix)) {
+    body.content = `${prefix}${body.content}`;
+  } else {
+    // Check if it's already in embeds or components
+    const inEmbedOrComponents =
+      body.embeds?.some((e) => e.author?.name?.startsWith(prefix) || e.title?.startsWith(prefix)) ||
+      body.components?.some((c) => {
+        if (c.type === ComponentType.TEXT_DISPLAY && c.content.startsWith(prefix)) return true;
+        return (
+          c.type === ComponentType.CONTAINER &&
+          c.components?.some(
+            (cc: any) => cc.type === ComponentType.TEXT_DISPLAY && cc.content.startsWith(prefix),
+          )
+        );
+      });
+
+    if (!inEmbedOrComponents) {
+      body.content = prefix.trim();
+    }
+  }
+
+  return body;
+}
+
 const COLORS = {
   INFO: 0x3b82f6,
   SUCCESS: 0x10b981,

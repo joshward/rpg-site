@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Paper from '@/components/Paper';
+import Link from '@/components/Link';
 import MarkdownPreview from '@/components/MarkdownPreview';
 import { GameStatus } from '@/db/schema/games';
 import { twMerge } from 'tailwind-merge';
@@ -22,6 +23,10 @@ interface Game {
   description: string | null;
   status: GameStatus;
   sessionsPerMonth: number;
+  guildId?: string;
+  discordChannelId?: string | null;
+  discordChannelName?: string | null;
+  schedulingDetails?: string | null;
   isRequired: boolean;
   scheduledDates?: {
     year: number;
@@ -33,7 +38,15 @@ interface Game {
 }
 
 interface UserGameListProps {
+  guildId: string;
   games: Game[];
+  adminContact?: {
+    adminText: string;
+    channelLink: string | null;
+    channelName: string | undefined;
+    adminContactInfo?: string | null;
+  };
+  defaultSchedulingDetails?: string | null;
 }
 
 const statusColors: Record<GameStatus, string> = {
@@ -51,19 +64,69 @@ function formatScheduledDate(date: { year: number; month: number; day: number })
   });
 }
 
-export default function UserGameList({ games }: UserGameListProps) {
-  if (games.length === 0) {
-    return null;
-  }
+export default function UserGameList({
+  guildId,
+  games,
+  adminContact,
+  defaultSchedulingDetails,
+}: UserGameListProps) {
+  const activeGames = games
+    .filter((g) => g.status === 'active')
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const pausedGames = games
+    .filter((g) => g.status === 'paused')
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const hasAnyGames = activeGames.length > 0 || pausedGames.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-bold px-1">Your Games</h2>
-      <div className="grid grid-cols-1 gap-4">
-        {games.map((game) => (
-          <UserGameItem key={game.id} game={game} />
-        ))}
-      </div>
+
+      {!hasAnyGames && adminContact && (
+        <Paper className="p-4 text-sage-11">
+          <p>
+            You&apos;re not currently part of any ongoing games. Reach out to{' '}
+            {adminContact.adminContactInfo || 'your guild admin'}
+            {adminContact.channelLink && (
+              <>
+                {' '}
+                or in{' '}
+                <Link href={adminContact.channelLink}>
+                  #{adminContact.channelName || 'support'}
+                </Link>
+              </>
+            )}{' '}
+            to get started.
+          </p>
+        </Paper>
+      )}
+
+      {hasAnyGames && (
+        <div className="grid grid-cols-1 gap-4">
+          {activeGames.map((game) => (
+            <UserGameItem
+              key={game.id}
+              guildId={guildId}
+              game={game}
+              defaultSchedulingDetails={defaultSchedulingDetails}
+            />
+          ))}
+
+          {activeGames.length > 0 && pausedGames.length > 0 && (
+            <hr className="border-sage-4 my-2" />
+          )}
+
+          {pausedGames.map((game) => (
+            <UserGameItem
+              key={game.id}
+              guildId={guildId}
+              game={game}
+              defaultSchedulingDetails={defaultSchedulingDetails}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -105,7 +168,15 @@ function AvailabilityIndicator({
   );
 }
 
-function UserGameItem({ game }: { game: Game }) {
+function UserGameItem({
+  guildId,
+  game,
+  defaultSchedulingDetails,
+}: {
+  guildId: string;
+  game: Game;
+  defaultSchedulingDetails?: string | null;
+}) {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   const nextSession = game.scheduledDates?.[0] ?? null;
@@ -154,7 +225,24 @@ function UserGameItem({ game }: { game: Game }) {
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-6">
             <div className="text-sm text-sage-11 font-medium">
               {game.sessionsPerMonth} sessions per month (approximate)
+              {(game.schedulingDetails || defaultSchedulingDetails) && (
+                <>
+                  <span className="mx-2 text-sage-6">|</span>
+                  {game.schedulingDetails || defaultSchedulingDetails}
+                </>
+              )}
             </div>
+            {game.discordChannelId && (
+              <div className="text-sm font-medium">
+                <Link
+                  href={`https://discord.com/channels/${game.guildId || guildId}/${game.discordChannelId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  #{game.discordChannelName || 'channel'}
+                </Link>
+              </div>
+            )}
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
               {nextSession && (
                 <div className="text-sm text-violet-11 font-bold flex items-center gap-2">

@@ -6,37 +6,15 @@ import {
   generateT3AdminReport,
   generateT2FinalCallGlobal,
   generateT2AdminReport,
+  applyPrefix,
 } from './messages';
 import { getPrefix } from './utils';
-import { MessageFlags, ComponentType } from '@/lib/discord/models';
 
 export async function sendGlobalMessage(channelId: string, message: DiscordMessage, label: string) {
   const prefix = getPrefix();
-  const body = { ...message };
+  let body = { ...message };
 
-  const isV2 = !!(body.flags && body.flags & MessageFlags.IS_COMPONENTS_V2);
-
-  if (isV2) {
-    // For V2 messages, we assume the generator (generateStandardDM) already handled the prefix.
-  } else if (body.content && !body.content.startsWith(prefix)) {
-    body.content = `${prefix}${body.content}`;
-  } else if (prefix) {
-    const inEmbedOrComponents =
-      body.embeds?.some((e) => e.author?.name?.startsWith(prefix) || e.title?.startsWith(prefix)) ||
-      body.components?.some((c) => {
-        if (c.type === ComponentType.TEXT_DISPLAY && c.content.startsWith(prefix)) return true;
-        return (
-          c.type === ComponentType.CONTAINER &&
-          c.components?.some(
-            (cc: any) => cc.type === ComponentType.TEXT_DISPLAY && cc.content.startsWith(prefix),
-          )
-        );
-      });
-
-    if (!inEmbedOrComponents) {
-      body.content = prefix.trim();
-    }
-  }
+  body = applyPrefix(body, prefix);
 
   try {
     await sendDiscordMessage({ channelId }, body);

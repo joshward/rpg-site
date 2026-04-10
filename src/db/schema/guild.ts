@@ -15,4 +15,6 @@ export const guild = pgTable('guilds', {
   adminNotificationChannelName: text(),
   globalNotificationChannelId: text(),
   globalNotificationChannelName: text(),
+  overviewText: text(),
+  defaultSchedulingDetails: text(),
 });

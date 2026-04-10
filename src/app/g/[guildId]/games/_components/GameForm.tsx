@@ -50,15 +50,19 @@ interface GameFormProps {
     description: string | null;
     status: GameStatus;
     sessionsPerMonth: number;
+    discordChannelId: string | null;
+    discordChannelName: string | null;
+    schedulingDetails: string | null;
     members: {
       discordUserId: string;
       isRequired: boolean;
     }[];
   };
   eligibleMembers: EligibleMember[];
+  channels: ComboboxOption[];
 }
 
-export default function GameForm({ initialData, eligibleMembers }: GameFormProps) {
+export default function GameForm({ initialData, eligibleMembers, channels }: GameFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const router = useRouter();
   const notification = useNotification();
@@ -108,6 +112,8 @@ export default function GameForm({ initialData, eligibleMembers }: GameFormProps
       description: initialData?.description ?? '',
       status: GAME_STATUS_OPTIONS.find((opt) => opt.id === (initialData?.status ?? 'draft'))!,
       sessionsPerMonth: initialData?.sessionsPerMonth ?? 0,
+      discordChannel: channels.find((c) => c.id === initialData?.discordChannelId) ?? null,
+      schedulingDetails: initialData?.schedulingDetails ?? '',
       members: initialMembers,
     },
     onSubmit: async ({ value }) => {
@@ -116,6 +122,9 @@ export default function GameForm({ initialData, eligibleMembers }: GameFormProps
         description: value.description || null,
         status: value.status.id as GameStatus,
         sessionsPerMonth: Number(value.sessionsPerMonth),
+        discordChannelId: value.discordChannel?.id as string | undefined,
+        discordChannelName: value.discordChannel?.label as string | undefined,
+        schedulingDetails: value.schedulingDetails || undefined,
         members: value.members.map((m) => ({
           discordUserId: m.discordUserId,
           isRequired: m.isRequired,
@@ -249,6 +258,31 @@ export default function GameForm({ initialData, eligibleMembers }: GameFormProps
                 onBlur={field.handleBlur}
                 error={field.state.meta.errors.join(', ')}
                 invalid={field.state.meta.errors.length > 0}
+              />
+            )}
+          </form.Field>
+
+          <form.Field name="discordChannel">
+            {(field) => (
+              <FormComboBox
+                label="Discord Channel"
+                description="If provided, a link will be shown on the home page."
+                items={channels}
+                placeholder="Select a channel..."
+                value={field.state.value}
+                onValueChange={(val) => field.handleChange(val as ComboboxOption | null)}
+              />
+            )}
+          </form.Field>
+
+          <form.Field name="schedulingDetails">
+            {(field) => (
+              <FormInput
+                label="Scheduling Details"
+                placeholder="e.g. 7:00pm @ My House"
+                description="Overrides the global scheduling details for this game."
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
               />
             )}
           </form.Field>

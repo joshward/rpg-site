@@ -12,6 +12,7 @@ import { NO_LIMIT } from '@/lib/preferences';
 import { getNextMonth, isLast10DaysOfCurrentMonth, formatMonthYear } from '@/lib/availability';
 import { GuildRouteProps, getGuildName, getContactInfo } from './helpers';
 import UserGameList from './_components/UserGameList';
+import MarkdownPreview from '@/components/MarkdownPreview';
 import { ReactNode } from 'react';
 
 export async function generateMetadata({ params }: GuildRouteProps): Promise<Metadata> {
@@ -34,6 +35,13 @@ export default async function GuildPage({ params }: GuildRouteProps) {
 
   const banners: ReactNode[] = [];
   const myGames = isFailure(gamesResult) ? [] : gamesResult.data;
+  const guildData = isFailure(guildInfoResult) ? null : guildInfoResult.data;
+  const adminContact = getContactInfo(
+    guildId,
+    guildData?.supportChannelId,
+    guildData?.supportChannelName,
+    guildData?.adminContactInfo,
+  );
 
   // 1. Availability alert (only in last 7 days and if not filled)
   if (
@@ -74,22 +82,21 @@ export default async function GuildPage({ params }: GuildRouteProps) {
       const isOverScheduled = sessionsPerMonth !== NO_LIMIT && totalSessions > sessionsPerMonth;
 
       if (isOverScheduled) {
-        const guildData = isFailure(guildInfoResult) ? null : guildInfoResult.data;
-        const { adminText, channelLink, channelName } = getContactInfo(
-          guildId,
-          guildData?.supportChannelId,
-          guildData?.supportChannelName,
-          guildData?.adminContactInfo,
-        );
-
         banners.push(
           <Alert key="over-scheduled" type="warning">
-            You are scheduled for more sessions in games than your set preferences.{' '}
-            <Link href={`/g/${guildId}/preferences`}>Update your preferences</Link> or {adminText}
-            {channelLink && (
+            <p>
+              You are a core participant in games totalling more days ({totalSessions}) than your
+              set preferences ({sessionsPerMonth}).
+            </p>
+            <Link href={`/g/${guildId}/preferences`}>Update your preferences</Link> or{' '}
+            {adminContact.adminText}
+            {adminContact.channelLink && (
               <>
                 {' '}
-                or reach out in <Link href={channelLink}>#{channelName || 'support'}</Link>
+                or reach out in{' '}
+                <Link href={adminContact.channelLink}>
+                  #{adminContact.channelName || 'support'}
+                </Link>
               </>
             )}{' '}
             if you cannot participate.
@@ -112,10 +119,19 @@ export default async function GuildPage({ params }: GuildRouteProps) {
       {banners}
       <Paper>
         <h2 className="text-xl font-bold">Overview</h2>
-        <p className="text-sage-11">Welcome to your guild.</p>
+        {guildData?.overviewText ? (
+          <MarkdownPreview content={guildData.overviewText} />
+        ) : (
+          <p className="text-sage-11">Welcome to your guild.</p>
+        )}
       </Paper>
 
-      {myGames.length > 0 && <UserGameList games={myGames} />}
+      <UserGameList
+        guildId={guildId}
+        games={myGames}
+        adminContact={adminContact}
+        defaultSchedulingDetails={guildData?.defaultSchedulingDetails}
+      />
     </div>
   );
 }

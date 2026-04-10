@@ -7,9 +7,10 @@ import {
   type DayAvailability,
 } from '@/actions/availability';
 import { getGuildInfo } from '@/actions/guilds';
+import { getMemberGames } from '@/actions/games';
 import { getMyPreference, getAdminMemberPreference } from '@/actions/preferences';
 import { isFailure } from '@/actions/result';
-import { ensureAdmin } from '@/actions/auth-helpers';
+import { ensureAccess } from '@/actions/auth-helpers';
 import { getGuildMembers } from '@/lib/discord/api';
 import { getDefaultMetadata } from '@/lib/metadata';
 import {
@@ -25,6 +26,7 @@ import {
 import { GuildRouteProps, getGuildName } from '../helpers';
 import AvailabilityView from './_components/AvailabilityView';
 import MonthNav from './_components/MonthNav';
+import MemberAvailabilitySummary from './_components/MemberAvailabilitySummary';
 
 interface AvailabilityPageProps extends GuildRouteProps {
   searchParams: Promise<{ year?: string; month?: string; userId?: string }>;
@@ -43,10 +45,15 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
   const query = await searchParams;
   const targetUserId = query.userId;
 
+  const access = await ensureAccess(guildId);
+  const currentDiscordUserId = access.discordAccount.userId;
+
   let targetMember: { username: string; displayName: string } | null = null;
   if (targetUserId) {
     // Verify admin access for this specific feature
-    await ensureAdmin(guildId);
+    if (access.role !== 'admin') {
+      return <Alert type="error">Only guild administrators can perform this action.</Alert>;
+    }
 
     // Fetch member info from Discord to show who we are editing
     const members = await getGuildMembers({ guildId });
@@ -60,9 +67,10 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
   }
 
   // Check preferences and guild info
-  const [prefResult, guildInfoResult] = await Promise.all([
+  const [prefResult, guildInfoResult, gamesResult] = await Promise.all([
     targetUserId ? getAdminMemberPreference(guildId, targetUserId) : getMyPreference(guildId),
     getGuildInfo(guildId),
+    getMemberGames(guildId, targetUserId || currentDiscordUserId),
   ]);
 
   if (isFailure(prefResult)) {
@@ -136,6 +144,18 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
       )}
 
       <MonthNav current={viewedMonth} defaultMonth={defaultMonth} userId={targetUserId} />
+
+      {!isFailure(gamesResult) && (
+        <MemberAvailabilitySummary
+          guildId={guildId}
+          games={gamesResult.data}
+          sessionsPerMonth={prefResult.data.sessionsPerMonth}
+          supportChannelId={guildData?.supportChannelId}
+          supportChannelName={guildData?.supportChannelName}
+          adminContactInfo={guildData?.adminContactInfo}
+          isReadOnly={!!targetUserId}
+        />
+      )}
 
       {preferenceUnset && windowOpen ? (
         <Alert type="warning">

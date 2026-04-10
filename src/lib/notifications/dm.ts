@@ -1,8 +1,7 @@
 import { createDM, sendDiscordMessage } from '@/lib/discord/api';
 import { config } from '@/lib/config';
 import { getPrefix } from './utils';
-import { type DiscordMessage } from './messages';
-import { MessageFlags, ComponentType } from '@/lib/discord/models';
+import { type DiscordMessage, applyPrefix } from './messages';
 
 export async function sendDM(
   userId: string,
@@ -19,35 +18,9 @@ export async function sendDM(
     return;
   }
 
-  const body: DiscordMessage = typeof message === 'string' ? { content: message } : { ...message };
+  let body: DiscordMessage = typeof message === 'string' ? { content: message } : { ...message };
 
-  const isV2 = !!(body.flags && body.flags & MessageFlags.IS_COMPONENTS_V2);
-
-  // Only add prefix to content if it's a plain text message or if we specifically want it there.
-  // Standardized DM embeds now handle the prefix themselves.
-  if (isV2) {
-    // For V2 messages, we assume the generator (generateStandardDM) already handled the prefix.
-    // However, if we don't have any prefix in the message, we can't easily add it to components here
-    // without knowing the structure. So we rely on the caller/generator to handle it.
-  } else if (body.content && !body.content.startsWith(prefix)) {
-    body.content = `${prefix}${body.content}`;
-  } else if (prefix) {
-    const inEmbedOrComponents =
-      body.embeds?.some((e) => e.author?.name?.startsWith(prefix) || e.title?.startsWith(prefix)) ||
-      body.components?.some((c) => {
-        if (c.type === ComponentType.TEXT_DISPLAY && c.content.startsWith(prefix)) return true;
-        return (
-          c.type === ComponentType.CONTAINER &&
-          c.components?.some(
-            (cc: any) => cc.type === ComponentType.TEXT_DISPLAY && cc.content.startsWith(prefix),
-          )
-        );
-      });
-
-    if (!inEmbedOrComponents) {
-      body.content = prefix.trim();
-    }
-  }
+  body = applyPrefix(body, prefix);
 
   try {
     const channel = await createDM({ recipient_id: userId });
