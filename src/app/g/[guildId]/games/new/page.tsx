@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
-import { getGuildInfo } from '@/actions/guilds';
 import { getEligibleGameMembers } from '@/actions/games';
+import { getGuildChannelsAction, getGuildInfo } from '@/actions/guilds';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
 import { GuildRouteProps, getGuildName } from '../../helpers';
@@ -36,7 +36,11 @@ export default async function NewGamePage({ params }: GuildRouteProps) {
     notFound();
   }
 
-  const membersResult = await getEligibleGameMembers(guildId);
+  const [membersResult, channelsResult] = await Promise.all([
+    getEligibleGameMembers(guildId),
+    getGuildChannelsAction(guildId),
+  ]);
+
   if (isFailure(membersResult)) {
     return (
       <Paper className="items-center">
@@ -45,10 +49,18 @@ export default async function NewGamePage({ params }: GuildRouteProps) {
     );
   }
 
+  if (isFailure(channelsResult)) {
+    return (
+      <Paper className="items-center">
+        <Alert type="error">{channelsResult.error}</Alert>
+      </Paper>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">Create New Game</h1>
-      <GameForm eligibleMembers={membersResult.data} />
+      <GameForm eligibleMembers={membersResult.data} channels={channelsResult.data} />
     </div>
   );
 }

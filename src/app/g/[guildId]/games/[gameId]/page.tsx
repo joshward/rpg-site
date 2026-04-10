@@ -2,8 +2,8 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
-import { getGuildInfo } from '@/actions/guilds';
 import { getEligibleGameMembers, getGame } from '@/actions/games';
+import { getGuildChannelsAction, getGuildInfo } from '@/actions/guilds';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
 import { GuildRouteProps, getGuildName } from '../../helpers';
@@ -40,9 +40,10 @@ export default async function EditGamePage({
     notFound();
   }
 
-  const [gameResult, membersResult] = await Promise.all([
+  const [gameResult, membersResult, channelsResult] = await Promise.all([
     getGame(guildId, gameId),
     getEligibleGameMembers(guildId),
+    getGuildChannelsAction(guildId),
   ]);
 
   if (isFailure(gameResult)) {
@@ -61,10 +62,22 @@ export default async function EditGamePage({
     );
   }
 
+  if (isFailure(channelsResult)) {
+    return (
+      <Paper className="items-center">
+        <Alert type="error">{channelsResult.error}</Alert>
+      </Paper>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">Edit Game: {gameResult.data.name}</h1>
-      <GameForm initialData={gameResult.data} eligibleMembers={membersResult.data} />
+      <GameForm
+        initialData={gameResult.data}
+        eligibleMembers={membersResult.data}
+        channels={channelsResult.data}
+      />
     </div>
   );
 }

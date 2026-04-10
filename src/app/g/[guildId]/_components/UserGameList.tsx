@@ -23,6 +23,10 @@ interface Game {
   description: string | null;
   status: GameStatus;
   sessionsPerMonth: number;
+  guildId?: string;
+  discordChannelId?: string | null;
+  discordChannelName?: string | null;
+  schedulingDetails?: string | null;
   isRequired: boolean;
   scheduledDates?: {
     year: number;
@@ -34,6 +38,7 @@ interface Game {
 }
 
 interface UserGameListProps {
+  guildId: string;
   games: Game[];
   adminContact?: {
     adminText: string;
@@ -60,6 +65,7 @@ function formatScheduledDate(date: { year: number; month: number; day: number })
 }
 
 export default function UserGameList({
+  guildId,
   games,
   adminContact,
   defaultSchedulingDetails,
@@ -101,6 +107,7 @@ export default function UserGameList({
           {activeGames.map((game) => (
             <UserGameItem
               key={game.id}
+              guildId={guildId}
               game={game}
               defaultSchedulingDetails={defaultSchedulingDetails}
             />
@@ -113,6 +120,7 @@ export default function UserGameList({
           {pausedGames.map((game) => (
             <UserGameItem
               key={game.id}
+              guildId={guildId}
               game={game}
               defaultSchedulingDetails={defaultSchedulingDetails}
             />
@@ -161,9 +169,11 @@ function AvailabilityIndicator({
 }
 
 function UserGameItem({
+  guildId,
   game,
   defaultSchedulingDetails,
 }: {
+  guildId: string;
   game: Game;
   defaultSchedulingDetails?: string | null;
 }) {
@@ -215,13 +225,24 @@ function UserGameItem({
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-6">
             <div className="text-sm text-sage-11 font-medium">
               {game.sessionsPerMonth} sessions per month (approximate)
-              {defaultSchedulingDetails && (
+              {(game.schedulingDetails || defaultSchedulingDetails) && (
                 <>
                   <span className="mx-2 text-sage-6">|</span>
-                  {defaultSchedulingDetails}
+                  {game.schedulingDetails || defaultSchedulingDetails}
                 </>
               )}
             </div>
+            {game.discordChannelId && (
+              <div className="text-sm font-medium">
+                <Link
+                  href={`https://discord.com/channels/${game.guildId || guildId}/${game.discordChannelId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  #{game.discordChannelName || 'channel'}
+                </Link>
+              </div>
+            )}
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
               {nextSession && (
                 <div className="text-sm text-violet-11 font-bold flex items-center gap-2">

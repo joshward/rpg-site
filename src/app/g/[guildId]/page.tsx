@@ -127,6 +127,7 @@ export default async function GuildPage({ params }: GuildRouteProps) {
       </Paper>
 
       <UserGameList
+        guildId={guildId}
         games={myGames}
         adminContact={adminContact}
         defaultSchedulingDetails={guildData?.defaultSchedulingDetails}

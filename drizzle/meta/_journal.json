@@ -99,6 +99,13 @@
       "when": 1775837225323,
       "tag": "0013_add_guild_overview_scheduling_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1775837990767,
+      "tag": "0014_add_game_discord_channel_and_scheduling",
+      "breakpoints": true
     }
   ]
 }

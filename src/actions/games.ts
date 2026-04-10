@@ -27,6 +27,9 @@ export const getGames = asResult(
         description: game.description,
         status: game.status,
         sessionsPerMonth: game.sessionsPerMonth,
+        discordChannelId: game.discordChannelId,
+        discordChannelName: game.discordChannelName,
+        schedulingDetails: game.schedulingDetails,
         createdAt: game.createdAt,
         updatedAt: game.updatedAt,
         memberCount: count(gameMember.id),
@@ -61,6 +64,10 @@ export const getMemberGames = asResult(
         name: game.name,
         sessionsPerMonth: game.sessionsPerMonth,
         status: game.status,
+        guildId: game.guildId,
+        discordChannelId: game.discordChannelId,
+        discordChannelName: game.discordChannelName,
+        schedulingDetails: game.schedulingDetails,
         isRequired: gameMember.isRequired,
       })
       .from(game)
@@ -91,6 +98,10 @@ export const getMyGames = asResult(
         description: game.description,
         status: game.status,
         sessionsPerMonth: game.sessionsPerMonth,
+        guildId: game.guildId,
+        discordChannelId: game.discordChannelId,
+        discordChannelName: game.discordChannelName,
+        schedulingDetails: game.schedulingDetails,
         isRequired: gameMember.isRequired,
       })
       .from(game)
@@ -263,6 +274,9 @@ export type GameFormData = {
   description: string | null;
   status: GameStatus;
   sessionsPerMonth: number;
+  discordChannelId?: string;
+  discordChannelName?: string;
+  schedulingDetails?: string;
   members: {
     discordUserId: string;
     isRequired: boolean;
@@ -288,6 +302,9 @@ export const createGame = asResult(
           description: data.description,
           status: data.status,
           sessionsPerMonth: data.sessionsPerMonth,
+          discordChannelId: data.discordChannelId,
+          discordChannelName: data.discordChannelName,
+          schedulingDetails: data.schedulingDetails,
         })
         .returning();
 
@@ -340,6 +357,9 @@ export const updateGame = asResult(
           description: data.description,
           status: data.status,
           sessionsPerMonth: data.sessionsPerMonth,
+          discordChannelId: data.discordChannelId,
+          discordChannelName: data.discordChannelName,
+          schedulingDetails: data.schedulingDetails,
           updatedAt: new Date(),
         })
         .where(eq(game.id, gameId))

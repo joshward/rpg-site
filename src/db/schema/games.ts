@@ -15,6 +15,9 @@ export const game = pgTable('games', {
   description: text(),
   status: text({ enum: gameStatusEnum }).default('draft').notNull(),
   sessionsPerMonth: integer().default(0).notNull(),
+  discordChannelId: text(),
+  discordChannelName: text(),
+  schedulingDetails: text(),
   createdAt: timestamp().defaultNow().notNull(),
   updatedAt: timestamp()
     .defaultNow()
