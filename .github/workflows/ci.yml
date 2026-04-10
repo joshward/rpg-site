@@ -50,6 +50,8 @@ jobs:
           DISCORD_CLIENT_ID: 'build-client-id'
           DISCORD_CLIENT_SECRET: 'build-secret'
           DISCORD_BOT_TOKEN: 'build-token'
+          DISCORD_PUBLIC_KEY: 'build-public-key'
+          CRON_SECRET: 'build-cron-secret'
         run: npm run build
 
   test:

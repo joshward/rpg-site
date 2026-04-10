@@ -6,6 +6,7 @@ import {
   getAdminMemberAvailability,
   type DayAvailability,
 } from '@/actions/availability';
+import { getGuildInfo } from '@/actions/guilds';
 import { getMyPreference, getAdminMemberPreference } from '@/actions/preferences';
 import { isFailure } from '@/actions/result';
 import { ensureAdmin } from '@/actions/auth-helpers';
@@ -58,18 +59,21 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
     }
   }
 
-  // Check preferences
-  const prefResult = targetUserId
-    ? await getAdminMemberPreference(guildId, targetUserId)
-    : await getMyPreference(guildId);
+  // Check preferences and guild info
+  const [prefResult, guildInfoResult] = await Promise.all([
+    targetUserId ? getAdminMemberPreference(guildId, targetUserId) : getMyPreference(guildId),
+    getGuildInfo(guildId),
+  ]);
 
   if (isFailure(prefResult)) {
     return <Alert type="error">{prefResult.error}</Alert>;
   }
 
+  const guildData = isFailure(guildInfoResult) ? null : guildInfoResult.data;
+
   const preferenceUnset = prefResult.data.sessionsPerMonth === null;
 
-  // Default month: next month if in last 7 days of current month, otherwise current month
+  // Default month: next month if in last 10 days of current month, otherwise current month
   const defaultMonth = getDefaultAvailabilityMonth();
 
   // Determine which month to view from search params
@@ -156,6 +160,15 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
           previousMonthDays={previousMonthDays}
           windowOpensAt={windowOpensAt}
           userId={targetUserId}
+          guildInfo={
+            guildData
+              ? {
+                  supportChannelId: guildData.supportChannelId,
+                  supportChannelName: guildData.supportChannelName,
+                  adminContactInfo: guildData.adminContactInfo,
+                }
+              : undefined
+          }
         />
       )}
     </div>

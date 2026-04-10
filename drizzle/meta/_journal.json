@@ -71,6 +71,27 @@
       "when": 1775094444663,
       "tag": "0009_availability_discord_id",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775520515453,
+      "tag": "0010_add_guild_support_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1775524163817,
+      "tag": "0011_add_admin_notification_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1775618347459,
+      "tag": "0012_add_global_notification_fields",
+      "breakpoints": true
     }
   ]
 }

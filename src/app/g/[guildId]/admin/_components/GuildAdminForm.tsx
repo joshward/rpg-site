@@ -5,30 +5,63 @@ import { useParams } from 'next/navigation';
 import { useForm } from '@tanstack/react-form';
 import * as v from 'valibot';
 import { FormComboBox } from '@/components/FormComboBox';
+import { FormInput } from '@/components/FormInput';
 import { ComboboxOption } from '@/components/Combobox';
 import Paper from '@/components/Paper';
 import Button from '@/components/Button';
-import { saveGuildConfig } from '@/actions/guilds';
-import { isFailure } from '@/actions/result';
+import { saveGuildConfig, checkBotPermissionsAction } from '@/actions/guilds';
+import { isFailure, isSuccess } from '@/actions/result';
 import { useNotification } from '@/components/Notification';
 
 interface GuildAdminFormProps {
   roles: ComboboxOption[];
   initialAllowedRoles: string[];
+  channels: ComboboxOption[];
+  initialSupportChannelId?: string;
+  initialSupportChannelName?: string;
+  initialAdminContactInfo?: string;
+  initialAdminNotificationChannelId?: string;
+  initialAdminNotificationChannelName?: string;
+  initialGlobalNotificationChannelId?: string;
+  initialGlobalNotificationChannelName?: string;
 }
 
-export default function GuildAdminForm({ roles, initialAllowedRoles }: GuildAdminFormProps) {
+export default function GuildAdminForm({
+  roles,
+  initialAllowedRoles,
+  channels,
+  initialSupportChannelId,
+  initialSupportChannelName,
+  initialAdminContactInfo,
+  initialAdminNotificationChannelId,
+  initialAdminNotificationChannelName,
+  initialGlobalNotificationChannelId,
+  initialGlobalNotificationChannelName,
+}: GuildAdminFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
 
   const form = useForm({
     defaultValues: {
       allowedRoles: roles.filter((role) => initialAllowedRoles.includes(role.id as string)),
+      supportChannel: channels.find((c) => c.id === initialSupportChannelId) ?? null,
+      adminContactInfo: initialAdminContactInfo ?? '',
+      adminNotificationChannel:
+        channels.find((c) => c.id === initialAdminNotificationChannelId) ?? null,
+      globalNotificationChannel:
+        channels.find((c) => c.id === initialGlobalNotificationChannelId) ?? null,
     },
     onSubmit: async ({ value }) => {
       const result = await saveGuildConfig(
         guildId,
         value.allowedRoles.map((role) => role.id as string),
+        value.supportChannel?.id as string | undefined,
+        value.supportChannel?.label as string | undefined,
+        value.adminContactInfo,
+        value.adminNotificationChannel?.id as string | undefined,
+        value.adminNotificationChannel?.label as string | undefined,
+        value.globalNotificationChannel?.id as string | undefined,
+        value.globalNotificationChannel?.label as string | undefined,
       );
 
       if (isFailure(result)) {
@@ -80,6 +113,93 @@ export default function GuildAdminForm({ roles, initialAllowedRoles }: GuildAdmi
               placeholder="Select roles..."
               value={field.state.value}
               onValueChange={(val) => field.handleChange(val as ComboboxOption[])}
+              error={field.state.meta.errors.join(', ')}
+              invalid={field.state.meta.errors.length > 0}
+            />
+          )}
+        </form.Field>
+
+        <form.Field name="supportChannel">
+          {(field) => (
+            <FormComboBox
+              label="Support Channel"
+              description="Select a channel where users can reach out for help. A link to this channel will be included in error messages."
+              items={channels}
+              placeholder="Select a channel..."
+              value={field.state.value}
+              onValueChange={(val) => field.handleChange(val as ComboboxOption | null)}
+              error={field.state.meta.errors.join(', ')}
+              invalid={field.state.meta.errors.length > 0}
+            />
+          )}
+        </form.Field>
+
+        <form.Field
+          name="adminNotificationChannel"
+          validators={{
+            onChangeAsync: async ({ value }) => {
+              if (!value) return undefined;
+              const result = await checkBotPermissionsAction(guildId, value.id as string);
+              if (isFailure(result)) return result.error;
+              if (isSuccess(result) && !result.data.hasPermissions) {
+                return `Bot is missing permissions in this channel: ${result.data.missing.join(', ')}`;
+              }
+              return undefined;
+            },
+            onChangeAsyncDebounceMs: 500,
+          }}
+        >
+          {(field) => (
+            <FormComboBox
+              label="Admin Notification Channel"
+              description="Select a channel where the bot will send notifications to admins (e.g. availability updates)."
+              items={channels}
+              placeholder="Select a channel..."
+              value={field.state.value}
+              onValueChange={(val) => field.handleChange(val as ComboboxOption | null)}
+              error={field.state.meta.errors.join(', ')}
+              invalid={field.state.meta.errors.length > 0}
+            />
+          )}
+        </form.Field>
+
+        <form.Field
+          name="globalNotificationChannel"
+          validators={{
+            onChangeAsync: async ({ value }) => {
+              if (!value) return undefined;
+              const result = await checkBotPermissionsAction(guildId, value.id as string);
+              if (isFailure(result)) return result.error;
+              if (isSuccess(result) && !result.data.hasPermissions) {
+                return `Bot is missing permissions in this channel: ${result.data.missing.join(', ')}`;
+              }
+              return undefined;
+            },
+            onChangeAsyncDebounceMs: 500,
+          }}
+        >
+          {(field) => (
+            <FormComboBox
+              label="Global Notification Channel"
+              description="Select a channel where the bot will send global notifications to all players (e.g. availability reminders)."
+              items={channels}
+              placeholder="Select a channel..."
+              value={field.state.value}
+              onValueChange={(val) => field.handleChange(val as ComboboxOption | null)}
+              error={field.state.meta.errors.join(', ')}
+              invalid={field.state.meta.errors.length > 0}
+            />
+          )}
+        </form.Field>
+
+        <form.Field name="adminContactInfo">
+          {(field) => (
+            <FormInput
+              label="Admin Contact Info"
+              description="Provide the name or handle of the admin(s) users should contact (e.g., 'Jane Doe (@janedoe)')."
+              placeholder="e.g. @janedoe"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
               error={field.state.meta.errors.join(', ')}
               invalid={field.state.meta.errors.length > 0}
             />

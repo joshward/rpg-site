@@ -11,6 +11,11 @@ export interface YearMonth {
 export function getNow(): Date {
   const override = process.env.NOW_OVERRIDE;
   if (override) {
+    // If it's just YYYY-MM-DD, treat as UTC midnight to ensure consistency across environments
+    if (/^\d{4}-\d{2}-\d{2}$/.test(override)) {
+      const [y, m, d] = override.split('-').map(Number);
+      return new Date(Date.UTC(y, m - 1, d));
+    }
     const parsed = new Date(override);
     if (!isNaN(parsed.getTime())) {
       return parsed;
@@ -30,30 +35,30 @@ export function isDateOverridden(): boolean {
  * Returns the year/month of the next month relative to the given date.
  */
 export function getNextMonth(now: Date = getNow()): YearMonth {
-  const m = now.getMonth() + 2; // getMonth() is 0-indexed, we want 1-indexed next month
+  const m = now.getUTCMonth() + 2; // getMonth() is 0-indexed, we want 1-indexed next month
   if (m > 12) {
-    return { year: now.getFullYear() + 1, month: m - 12 };
+    return { year: now.getUTCFullYear() + 1, month: m - 12 };
   }
-  return { year: now.getFullYear(), month: m };
+  return { year: now.getUTCFullYear(), month: m };
 }
 
 /**
  * Returns the date when the submission window opens for the given target month.
- * Currently hardcoded to 7 days before the 1st of the target month.
+ * Currently hardcoded to 10 days before the 1st of the target month.
  */
 export function getSubmissionWindowOpen(target: YearMonth): Date {
   const firstOfMonth = new Date(Date.UTC(target.year, target.month - 1, 1));
-  firstOfMonth.setUTCDate(firstOfMonth.getUTCDate() - 7);
+  firstOfMonth.setUTCDate(firstOfMonth.getUTCDate() - 10);
   return firstOfMonth;
 }
 
 /**
- * Returns true if we are in the last 7 days of the current month.
+ * Returns true if we are in the last 10 days of the current month.
  */
-export function isLast7DaysOfCurrentMonth(now: Date = getNow()): boolean {
+export function isLast10DaysOfCurrentMonth(now: Date = getNow()): boolean {
   const nextMonth = getNextMonth(now);
   const windowOpen = getSubmissionWindowOpen(nextMonth);
-  return now >= windowOpen;
+  return now.getTime() >= windowOpen.getTime();
 }
 
 /**
@@ -66,10 +71,10 @@ export function getEditableMonths(now: Date = getNow()): YearMonth[] {
 
 /**
  * Returns the default month for the availability view.
- * Default to current month until the last 7 days of the current month, then default to next month.
+ * Default to current month until the last 10 days of the current month, then default to next month.
  */
 export function getDefaultAvailabilityMonth(now: Date = getNow()): YearMonth {
-  if (isLast7DaysOfCurrentMonth(now)) {
+  if (isLast10DaysOfCurrentMonth(now)) {
     return getNextMonth(now);
   }
   return getCurrentMonth(now);
@@ -121,7 +126,7 @@ export function getNextYearMonth(target: YearMonth): YearMonth {
  * Returns the current calendar month as a YearMonth.
  */
 export function getCurrentMonth(now: Date = getNow()): YearMonth {
-  return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  return { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 };
 }
 
 /**

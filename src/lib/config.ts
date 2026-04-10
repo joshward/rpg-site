@@ -12,7 +12,10 @@ export const config = {
     clientId: requireEnvVar('DISCORD_CLIENT_ID'),
     clientSecret: requireEnvVar('DISCORD_CLIENT_SECRET'),
     botToken: requireEnvVar('DISCORD_BOT_TOKEN'),
+    publicKey: requireEnvVar('DISCORD_PUBLIC_KEY'),
   },
   databaseUrl: requireEnvVar('DATABASE_URL'),
   siteUrl: requireEnvVar('SITE_URL'),
+  cronSecret: requireEnvVar('CRON_SECRET'),
+  allowedDmRecipients: process.env.ALLOWED_DM_RECIPIENTS?.split(',').filter(Boolean) || [],
 } as const;

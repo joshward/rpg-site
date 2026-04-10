@@ -8,4 +8,11 @@ export const guild = pgTable('guilds', {
     .$onUpdate(() => new Date())
     .notNull(),
   allowedRoles: text().array().notNull(),
+  supportChannelId: text(),
+  supportChannelName: text(),
+  adminContactInfo: text(),
+  adminNotificationChannelId: text(),
+  adminNotificationChannelName: text(),
+  globalNotificationChannelId: text(),
+  globalNotificationChannelName: text(),
 });

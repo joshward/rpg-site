@@ -5,7 +5,7 @@ import {
   getDaysInMonth,
   getPrevYearMonth,
   getNextYearMonth,
-  isLast7DaysOfCurrentMonth,
+  isLast10DaysOfCurrentMonth,
   getEditableMonths,
   getDefaultAvailabilityMonth,
   type YearMonth,
@@ -149,20 +149,20 @@ describe('Availability Helpers', () => {
   });
 
   describe('Availability Window Helpers', () => {
-    describe('isLast7DaysOfCurrentMonth', () => {
+    describe('isLast10DaysOfCurrentMonth', () => {
       it('returns false for early in the month', () => {
         const now = new Date('2026-03-15');
-        expect(isLast7DaysOfCurrentMonth(now)).toBe(false);
+        expect(isLast10DaysOfCurrentMonth(now)).toBe(false);
       });
 
-      it('returns true for last 7 days of the month', () => {
-        const now = new Date('2026-03-25');
-        expect(isLast7DaysOfCurrentMonth(now)).toBe(true);
+      it('returns true for last 10 days of the month', () => {
+        const now = new Date('2026-03-22');
+        expect(isLast10DaysOfCurrentMonth(now)).toBe(true);
       });
 
-      it('returns true for the exact boundary (7 days before next month)', () => {
-        const now = new Date('2026-03-25T00:00:00Z');
-        expect(isLast7DaysOfCurrentMonth(now)).toBe(true);
+      it('returns true for the exact boundary (10 days before next month)', () => {
+        const now = new Date('2026-03-22T00:00:00Z');
+        expect(isLast10DaysOfCurrentMonth(now)).toBe(true);
       });
     });
 
@@ -173,7 +173,7 @@ describe('Availability Helpers', () => {
       });
 
       it('returns next month late in the month', () => {
-        const now = new Date('2026-03-25');
+        const now = new Date('2026-03-22');
         expect(getDefaultAvailabilityMonth(now)).toEqual({ year: 2026, month: 4 });
       });
     });

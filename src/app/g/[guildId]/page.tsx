@@ -2,15 +2,17 @@ import { Metadata } from 'next';
 import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
 import Link from '@/components/Link';
+import { getGuildInfo } from '@/actions/guilds';
 import { getMyPreference } from '@/actions/preferences';
 import { getMyGames } from '@/actions/games';
 import { getMyAvailability } from '@/actions/availability';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
 import { NO_LIMIT } from '@/lib/preferences';
-import { getNextMonth, isLast7DaysOfCurrentMonth, formatMonthYear } from '@/lib/availability';
-import { GuildRouteProps, getGuildName } from './helpers';
+import { getNextMonth, isLast10DaysOfCurrentMonth, formatMonthYear } from '@/lib/availability';
+import { GuildRouteProps, getGuildName, getContactInfo } from './helpers';
 import UserGameList from './_components/UserGameList';
+import { ReactNode } from 'react';
 
 export async function generateMetadata({ params }: GuildRouteProps): Promise<Metadata> {
   const { guildId } = await params;
@@ -21,15 +23,16 @@ export async function generateMetadata({ params }: GuildRouteProps): Promise<Met
 export default async function GuildPage({ params }: GuildRouteProps) {
   const { guildId } = await params;
   const nextMonth = getNextMonth();
-  const showAvailabilityAlert = isLast7DaysOfCurrentMonth();
+  const showAvailabilityAlert = isLast10DaysOfCurrentMonth();
 
-  const [prefResult, gamesResult, availabilityResult] = await Promise.all([
+  const [prefResult, gamesResult, availabilityResult, guildInfoResult] = await Promise.all([
     getMyPreference(guildId),
     getMyGames(guildId),
     showAvailabilityAlert ? getMyAvailability(guildId, nextMonth.year, nextMonth.month) : null,
+    getGuildInfo(guildId),
   ]);
 
-  const banners: React.ReactNode[] = [];
+  const banners: ReactNode[] = [];
   const myGames = isFailure(gamesResult) ? [] : gamesResult.data;
 
   // 1. Availability alert (only in last 7 days and if not filled)
@@ -71,11 +74,25 @@ export default async function GuildPage({ params }: GuildRouteProps) {
       const isOverScheduled = sessionsPerMonth !== NO_LIMIT && totalSessions > sessionsPerMonth;
 
       if (isOverScheduled) {
+        const guildData = isFailure(guildInfoResult) ? null : guildInfoResult.data;
+        const { adminText, channelLink, channelName } = getContactInfo(
+          guildId,
+          guildData?.supportChannelId,
+          guildData?.supportChannelName,
+          guildData?.adminContactInfo,
+        );
+
         banners.push(
           <Alert key="over-scheduled" type="warning">
             You are scheduled for more sessions in games than your set preferences.{' '}
-            <Link href={`/g/${guildId}/preferences`}>Update your preferences</Link> or talk to your
-            guild admin if you cannot participate.
+            <Link href={`/g/${guildId}/preferences`}>Update your preferences</Link> or {adminText}
+            {channelLink && (
+              <>
+                {' '}
+                or reach out in <Link href={channelLink}>#{channelName || 'support'}</Link>
+              </>
+            )}{' '}
+            if you cannot participate.
           </Alert>,
         );
       } else if (sessionsPerMonth === 0) {
