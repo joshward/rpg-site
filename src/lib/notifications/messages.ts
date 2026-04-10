@@ -244,7 +244,7 @@ export function generateStandardSimpleMessage(
         components: [
           {
             type: ComponentType.TEXT_DISPLAY,
-            content: `# ${prefix}${title}\n\n${description}\n\n[Tavern  Master](${config.siteUrl}/g/${guildId})`,
+            content: `# ${prefix}${title}\n\n${description}\n\n[Tavern Master](${config.siteUrl}/g/${guildId})`,
           },
         ],
       },

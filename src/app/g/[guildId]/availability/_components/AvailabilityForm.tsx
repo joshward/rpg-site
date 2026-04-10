@@ -181,8 +181,8 @@ export default function AvailabilityForm({
         title="Schedule already created"
         description={
           <>
-            The schedule for this month has already been created. Please also let your {adminText}{' '}
-            know your availability has changed.
+            The schedule for this month has already been created. Please also {adminText} to let
+            them know your availability has changed.
             {channelLink && (
               <>
                 {' '}

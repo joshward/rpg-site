@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       const data = interaction.data as { custom_id: string; component_type: number };
       const customId = data.custom_id;
 
-      if (customId.startsWith('skip_month:') || customId.startsWith('pause_participation:')) {
+      if (customId?.startsWith('skip_month:') || customId.startsWith('pause_participation:')) {
         const [action, guildId, monthStr] = customId.split(':');
         const user = interaction.user || interaction.member?.user;
 

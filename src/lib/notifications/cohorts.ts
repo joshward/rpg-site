@@ -34,12 +34,18 @@ export async function getPlayerCohorts({
     .where(and(eq(game.guildId, guildId), eq(game.status, 'active')));
   const activeGameIds = activeGames.map((g) => g.id);
 
-  let gameMemberships: any[] = [];
+  const gameMembershipsMap = new Map<string, any[]>();
   if (activeGameIds.length > 0) {
-    gameMemberships = await db
+    const gameMemberships = await db
       .select()
       .from(gameMember)
       .where(inArray(gameMember.gameId, activeGameIds));
+    for (const gm of gameMemberships) {
+      if (!gameMembershipsMap.has(gm.discordUserId)) {
+        gameMembershipsMap.set(gm.discordUserId, []);
+      }
+      gameMembershipsMap.get(gm.discordUserId)!.push(gm);
+    }
   }
 
   const submissions = await db
@@ -68,7 +74,7 @@ export async function getPlayerCohorts({
     const sessionsPref = prefsMap.get(m.user.id);
     if (sessionsPref === 0) continue;
 
-    const userGames = gameMemberships.filter((gm) => gm.discordUserId === m.user.id);
+    const userGames = gameMembershipsMap.get(m.user.id) || [];
     const isRequired = userGames.some((gm) => gm.isRequired);
 
     if (isRequired) {

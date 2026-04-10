@@ -73,7 +73,7 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
 
   const preferenceUnset = prefResult.data.sessionsPerMonth === null;
 
-  // Default month: next month if in last 7 days of current month, otherwise current month
+  // Default month: next month if in last 10 days of current month, otherwise current month
   const defaultMonth = getDefaultAvailabilityMonth();
 
   // Determine which month to view from search params
