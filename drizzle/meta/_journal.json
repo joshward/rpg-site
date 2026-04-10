@@ -92,6 +92,13 @@
       "when": 1775618347459,
       "tag": "0012_add_global_notification_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1775837225323,
+      "tag": "0013_add_guild_overview_scheduling_fields",
+      "breakpoints": true
     }
   ]
 }

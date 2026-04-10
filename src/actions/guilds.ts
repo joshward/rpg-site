@@ -133,6 +133,8 @@ export const getGuildInfo = asResult(
       adminNotificationChannelName: guildData?.adminNotificationChannelName ?? undefined,
       globalNotificationChannelId: guildData?.globalNotificationChannelId ?? undefined,
       globalNotificationChannelName: guildData?.globalNotificationChannelName ?? undefined,
+      overviewText: guildData?.overviewText ?? undefined,
+      defaultSchedulingDetails: guildData?.defaultSchedulingDetails ?? undefined,
       isImpersonating: context.isImpersonating,
     };
   },
@@ -295,6 +297,8 @@ export const saveGuildConfig = asResult(
     adminNotificationChannelName?: string,
     globalNotificationChannelId?: string,
     globalNotificationChannelName?: string,
+    overviewText?: string,
+    defaultSchedulingDetails?: string,
   ) => {
     await ensureAdmin(guildId);
 
@@ -310,6 +314,8 @@ export const saveGuildConfig = asResult(
         adminNotificationChannelName,
         globalNotificationChannelId,
         globalNotificationChannelName,
+        overviewText,
+        defaultSchedulingDetails,
       })
       .onConflictDoUpdate({
         target: guild.id,
@@ -322,6 +328,8 @@ export const saveGuildConfig = asResult(
           adminNotificationChannelName,
           globalNotificationChannelId,
           globalNotificationChannelName,
+          overviewText,
+          defaultSchedulingDetails,
         },
       });
 

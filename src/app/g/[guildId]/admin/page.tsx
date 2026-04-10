@@ -39,6 +39,8 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
     adminNotificationChannelName,
     globalNotificationChannelId,
     globalNotificationChannelName,
+    overviewText,
+    defaultSchedulingDetails,
   } = guildInfoResult.data;
 
   if (role !== 'admin') {
@@ -80,6 +82,8 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
         initialAdminNotificationChannelName={adminNotificationChannelName}
         initialGlobalNotificationChannelId={globalNotificationChannelId}
         initialGlobalNotificationChannelName={globalNotificationChannelName}
+        initialOverviewText={overviewText}
+        initialDefaultSchedulingDetails={defaultSchedulingDetails}
       />
       <UsersConfig />
     </div>

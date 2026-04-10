@@ -41,6 +41,7 @@ interface UserGameListProps {
     channelName: string | undefined;
     adminContactInfo?: string | null;
   };
+  defaultSchedulingDetails?: string | null;
 }
 
 const statusColors: Record<GameStatus, string> = {
@@ -58,7 +59,11 @@ function formatScheduledDate(date: { year: number; month: number; day: number })
   });
 }
 
-export default function UserGameList({ games, adminContact }: UserGameListProps) {
+export default function UserGameList({
+  games,
+  adminContact,
+  defaultSchedulingDetails,
+}: UserGameListProps) {
   const activeGames = games
     .filter((g) => g.status === 'active')
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -94,7 +99,11 @@ export default function UserGameList({ games, adminContact }: UserGameListProps)
       {hasAnyGames && (
         <div className="grid grid-cols-1 gap-4">
           {activeGames.map((game) => (
-            <UserGameItem key={game.id} game={game} />
+            <UserGameItem
+              key={game.id}
+              game={game}
+              defaultSchedulingDetails={defaultSchedulingDetails}
+            />
           ))}
 
           {activeGames.length > 0 && pausedGames.length > 0 && (
@@ -102,7 +111,11 @@ export default function UserGameList({ games, adminContact }: UserGameListProps)
           )}
 
           {pausedGames.map((game) => (
-            <UserGameItem key={game.id} game={game} />
+            <UserGameItem
+              key={game.id}
+              game={game}
+              defaultSchedulingDetails={defaultSchedulingDetails}
+            />
           ))}
         </div>
       )}
@@ -147,7 +160,13 @@ function AvailabilityIndicator({
   );
 }
 
-function UserGameItem({ game }: { game: Game }) {
+function UserGameItem({
+  game,
+  defaultSchedulingDetails,
+}: {
+  game: Game;
+  defaultSchedulingDetails?: string | null;
+}) {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   const nextSession = game.scheduledDates?.[0] ?? null;
@@ -196,6 +215,12 @@ function UserGameItem({ game }: { game: Game }) {
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-6">
             <div className="text-sm text-sage-11 font-medium">
               {game.sessionsPerMonth} sessions per month (approximate)
+              {defaultSchedulingDetails && (
+                <>
+                  <span className="mx-2 text-sage-6">|</span>
+                  {defaultSchedulingDetails}
+                </>
+              )}
             </div>
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
               {nextSession && (

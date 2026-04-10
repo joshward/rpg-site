@@ -12,6 +12,7 @@ import { NO_LIMIT } from '@/lib/preferences';
 import { getNextMonth, isLast10DaysOfCurrentMonth, formatMonthYear } from '@/lib/availability';
 import { GuildRouteProps, getGuildName, getContactInfo } from './helpers';
 import UserGameList from './_components/UserGameList';
+import MarkdownPreview from '@/components/MarkdownPreview';
 import { ReactNode } from 'react';
 
 export async function generateMetadata({ params }: GuildRouteProps): Promise<Metadata> {
@@ -118,10 +119,18 @@ export default async function GuildPage({ params }: GuildRouteProps) {
       {banners}
       <Paper>
         <h2 className="text-xl font-bold">Overview</h2>
-        <p className="text-sage-11">Welcome to your guild.</p>
+        {guildData?.overviewText ? (
+          <MarkdownPreview content={guildData.overviewText} />
+        ) : (
+          <p className="text-sage-11">Welcome to your guild.</p>
+        )}
       </Paper>
 
-      <UserGameList games={myGames} adminContact={adminContact} />
+      <UserGameList
+        games={myGames}
+        adminContact={adminContact}
+        defaultSchedulingDetails={guildData?.defaultSchedulingDetails}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { FormInput } from '@/components/FormInput';
 import { ComboboxOption } from '@/components/Combobox';
 import Paper from '@/components/Paper';
 import Button from '@/components/Button';
+import { FormTextarea } from '@/components/FormTextarea';
 import { saveGuildConfig, checkBotPermissionsAction } from '@/actions/guilds';
 import { isFailure, isSuccess } from '@/actions/result';
 import { useNotification } from '@/components/Notification';
@@ -24,6 +25,8 @@ interface GuildAdminFormProps {
   initialAdminNotificationChannelName?: string;
   initialGlobalNotificationChannelId?: string;
   initialGlobalNotificationChannelName?: string;
+  initialOverviewText?: string;
+  initialDefaultSchedulingDetails?: string;
 }
 
 export default function GuildAdminForm({
@@ -37,6 +40,8 @@ export default function GuildAdminForm({
   initialAdminNotificationChannelName,
   initialGlobalNotificationChannelId,
   initialGlobalNotificationChannelName,
+  initialOverviewText,
+  initialDefaultSchedulingDetails,
 }: GuildAdminFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
@@ -50,6 +55,8 @@ export default function GuildAdminForm({
         channels.find((c) => c.id === initialAdminNotificationChannelId) ?? null,
       globalNotificationChannel:
         channels.find((c) => c.id === initialGlobalNotificationChannelId) ?? null,
+      overviewText: initialOverviewText ?? '',
+      defaultSchedulingDetails: initialDefaultSchedulingDetails ?? '',
     },
     onSubmit: async ({ value }) => {
       const result = await saveGuildConfig(
@@ -62,6 +69,8 @@ export default function GuildAdminForm({
         value.adminNotificationChannel?.label as string | undefined,
         value.globalNotificationChannel?.id as string | undefined,
         value.globalNotificationChannel?.label as string | undefined,
+        value.overviewText,
+        value.defaultSchedulingDetails,
       );
 
       if (isFailure(result)) {
@@ -202,6 +211,37 @@ export default function GuildAdminForm({
               onChange={(e) => field.handleChange(e.target.value)}
               error={field.state.meta.errors.join(', ')}
               invalid={field.state.meta.errors.length > 0}
+            />
+          )}
+        </form.Field>
+
+        <form.Field name="defaultSchedulingDetails">
+          {(field) => (
+            <FormInput
+              label="Default Scheduling Details"
+              description="Standard scheduling info for this guild (e.g. '6:00pm to 9:30pm @ Josh's')."
+              placeholder="e.g. 6:00pm to 9:30pm"
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              error={field.state.meta.errors.join(', ')}
+              invalid={field.state.meta.errors.length > 0}
+            />
+          )}
+        </form.Field>
+
+        <form.Field name="overviewText">
+          {(field) => (
+            <FormTextarea
+              label="Overview Text"
+              description="Custom markdown text to display on the guild overview page. Replaces the default welcome message."
+              placeholder="Welcome to our guild! Here is some information..."
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              error={field.state.meta.errors.join(', ')}
+              invalid={field.state.meta.errors.length > 0}
+              textareaProps={{
+                className: 'h-32',
+              }}
             />
           )}
         </form.Field>
