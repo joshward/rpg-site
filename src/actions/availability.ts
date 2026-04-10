@@ -7,7 +7,7 @@ import { ActionError, asResult } from '@/actions/action-helpers';
 import { isSuccess } from '@/actions/result';
 import { ensureAccess, ensureAdmin } from '@/actions/auth-helpers';
 import { isMonthScheduled } from '@/actions/games';
-import { notifyAdmin, generateSimpleEmbed } from '@/lib/notifications';
+import { notifyAdmin, generateStandardSimpleMessage } from '@/lib/notifications';
 import { availabilitySubmission, availabilityDay } from '@/db/schema/availability';
 import { account } from '@/db/schema/auth';
 import {
@@ -167,7 +167,8 @@ export async function saveAvailability({
     }
 
     const sourceSuffix = source ? ` ${source}` : '';
-    const message = generateSimpleEmbed(
+    const message = generateStandardSimpleMessage(
+      guildId,
       `📅 ${title}`,
       `**${displayName}** submitted availability for **${month}/${year}**${sourceSuffix}`,
       type,

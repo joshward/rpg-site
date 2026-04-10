@@ -7,6 +7,7 @@ import {
   ButtonStyle,
   MessageFlags,
 } from '@/lib/discord/models';
+import { config } from '@/lib/config';
 
 export interface NotificationContext {
   guildId: string;
@@ -58,16 +59,13 @@ export function generateStandardDM({
   const header1 = `${prefix}Roleplaying in ${guildName}`;
   const header2 = `${targetMonthName} Availability`;
 
-  const textContent = [
-    `**${header1}**`,
-    `# ${header2}`,
-    messageText,
-    subMessage ? `-# ${subMessage}` : '',
-  ]
-    .filter(Boolean)
-    .join('\n');
-
+  const homeLink = `${config.siteUrl}/g/${guildId}`;
   const monthStr = `${target.year}-${target.month.toString().padStart(2, '0')}`;
+
+  const textContent =
+    [`**${header1}**`, `# ${header2}`, messageText, subMessage ? `-# ${subMessage}` : '']
+      .filter(Boolean)
+      .join('\n') + `\n\n[Tavern Master](<${homeLink}>)`;
 
   const actionRow: MessageComponentModel = {
     type: ComponentType.ACTION_ROW,
@@ -164,37 +162,23 @@ export function generateT2FinalCallDM(context: NotificationContext): DiscordMess
   });
 }
 
-export function generateT3AdminReport({
-  corePlayersCount,
-  missingCoreCount,
-  optionalPlayersCount,
-  missingOptionalCount,
-}: {
-  corePlayersCount: number;
-  missingCoreCount: number;
-  optionalPlayersCount: number;
-  missingOptionalCount: number;
-}): DiscordMessage {
-  return {
-    embeds: [
-      {
-        title: 'Heads up — availability deadline is tomorrow!',
-        color: COLORS.WARNING,
-        fields: [
-          {
-            name: 'Core Players',
-            value: `${corePlayersCount - missingCoreCount}/${corePlayersCount} submitted`,
-            inline: true,
-          },
-          {
-            name: 'Optional Players',
-            value: `${optionalPlayersCount - missingOptionalCount}/${optionalPlayersCount} submitted`,
-            inline: true,
-          },
-        ],
-      },
-    ],
-  };
+export function generateT3AdminReport(
+  context: NotificationContext,
+  data: {
+    corePlayersCount: number;
+    missingCoreCount: number;
+    optionalPlayersCount: number;
+    missingOptionalCount: number;
+  },
+): DiscordMessage {
+  const messageText = `**Core Players:** ${data.corePlayersCount - data.missingCoreCount}/${data.corePlayersCount} submitted\n**Optional Players:** ${data.optionalPlayersCount - data.missingOptionalCount}/${data.optionalPlayersCount} submitted`;
+
+  return generateStandardDM({
+    ...context,
+    messageText,
+    subMessage: 'Heads up — availability deadline is tomorrow!',
+    color: COLORS.WARNING,
+  });
 }
 
 export function generateT2FinalCallGlobal(
@@ -214,43 +198,31 @@ export function generateT2FinalCallGlobal(
   });
 }
 
-export function generateT2AdminReport({
-  corePlayersCount,
-  missingCoreCount,
-  optionalPlayersCount,
-  missingOptionalCount,
-}: {
-  corePlayersCount: number;
-  missingCoreCount: number;
-  optionalPlayersCount: number;
-  missingOptionalCount: number;
-}): DiscordMessage {
-  return {
-    embeds: [
-      {
-        title: 'Build the schedule today! 📅',
-        color: COLORS.DANGER,
-        fields: [
-          {
-            name: 'Core Players',
-            value: `${corePlayersCount - missingCoreCount}/${corePlayersCount} submitted`,
-            inline: true,
-          },
-          {
-            name: 'Optional Players',
-            value: `${optionalPlayersCount - missingOptionalCount}/${optionalPlayersCount} submitted`,
-            inline: true,
-          },
-        ],
-      },
-    ],
-  };
+export function generateT2AdminReport(
+  context: NotificationContext,
+  data: {
+    corePlayersCount: number;
+    missingCoreCount: number;
+    optionalPlayersCount: number;
+    missingOptionalCount: number;
+  },
+): DiscordMessage {
+  const messageText = `**Core Players:** ${data.corePlayersCount - data.missingCoreCount}/${data.corePlayersCount} submitted\n**Optional Players:** ${data.optionalPlayersCount - data.missingOptionalCount}/${data.optionalPlayersCount} submitted`;
+
+  return generateStandardDM({
+    ...context,
+    messageText,
+    subMessage: 'Build the schedule today! 📅',
+    color: COLORS.DANGER,
+  });
 }
 
-export function generateSimpleEmbed(
+export function generateStandardSimpleMessage(
+  guildId: string,
   title: string,
   description: string,
   type: 'info' | 'success' | 'warning' | 'danger' = 'info',
+  prefix = '',
 ): DiscordMessage {
   const colorMap = {
     info: COLORS.INFO,
@@ -260,11 +232,17 @@ export function generateSimpleEmbed(
   };
 
   return {
-    embeds: [
+    flags: MessageFlags.IS_COMPONENTS_V2,
+    components: [
       {
-        title,
-        description,
-        color: colorMap[type],
+        type: ComponentType.CONTAINER,
+        accent_color: colorMap[type],
+        components: [
+          {
+            type: ComponentType.TEXT_DISPLAY,
+            content: `# ${prefix}${title}\n\n${description}\n\n[Tavern  Master](${config.siteUrl}/g/${guildId})`,
+          },
+        ],
       },
     ],
   };

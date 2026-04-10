@@ -94,7 +94,7 @@ export async function processNotifications(dateOverride?: Date) {
       if (daysUntilEnd === 3) {
         console.log(`[T-3] Sending admin report for ${guildName}`);
         if (guildData.adminNotificationChannelId) {
-          await sendT3AdminReportAction(guildData.adminNotificationChannelId, {
+          await sendT3AdminReportAction(guildData.adminNotificationChannelId, context, {
             corePlayersCount: corePlayers.length,
             missingCoreCount: missingCore.length,
             optionalPlayersCount: optionalPlayers.length,
@@ -125,7 +125,7 @@ export async function processNotifications(dateOverride?: Date) {
         }
 
         if (guildData.adminNotificationChannelId) {
-          await sendT2AdminReportAction(guildData.adminNotificationChannelId, {
+          await sendT2AdminReportAction(guildData.adminNotificationChannelId, context, {
             corePlayersCount: corePlayers.length,
             missingCoreCount: missingCore.length,
             optionalPlayersCount: optionalPlayers.length,

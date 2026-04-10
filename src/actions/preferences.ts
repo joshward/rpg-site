@@ -7,7 +7,7 @@ import { account, user } from '@/db/schema/auth';
 import { resolveRoleForGuild } from '@/lib/authn';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { ensureAccess, ensureAdmin } from '@/actions/auth-helpers';
-import { notifyAdmin, generateSimpleEmbed } from '@/lib/notifications';
+import { notifyAdmin, generateStandardSimpleMessage } from '@/lib/notifications';
 import { memberPreference } from '@/db/schema/member-preferences';
 import { NO_LIMIT } from '@/lib/preferences';
 import { getGuildMember, getGuildMembers } from '@/lib/discord/api';
@@ -72,7 +72,8 @@ export async function saveMemberPreference({
   if (notify && hasChanged) {
     const displayValue = sessionsPerMonth === NO_LIMIT ? 'No Limit' : sessionsPerMonth;
     const sourceSuffix = source ? ` ${source}` : '';
-    const message = generateSimpleEmbed(
+    const message = generateStandardSimpleMessage(
+      guildId,
       '🎮 Preferences Updated',
       `**${displayName}** changed preferred games to **${displayValue}**${sourceSuffix}`,
       'info',

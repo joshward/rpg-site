@@ -55,6 +55,7 @@ export async function sendT10Global(channelId: string, context: NotificationCont
 
 export async function sendT3AdminReportAction(
   channelId: string,
+  context: NotificationContext,
   data: {
     corePlayersCount: number;
     missingCoreCount: number;
@@ -62,7 +63,7 @@ export async function sendT3AdminReportAction(
     missingOptionalCount: number;
   },
 ) {
-  const message = generateT3AdminReport(data);
+  const message = generateT3AdminReport(context, data);
   return sendGlobalMessage(channelId, message, 'T-3 Admin Report');
 }
 
@@ -80,6 +81,7 @@ export async function sendT2FinalCallGlobalAction(
 
 export async function sendT2AdminReportAction(
   channelId: string,
+  context: NotificationContext,
   data: {
     corePlayersCount: number;
     missingCoreCount: number;
@@ -87,6 +89,6 @@ export async function sendT2AdminReportAction(
     missingOptionalCount: number;
   },
 ) {
-  const message = generateT2AdminReport(data);
+  const message = generateT2AdminReport(context, data);
   return sendGlobalMessage(channelId, message, 'T-2 Admin Report');
 }

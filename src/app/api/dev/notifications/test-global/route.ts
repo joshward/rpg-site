@@ -55,13 +55,13 @@ export async function POST(request: Request) {
         success = await sendT10Global(channelId, context);
         break;
       case 'T3':
-        success = await sendT3AdminReportAction(channelId, testData);
+        success = await sendT3AdminReportAction(channelId, context, testData);
         break;
       case 'T2G':
         success = await sendT2FinalCallGlobalAction(channelId, context, testFinalCallData);
         break;
       case 'T2A':
-        success = await sendT2AdminReportAction(channelId, testData);
+        success = await sendT2AdminReportAction(channelId, context, testData);
         break;
       default:
         return NextResponse.json({ error: `Invalid notification type: ${type}` }, { status: 400 });

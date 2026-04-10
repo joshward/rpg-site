@@ -2,7 +2,7 @@ import { sendDiscordMessage } from '@/lib/discord/api';
 import { db } from '@/db/db';
 import { guild as guildTable } from '@/db/schema/guild';
 import { eq } from 'drizzle-orm';
-import { type DiscordMessage } from './messages';
+import { type DiscordMessage, generateStandardSimpleMessage } from './messages';
 import { getPrefix } from './utils';
 import { MessageFlags, ComponentType } from '@/lib/discord/models';
 
@@ -12,7 +12,9 @@ export async function notifyAdmin(guildId: string, message: string | DiscordMess
   if (guildData?.adminNotificationChannelId) {
     const prefix = getPrefix();
     const body: DiscordMessage =
-      typeof message === 'string' ? { content: message } : { ...message };
+      typeof message === 'string'
+        ? generateStandardSimpleMessage(guildId, 'Admin Notification', message, 'info', prefix)
+        : { ...message };
 
     const isV2 = !!(body.flags && body.flags & MessageFlags.IS_COMPONENTS_V2);
 
