@@ -45,6 +45,37 @@ export const getGames = asResult(
   'Something went wrong fetching games.',
 );
 
+export const getMemberGames = asResult(
+  'getMemberGames',
+  async (guildId: string, discordUserId: string) => {
+    const access = await ensureAccess(guildId);
+
+    // If querying someone else, must be admin
+    if (discordUserId !== access.discordAccount.userId && access.role !== 'admin') {
+      throw new ActionError('Only guild administrators can perform this action.');
+    }
+
+    return await db
+      .select({
+        id: game.id,
+        name: game.name,
+        sessionsPerMonth: game.sessionsPerMonth,
+        isRequired: gameMember.isRequired,
+      })
+      .from(game)
+      .innerJoin(gameMember, eq(game.id, gameMember.gameId))
+      .where(
+        and(
+          eq(game.guildId, guildId),
+          eq(gameMember.discordUserId, discordUserId),
+          inArray(game.status, ['active', 'paused']),
+        ),
+      )
+      .orderBy(game.name);
+  },
+  'Something went wrong fetching member games.',
+);
+
 export const getMyGames = asResult(
   'getMyGames',
   async (guildId: string) => {
