@@ -120,6 +120,7 @@ export function generateT10GlobalMessage(context: NotificationContext): DiscordM
     messageText: `Availability for **${context.targetMonthName}** is now open! 👍 Please fill it out when you get a chance.`,
     subMessage: `**Due by the ${context.deadlineDate}**`,
     color: COLORS.SUCCESS,
+    includeInteractiveButtons: true,
   });
 }
 
@@ -178,6 +179,7 @@ export function generateT3AdminReport(
     messageText,
     subMessage: 'Heads up — availability deadline is tomorrow!',
     color: COLORS.WARNING,
+    includeInteractiveButtons: true,
   });
 }
 
@@ -195,6 +197,7 @@ export function generateT2FinalCallGlobal(
     ...context,
     messageText: `**Final call for availability! 📢** The schedule will be created today.\n\n**${submittedCount}/${totalActive}** players have filled out their schedule.`,
     color: COLORS.DANGER,
+    includeInteractiveButtons: true,
   });
 }
 
@@ -214,6 +217,7 @@ export function generateT2AdminReport(
     messageText,
     subMessage: 'Build the schedule today! 📅',
     color: COLORS.DANGER,
+    includeInteractiveButtons: true,
   });
 }
 

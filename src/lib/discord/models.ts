@@ -28,7 +28,7 @@ export type RoleModel = v.InferOutput<typeof RoleSchema>;
 export const RolesResponseSchema = v.array(RoleSchema);
 export type RolesResponseModel = v.InferOutput<typeof RolesResponseSchema>;
 
-export const UserSchema = v.object({
+export const UserSchema = v.looseObject({
   id: v.string(),
   username: v.string(),
   global_name: v.nullish(v.string()),
@@ -37,7 +37,7 @@ export const UserSchema = v.object({
 });
 export type UserModel = v.InferOutput<typeof UserSchema>;
 
-export const GuildMemberSchema = v.object({
+export const GuildMemberSchema = v.looseObject({
   user: UserSchema,
   roles: v.array(v.string()),
   nick: v.nullish(v.string()),
@@ -213,7 +213,7 @@ export type EmbedModel = v.InferOutput<typeof EmbedSchema>;
 export const ChannelsResponseSchema = v.array(ChannelSchema);
 export type ChannelsResponseModel = v.InferOutput<typeof ChannelsResponseSchema>;
 
-export const InteractionSchema = v.object({
+export const InteractionSchema = v.looseObject({
   id: v.string(),
   application_id: v.string(),
   type: v.number(),
@@ -224,5 +224,6 @@ export const InteractionSchema = v.object({
   member: v.optional(GuildMemberSchema),
   user: v.optional(UserSchema),
   data: v.optional(v.looseObject({})),
+  message: v.optional(v.looseObject({})),
 });
 export type InteractionModel = v.InferOutput<typeof InteractionSchema>;

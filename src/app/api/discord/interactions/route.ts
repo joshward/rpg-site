@@ -37,7 +37,12 @@ export async function POST(req: Request) {
     const result = v.safeParse(InteractionSchema, body);
 
     if (!result.success) {
-      console.error('Invalid interaction body received from Discord:', result.issues);
+      console.error(
+        'Invalid interaction body received from Discord:',
+        JSON.stringify(result.issues, null, 2),
+        'Raw body:',
+        rawBody,
+      );
       return new Response('Invalid interaction body', { status: 400 });
     }
 
@@ -78,8 +83,16 @@ export async function POST(req: Request) {
 
         // 2. Validate user still has a valid role in the guild
         try {
-          const member = await getGuildMember({ guildId, userId: user.id });
-          const role = await resolveRoleForGuild(member.roles, guildId, guildData.allowedRoles);
+          let roles: string[];
+          if (interaction.member) {
+            roles = interaction.member.roles;
+          } else {
+            console.log(`Fetching member for user ${user.id} in guild ${guildId} (DM interaction)`);
+            const member = await getGuildMember({ guildId, userId: user.id });
+            roles = member.roles;
+          }
+
+          const role = await resolveRoleForGuild(roles, guildId, guildData.allowedRoles);
 
           if (role === 'none') {
             console.warn(`User ${user.username} has no allowed roles in guild ${guildId}`);
@@ -190,6 +203,13 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error('Error processing Discord interaction:', error);
-    return new Response('Internal Server Error', { status: 500 });
+    return NextResponse.json({
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: {
+        content:
+          'An unexpected error occurred while processing your request. Please try again later.',
+        flags: 64, // Ephemeral
+      },
+    });
   }
 }
