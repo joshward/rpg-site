@@ -14,7 +14,6 @@ import {
   getGuildChannels,
   getCurrentUser,
   getGuildMember,
-  getChannel,
   DiscordApiError,
 } from '@/lib/discord/api';
 import { TimeSpan } from 'timespan-ts';
@@ -192,13 +191,15 @@ export const checkBotPermissionsAction = asResult(
     // 3. Get guild roles to check base permissions
     const guildRoles = await getGuildRolesCached(guildId);
 
-    // 4. Get channel info for overwrites
-    const channel = await getChannel({ channelId }).catch((err) => {
+    // 4. Get channel info for permissions
+    const channels = await getGuildChannelsCached(guildId).catch((err) => {
       if (err instanceof DiscordApiError && (err.code === 403 || err.code === 404)) {
-        return null;
+        return [];
       }
       throw err;
     });
+
+    const channel = channels.find((c) => c.id === channelId);
 
     if (!channel) {
       return {
@@ -207,59 +208,63 @@ export const checkBotPermissionsAction = asResult(
       };
     }
 
-    if (channel.guild_id && channel.guild_id !== guildId) {
-      throw new ActionError('Channel does not belong to this guild.');
-    }
-
-    // Calculation of permissions (simplified):
+    // Calculation of permissions:
     const VIEW_CHANNEL = BigInt(0x400);
     const SEND_MESSAGES = BigInt(0x800);
     const ADMINISTRATOR = BigInt(0x8);
 
-    // Start with @everyone role permissions
-    const everyoneRole = guildRoles.find((r) => r.id === guildId);
-    let permissions = everyoneRole ? BigInt(everyoneRole.permissions) : BigInt(0);
+    let permissions: bigint;
 
-    // Add permissions from bot's roles
-    for (const roleId of botMember.roles) {
-      const role = guildRoles.find((r) => r.id === roleId);
-      if (role) {
-        permissions |= BigInt(role.permissions);
-      }
-    }
+    if (channel.permissions) {
+      // Use pre-computed permissions from Discord
+      permissions = BigInt(channel.permissions);
+    } else {
+      // Fallback to manual calculation if permissions field is missing
+      // Start with @everyone role permissions
+      const everyoneRole = guildRoles.find((r) => r.id === guildId);
+      permissions = everyoneRole ? BigInt(everyoneRole.permissions) : BigInt(0);
 
-    // Administrator permission overrides everything
-    if ((permissions & ADMINISTRATOR) === ADMINISTRATOR) {
-      return { hasPermissions: true, missing: [] };
-    }
-
-    // Apply channel overwrites
-    if (channel.permission_overwrites) {
-      // @everyone overwrite
-      const everyoneOverwrite = channel.permission_overwrites.find((o) => o.id === guildId);
-      if (everyoneOverwrite) {
-        permissions &= ~BigInt(everyoneOverwrite.deny);
-        permissions |= BigInt(everyoneOverwrite.allow);
-      }
-
-      // Role overwrites
-      let roleAllow = BigInt(0);
-      let roleDeny = BigInt(0);
+      // Add permissions from bot's roles
       for (const roleId of botMember.roles) {
-        const overwrite = channel.permission_overwrites.find((o) => o.id === roleId);
-        if (overwrite) {
-          roleAllow |= BigInt(overwrite.allow);
-          roleDeny |= BigInt(overwrite.deny);
+        const role = guildRoles.find((r) => r.id === roleId);
+        if (role) {
+          permissions |= BigInt(role.permissions);
         }
       }
-      permissions &= ~roleDeny;
-      permissions |= roleAllow;
 
-      // Member overwrite
-      const memberOverwrite = channel.permission_overwrites.find((o) => o.id === botUser.id);
-      if (memberOverwrite) {
-        permissions &= ~BigInt(memberOverwrite.deny);
-        permissions |= BigInt(memberOverwrite.allow);
+      // Administrator permission overrides everything
+      if ((permissions & ADMINISTRATOR) === ADMINISTRATOR) {
+        return { hasPermissions: true, missing: [] };
+      }
+
+      // Apply channel overwrites
+      if (channel.permission_overwrites) {
+        // @everyone overwrite
+        const everyoneOverwrite = channel.permission_overwrites.find((o) => o.id === guildId);
+        if (everyoneOverwrite) {
+          permissions &= ~BigInt(everyoneOverwrite.deny);
+          permissions |= BigInt(everyoneOverwrite.allow);
+        }
+
+        // Role overwrites
+        let roleAllow = BigInt(0);
+        let roleDeny = BigInt(0);
+        for (const roleId of botMember.roles) {
+          const overwrite = channel.permission_overwrites.find((o) => o.id === roleId);
+          if (overwrite) {
+            roleAllow |= BigInt(overwrite.allow);
+            roleDeny |= BigInt(overwrite.deny);
+          }
+        }
+        permissions &= ~roleDeny;
+        permissions |= roleAllow;
+
+        // Member overwrite
+        const memberOverwrite = channel.permission_overwrites.find((o) => o.id === botUser.id);
+        if (memberOverwrite) {
+          permissions &= ~BigInt(memberOverwrite.deny);
+          permissions |= BigInt(memberOverwrite.allow);
+        }
       }
     }
 

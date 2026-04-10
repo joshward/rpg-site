@@ -52,6 +52,7 @@ export const ChannelSchema = v.object({
   name: v.nullish(v.string()),
   type: v.number(),
   guild_id: v.optional(v.string()),
+  permissions: v.optional(v.string()),
   permission_overwrites: v.optional(
     v.array(
       v.object({

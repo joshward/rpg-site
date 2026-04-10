@@ -166,6 +166,9 @@ const $fetch = createFetch({
     },
     '/guilds/:guildId/channels': {
       output: ChannelsResponseSchema,
+      query: v.object({
+        permissions: v.optional(v.string()),
+      }),
     },
     '/guilds/:guildId/members/:userId': {
       output: GuildMemberSchema,
@@ -275,6 +278,9 @@ export async function getGuildChannels(
 ): Promise<ChannelsResponseModel> {
   const result = await $fetch('/guilds/:guildId/channels', {
     params,
+    query: {
+      permissions: 'true',
+    },
     ...handleOptions(options),
   });
   return toError('/guilds/:guildId/channels', result);
