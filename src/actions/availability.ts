@@ -66,6 +66,118 @@ export const getMyAvailability = asResult(
   'Something went wrong fetching your availability.',
 );
 
+export async function saveAvailability({
+  guildId,
+  discordUserId,
+  year,
+  month,
+  days,
+  displayName,
+  userId,
+  source,
+}: {
+  guildId: string;
+  discordUserId: string;
+  year: number;
+  month: number;
+  days: DayAvailability[];
+  displayName: string;
+  userId?: string | null;
+  source?: string;
+}) {
+  let finalUserId = userId;
+  if (finalUserId === undefined) {
+    const dbAccount = (
+      await db
+        .select()
+        .from(account)
+        .where(and(eq(account.providerId, 'discord'), eq(account.accountId, discordUserId)))
+    )[0];
+    finalUserId = dbAccount?.userId || null;
+  }
+
+  const existingSubmission = await db
+    .select({ id: availabilitySubmission.id })
+    .from(availabilitySubmission)
+    .where(
+      and(
+        eq(availabilitySubmission.guildId, guildId),
+        eq(availabilitySubmission.discordUserId, discordUserId),
+        eq(availabilitySubmission.year, year),
+        eq(availabilitySubmission.month, month),
+      ),
+    )
+    .limit(1);
+
+  const isFirstTime = existingSubmission.length === 0;
+
+  const monthScheduledResult = await isMonthScheduled(guildId, year, month);
+  const isScheduled = isSuccess(monthScheduledResult) && monthScheduledResult.data;
+
+  // Upsert submission + replace days in a transaction
+  const { submissionId } = await db.transaction(async (tx) => {
+    const [submission] = await tx
+      .insert(availabilitySubmission)
+      .values({
+        guildId,
+        discordUserId,
+        userId: finalUserId,
+        year,
+        month,
+      })
+      .onConflictDoUpdate({
+        target: [
+          availabilitySubmission.guildId,
+          availabilitySubmission.discordUserId,
+          availabilitySubmission.year,
+          availabilitySubmission.month,
+        ],
+        set: {
+          userId: finalUserId,
+          updatedAt: new Date(),
+        },
+      })
+      .returning({ id: availabilitySubmission.id });
+
+    // Replace day entries — delete old ones first
+    await tx.delete(availabilityDay).where(eq(availabilityDay.submissionId, submission.id));
+
+    // Insert new day entries
+    await tx.insert(availabilityDay).values(
+      days.map((d) => ({
+        submissionId: submission.id,
+        day: d.day,
+        status: d.status,
+      })),
+    );
+
+    return { submissionId: submission.id };
+  });
+
+  revalidatePath(`/g/${guildId}/availability`);
+  revalidatePath(`/g/${guildId}/schedule`);
+
+  if (isFirstTime || isScheduled) {
+    let title = 'Availability Saved';
+    let type: 'info' | 'warning' = 'info';
+
+    if (isScheduled && !isFirstTime) {
+      title = 'Availability Updated (Schedule Modified)';
+      type = 'warning';
+    }
+
+    const sourceSuffix = source ? ` ${source}` : '';
+    const message = generateSimpleEmbed(
+      `📅 ${title}`,
+      `**${displayName}** submitted availability for **${month}/${year}**${sourceSuffix}`,
+      type,
+    );
+    await notifyAdmin(guildId, message);
+  }
+
+  return { submissionId };
+}
+
 export const submitAvailability = asResult(
   'submitAvailability',
   async (guildId: string, year: number, month: number, days: DayAvailability[]) => {
@@ -110,86 +222,15 @@ export const submitAvailability = asResult(
       }
     }
 
-    const existingSubmission = await db
-      .select({ id: availabilitySubmission.id })
-      .from(availabilitySubmission)
-      .where(
-        and(
-          eq(availabilitySubmission.guildId, guildId),
-          eq(availabilitySubmission.discordUserId, discordAccount.userId),
-          eq(availabilitySubmission.year, year),
-          eq(availabilitySubmission.month, month),
-        ),
-      )
-      .limit(1);
-
-    const isFirstTime = existingSubmission.length === 0;
-
-    const monthScheduledResult = await isMonthScheduled(guildId, year, month);
-    const isScheduled = isSuccess(monthScheduledResult) && monthScheduledResult.data;
-
-    // Upsert submission + replace days in a transaction
-    const { submissionId } = await db.transaction(async (tx) => {
-      const [submission] = await tx
-        .insert(availabilitySubmission)
-        .values({
-          guildId,
-          discordUserId: discordAccount.userId,
-          userId: session.user.id,
-          year,
-          month,
-        })
-        .onConflictDoUpdate({
-          target: [
-            availabilitySubmission.guildId,
-            availabilitySubmission.discordUserId,
-            availabilitySubmission.year,
-            availabilitySubmission.month,
-          ],
-          set: {
-            userId: session.user.id,
-            updatedAt: new Date(),
-          },
-        })
-        .returning({ id: availabilitySubmission.id });
-
-      // Replace day entries — delete old ones first
-      await tx.delete(availabilityDay).where(eq(availabilityDay.submissionId, submission.id));
-
-      // Insert new day entries
-      await tx.insert(availabilityDay).values(
-        days.map((d) => ({
-          submissionId: submission.id,
-          day: d.day,
-          status: d.status,
-        })),
-      );
-
-      return { submissionId: submission.id };
+    return await saveAvailability({
+      guildId,
+      discordUserId: discordAccount.userId,
+      year,
+      month,
+      days,
+      displayName: session.user.name || discordAccount.userId,
+      userId: session.user.id,
     });
-
-    revalidatePath(`/g/${guildId}/availability`);
-    revalidatePath(`/g/${guildId}/schedule`);
-
-    if (isFirstTime || isScheduled) {
-      const displayName = session.user.name || 'Unknown User';
-      let title = 'Availability Saved';
-      let type: 'info' | 'warning' = 'info';
-
-      if (isScheduled && !isFirstTime) {
-        title = 'Availability Updated (Schedule Modified)';
-        type = 'warning';
-      }
-
-      const message = generateSimpleEmbed(
-        `📅 ${title}`,
-        `**${displayName}** submitted availability for **${month}/${year}**`,
-        type,
-      );
-      await notifyAdmin(guildId, message);
-    }
-
-    return { submissionId };
   },
   'Something went wrong submitting your availability.',
 );

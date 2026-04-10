@@ -12,6 +12,8 @@ import { eq } from 'drizzle-orm';
 import { getGuildMember } from '@/lib/discord/api';
 import { resolveRoleForGuild } from '@/lib/authn';
 import { saveMemberPreference } from '@/actions/preferences';
+import { saveAvailability } from '@/actions/availability';
+import { getEditableMonths, isSameMonth, getDaysInMonth } from '@/lib/availability';
 import { config } from '@/lib/config';
 
 export async function POST(req: Request) {
@@ -115,7 +117,52 @@ export async function POST(req: Request) {
           return NextResponse.json({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
-              content: `Got it! You are now set to not participating. If you ever change your mind, [Log into Guild Master](${guildLink}) and set your preferences.`,
+              content: `Got it! You are now set to not participating. If you ever change your mind, [Log into Tavern Master](${guildLink}) and set your preferences.`,
+              flags: 64, // Ephemeral
+            },
+          });
+        }
+
+        if (action === 'skip_month') {
+          const [year, month] = monthStr.split('-').map(Number);
+          const targetMonth = { year, month };
+
+          // Verify the month is still open for submission
+          const editableMonths = getEditableMonths();
+          const isAllowed = editableMonths.some((m) => isSameMonth(targetMonth, m));
+
+          if (!isAllowed) {
+            return NextResponse.json({
+              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+              data: {
+                content: 'Sorry, that month is already passed.',
+                flags: 64, // Ephemeral
+              },
+            });
+          }
+
+          // Generate unavailable status for all days
+          const daysInMonth = getDaysInMonth(year, month);
+          const days = Array.from({ length: daysInMonth }, (_, i) => ({
+            day: i + 1,
+            status: 'unavailable' as const,
+          }));
+
+          await saveAvailability({
+            guildId,
+            discordUserId: user.id,
+            year,
+            month,
+            days,
+            displayName: user.global_name || user.username,
+            source: 'via Discord bot',
+          });
+
+          const availabilityLink = `${config.siteUrl}/g/${guildId}/availability?year=${year}&month=${month}`;
+          return NextResponse.json({
+            type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+            data: {
+              content: `Got it! Thanks for letting me know. If you change your mind, [fill out your availability here](${availabilityLink}).`,
               flags: 64, // Ephemeral
             },
           });
