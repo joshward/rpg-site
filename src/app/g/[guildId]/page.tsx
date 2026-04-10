@@ -84,7 +84,10 @@ export default async function GuildPage({ params }: GuildRouteProps) {
 
         banners.push(
           <Alert key="over-scheduled" type="warning">
-            You are scheduled for more sessions in games than your set preferences.{' '}
+            <p>
+              You are a core participant in games totalling more days ({totalSessions}) than your
+              set preferences ({sessionsPerMonth}).
+            </p>
             <Link href={`/g/${guildId}/preferences`}>Update your preferences</Link> or {adminText}
             {channelLink && (
               <>
