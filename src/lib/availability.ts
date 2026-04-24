@@ -48,7 +48,8 @@ export function getNextMonth(now: Date = getNow()): YearMonth {
  */
 export function getSubmissionWindowOpen(target: YearMonth): Date {
   const firstOfMonth = new Date(Date.UTC(target.year, target.month - 1, 1));
-  firstOfMonth.setUTCDate(firstOfMonth.getUTCDate() - 10);
+  // Change from - 10 to - 11 to align with T-10 notifications
+  firstOfMonth.setUTCDate(firstOfMonth.getUTCDate() - 11);
   return firstOfMonth;
 }
 

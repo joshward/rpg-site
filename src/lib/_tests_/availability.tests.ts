@@ -156,12 +156,12 @@ describe('Availability Helpers', () => {
       });
 
       it('returns true for last 10 days of the month', () => {
-        const now = new Date('2026-03-22');
+        const now = new Date('2026-03-21');
         expect(isLast10DaysOfCurrentMonth(now)).toBe(true);
       });
 
       it('returns true for the exact boundary (10 days before next month)', () => {
-        const now = new Date('2026-03-22T00:00:00Z');
+        const now = new Date('2026-03-21T00:00:00Z');
         expect(isLast10DaysOfCurrentMonth(now)).toBe(true);
       });
     });
@@ -173,7 +173,7 @@ describe('Availability Helpers', () => {
       });
 
       it('returns next month late in the month', () => {
-        const now = new Date('2026-03-22');
+        const now = new Date('2026-03-21');
         expect(getDefaultAvailabilityMonth(now)).toEqual({ year: 2026, month: 4 });
       });
     });
