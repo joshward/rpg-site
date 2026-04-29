@@ -1,4 +1,5 @@
 import { config } from '../src/lib/config';
+import { joinUrl } from '../src/lib/urls';
 
 async function main() {
   const args = process.argv.slice(2);
@@ -10,7 +11,7 @@ async function main() {
     process.exit(1);
   }
 
-  const url = `${config.siteUrl}/api/dev/notifications/test-global`;
+  const url = joinUrl(config.siteUrl, '/api/dev/notifications/test-global');
   console.log(`Triggering dev global notification at ${url}...`);
 
   try {

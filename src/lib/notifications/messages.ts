@@ -8,6 +8,7 @@ import {
   MessageFlags,
 } from '@/lib/discord/models';
 import { config } from '@/lib/config';
+import { joinUrl } from '@/lib/urls';
 
 export interface NotificationContext {
   guildId: string;
@@ -109,8 +110,7 @@ export function generateStandardDM({
 }): DiscordMessage {
   const header1 = `${prefix}Roleplaying in ${guildName}`;
   const header2 = `${targetMonthName} Availability`;
-
-  const homeLink = `${config.siteUrl}/g/${guildId}`;
+  const homeLink = joinUrl(config.siteUrl, `/g/${guildId}`);
   const monthStr = `${target.year}-${target.month.toString().padStart(2, '0')}`;
 
   const textContent =
@@ -295,7 +295,7 @@ export function generateStandardSimpleMessage(
         components: [
           {
             type: ComponentType.TEXT_DISPLAY,
-            content: `# ${prefix}${title}\n\n${description}\n\n[Tavern Master](${config.siteUrl}/g/${guildId})`,
+            content: `# ${prefix}${title}\n\n${description}\n\n[Tavern Master](${joinUrl(config.siteUrl, `/g/${guildId}`)})`,
           },
         ],
       },

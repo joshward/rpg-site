@@ -3,6 +3,7 @@ import { guild as guildTable } from '@/db/schema/guild';
 import { getGuilds } from '@/lib/discord/api';
 import { getNow, getNextMonth } from '@/lib/availability';
 import { config } from '@/lib/config';
+import { joinUrl } from '@/lib/urls';
 import { getDaysUntilEndOfMonth, getPrefix } from './utils';
 import { getNotificationContext } from './messages';
 import {
@@ -44,7 +45,10 @@ export async function processNotifications(dateOverride?: Date) {
     try {
       const discordGuild = discordGuildsMap.get(guildData.id);
       const guildName = discordGuild?.name || 'Discord Server';
-      const guildWebappLink = `${config.siteUrl}/g/${guildData.id}/availability?year=${target.year}&month=${target.month}`;
+      const guildWebappLink = joinUrl(
+        config.siteUrl,
+        `/g/${guildData.id}/availability?year=${target.year}&month=${target.month}`,
+      );
       const context = getNotificationContext(now, guildData.id, guildName, guildWebappLink, prefix);
 
       console.log(

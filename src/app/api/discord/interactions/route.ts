@@ -15,6 +15,7 @@ import { saveMemberPreference } from '@/actions/preferences';
 import { saveAvailability } from '@/actions/availability';
 import { getEditableMonths, isSameMonth, getDaysInMonth } from '@/lib/availability';
 import { config } from '@/lib/config';
+import { joinUrl } from '@/lib/urls';
 
 export async function POST(req: Request) {
   const signature = req.headers.get('x-signature-ed25519');
@@ -126,7 +127,7 @@ export async function POST(req: Request) {
           });
 
           // 5. Respond to user
-          const guildLink = `${config.siteUrl}/g/${guildId}`;
+          const guildLink = joinUrl(config.siteUrl, `/g/${guildId}`);
           return NextResponse.json({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
@@ -171,7 +172,10 @@ export async function POST(req: Request) {
             source: 'via Discord bot',
           });
 
-          const availabilityLink = `${config.siteUrl}/g/${guildId}/availability?year=${year}&month=${month}`;
+          const availabilityLink = joinUrl(
+            config.siteUrl,
+            `/g/${guildId}/availability?year=${year}&month=${month}`,
+          );
           return NextResponse.json({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {

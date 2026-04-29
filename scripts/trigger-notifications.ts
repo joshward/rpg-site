@@ -1,8 +1,9 @@
 import { config } from '../src/lib/config';
+import { joinUrl } from '../src/lib/urls';
 
 async function main() {
   const dateArg = process.argv[2];
-  let url = `${config.siteUrl}/api/cron/notifications`;
+  let url = joinUrl(config.siteUrl, '/api/cron/notifications');
   if (dateArg) {
     url += `?date=${encodeURIComponent(dateArg)}`;
   }

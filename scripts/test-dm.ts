@@ -1,4 +1,5 @@
 import { config } from '../src/lib/config';
+import { joinUrl } from '../src/lib/urls';
 
 async function main() {
   const args = process.argv.slice(2);
@@ -11,7 +12,7 @@ async function main() {
     process.exit(1);
   }
 
-  const url = `${config.siteUrl}/api/dev/notifications/test-dm`;
+  const url = joinUrl(config.siteUrl, '/api/dev/notifications/test-dm');
   console.log(`Triggering dev notification at ${url}...`);
 
   try {
