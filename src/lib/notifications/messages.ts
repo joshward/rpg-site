@@ -189,7 +189,7 @@ export function generateT4CoreReminderMessage(context: NotificationContext): Dis
   return generateStandardDM({
     ...context,
     messageText: `Just a reminder to fill out your roleplaying availability for **${context.targetMonthName}**.`,
-    subMessage: `I’ll be building the schedule in 4 days.`,
+    subMessage: `I’ll be building the schedule in 2 days.`,
     color: COLORS.WARNING,
     includeInteractiveButtons: true,
   });
@@ -199,7 +199,7 @@ export function generateT4OptionalReminderMessage(context: NotificationContext):
   return generateStandardDM({
     ...context,
     messageText: `Hey! If you’re interested in joining any roleplaying games in **${context.targetMonthName}**, feel free to fill out your availability! 👍`,
-    subMessage: `I’ll be building the schedule in 4 days.`,
+    subMessage: `I’ll be building the schedule in 2 days.`,
     color: COLORS.INFO,
     includeInteractiveButtons: true,
   });
