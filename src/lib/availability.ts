@@ -44,16 +44,19 @@ export function getNextMonth(now: Date = getNow()): YearMonth {
 
 /**
  * Returns the date when the submission window opens for the given target month.
- * Currently hardcoded to 10 days before the 1st of the target month.
+ * Uses an inclusive T-10 calendar-day boundary, so this opens 11 days before
+ * the 1st of the target month.
  */
 export function getSubmissionWindowOpen(target: YearMonth): Date {
   const firstOfMonth = new Date(Date.UTC(target.year, target.month - 1, 1));
-  firstOfMonth.setUTCDate(firstOfMonth.getUTCDate() - 10);
+  // Subtract 11 so the date-based boundary aligns with inclusive T-10 messaging.
+  firstOfMonth.setUTCDate(firstOfMonth.getUTCDate() - 11);
   return firstOfMonth;
 }
 
 /**
- * Returns true if we are in the last 10 days of the current month.
+ * Returns true when we're inside the T-10 availability window for next month.
+ * The function name is retained for compatibility.
  */
 export function isLast10DaysOfCurrentMonth(now: Date = getNow()): boolean {
   const nextMonth = getNextMonth(now);

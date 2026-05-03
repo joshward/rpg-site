@@ -267,20 +267,33 @@ export default function ScheduleGrid({
   }, [games, gameDates]);
 
   const filteredGames = useMemo(() => {
-    if (showUnsetOptional) return games;
+    const shouldShowMember = (member: Member) => {
+      if (member.isRequired) return true;
+
+      const hasFilledSchedule = Object.keys(member.availability).length > 0;
+      const isZeroPreference = member.sessionsPerMonth === 0;
+
+      if (isZeroPreference && !hasFilledSchedule) return false;
+      if (showUnsetOptional) return true;
+
+      return hasFilledSchedule;
+    };
+
     return games.map((game) => ({
       ...game,
-      members: game.members.filter((member) => {
-        if (member.isRequired) return true;
-        return Object.keys(member.availability).length > 0;
-      }),
+      members: game.members.filter(shouldShowMember),
     }));
   }, [games, showUnsetOptional]);
 
   const filteredUnassigned = useMemo(() => {
-    if (showUnsetOptional) return unassignedMembers;
     return unassignedMembers.filter((member) => {
-      return Object.keys(member.availability).length > 0;
+      const hasFilledSchedule = Object.keys(member.availability).length > 0;
+      const isZeroPreference = member.sessionsPerMonth === 0;
+
+      if (isZeroPreference && !hasFilledSchedule) return false;
+      if (showUnsetOptional) return true;
+
+      return hasFilledSchedule;
     });
   }, [unassignedMembers, showUnsetOptional]);
 
@@ -561,7 +574,7 @@ export default function ScheduleGrid({
               );
             })}
 
-            {unassignedMembers.length > 0 && (
+            {filteredUnassigned.length > 0 && (
               <Fragment>
                 <tr className="bg-sage-3 border-b border-sage-4">
                   <td className="sticky left-0 z-20 bg-sage-3 p-2 font-bold text-xs uppercase tracking-wider text-sage-12 border-b border-sage-4 w-[200px] min-w-[200px]">

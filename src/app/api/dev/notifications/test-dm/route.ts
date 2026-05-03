@@ -13,6 +13,7 @@ import {
 } from '@/lib/notifications';
 import { config } from '@/lib/config';
 import { getNow } from '@/lib/availability';
+import { joinUrl } from '@/lib/urls';
 
 export async function POST(request: Request) {
   if (process.env.NODE_ENV !== 'development') {
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
 
     const now = getNow();
     const prefix = getPrefix();
-    const guildWebappLink = `${config.siteUrl}/g/${guildId}/availability`;
+    const guildWebappLink = joinUrl(config.siteUrl, `/g/${guildId}/availability`);
     const context = getNotificationContext(now, guildId, guildName, guildWebappLink, prefix);
 
     let success = false;

@@ -8,6 +8,7 @@ import {
   MessageFlags,
 } from '@/lib/discord/models';
 import { config } from '@/lib/config';
+import { joinUrl } from '@/lib/urls';
 
 export interface NotificationContext {
   guildId: string;
@@ -109,8 +110,7 @@ export function generateStandardDM({
 }): DiscordMessage {
   const header1 = `${prefix}Roleplaying in ${guildName}`;
   const header2 = `${targetMonthName} Availability`;
-
-  const homeLink = `${config.siteUrl}/g/${guildId}`;
+  const homeLink = joinUrl(config.siteUrl, `/g/${guildId}`);
   const monthStr = `${target.year}-${target.month.toString().padStart(2, '0')}`;
 
   const textContent =
@@ -189,7 +189,7 @@ export function generateT4CoreReminderMessage(context: NotificationContext): Dis
   return generateStandardDM({
     ...context,
     messageText: `Just a reminder to fill out your roleplaying availability for **${context.targetMonthName}**.`,
-    subMessage: `I’ll be building the schedule in 4 days.`,
+    subMessage: `I’ll be building the schedule in 2 days.`,
     color: COLORS.WARNING,
     includeInteractiveButtons: true,
   });
@@ -199,7 +199,7 @@ export function generateT4OptionalReminderMessage(context: NotificationContext):
   return generateStandardDM({
     ...context,
     messageText: `Hey! If you’re interested in joining any roleplaying games in **${context.targetMonthName}**, feel free to fill out your availability! 👍`,
-    subMessage: `I’ll be building the schedule in 4 days.`,
+    subMessage: `I’ll be building the schedule in 2 days.`,
     color: COLORS.INFO,
     includeInteractiveButtons: true,
   });
@@ -295,7 +295,7 @@ export function generateStandardSimpleMessage(
         components: [
           {
             type: ComponentType.TEXT_DISPLAY,
-            content: `# ${prefix}${title}\n\n${description}\n\n[Tavern Master](${config.siteUrl}/g/${guildId})`,
+            content: `# ${prefix}${title}\n\n${description}\n\n[Tavern Master](${joinUrl(config.siteUrl, `/g/${guildId}`)})`,
           },
         ],
       },
