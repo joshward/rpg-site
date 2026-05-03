@@ -36,8 +36,13 @@ describe('joinUrl', () => {
   });
 
   it('handles empty parts', () => {
-    // @ts-ignore
-    expect(joinUrl('https://example.com', '', '/g', null, '123')).toBe('https://example.com/g/123');
+    expect(joinUrl('https://example.com', '', '/g', null, undefined, '123')).toBe(
+      'https://example.com/g/123',
+    );
+  });
+
+  it('preserves absolute URLs when base is empty', () => {
+    expect(joinUrl('', 'https://example.com/', '/g')).toBe('https://example.com/g');
   });
 
   it('handles query parameters (as part of last segment)', () => {

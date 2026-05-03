@@ -2,11 +2,12 @@
  * Joins multiple URL parts into a single URL, ensuring exactly one slash between parts.
  * Handles trailing and leading slashes on any of the parts.
  */
-export function joinUrl(base: string, ...parts: string[]): string {
+export function joinUrl(base: string, ...parts: Array<string | null | undefined>): string {
   if (!base && parts.length === 0) return '';
-  if (!base) return parts.join('/').replace(/\/+/g, '/');
 
-  const allParts = [base, ...parts].filter((p) => p !== null && p !== undefined && p !== '');
+  const allParts = [base, ...parts].filter(
+    (p): p is string => p !== null && p !== undefined && p !== '',
+  );
 
   if (allParts.length === 0) return '';
 
