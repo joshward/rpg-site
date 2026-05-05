@@ -87,16 +87,16 @@ function validateYearMonth(year: number, month: number) {
   }
 }
 
-export function buildScheduleFingerprint(days: number[]) {
+export async function buildScheduleFingerprint(days: number[]): Promise<string> {
   return [...days].sort((a, b) => a - b).join(',');
 }
 
-export function getScheduleNotificationSelectionState({
+export async function getScheduleNotificationSelectionState({
   hasNotificationChannel,
   scheduledDayCount,
   hasPriorNotificationThisMonth,
   uneditedSinceLastNotification,
-}: SelectionStateInput): SelectionState {
+}: SelectionStateInput): Promise<SelectionState> {
   if (!hasNotificationChannel) {
     return {
       defaultSelected: false,
@@ -123,7 +123,7 @@ export function getScheduleNotificationSelectionState({
   };
 }
 
-export function buildScheduleNotificationMessage({
+export async function buildScheduleNotificationMessage({
   year,
   month,
   scheduledDays,
@@ -133,7 +133,7 @@ export function buildScheduleNotificationMessage({
   month: number;
   scheduledDays: number[];
   changedSinceLastNotification: boolean;
-}) {
+}): Promise<string> {
   if (scheduledDays.length === 0) {
     return NO_SESSIONS_SCHEDULED_MESSAGE;
   }
@@ -223,26 +223,28 @@ async function getScheduleNotificationContextGames(
     }
   }
 
-  return activeGames.map((g) => {
-    const scheduledDays = [...(daysByGameId.get(g.gameId) ?? [])].sort((a, b) => a - b);
-    const latestSuccessfulSend = latestSuccessfulByGame.get(g.gameId) ?? null;
+  return Promise.all(
+    activeGames.map(async (g) => {
+      const scheduledDays = [...(daysByGameId.get(g.gameId) ?? [])].sort((a, b) => a - b);
+      const latestSuccessfulSend = latestSuccessfulByGame.get(g.gameId) ?? null;
 
-    return {
-      gameId: g.gameId,
-      gameName: g.gameName,
-      scheduleNotificationChannelId: g.scheduleNotificationChannelId,
-      scheduleNotificationChannelName: g.scheduleNotificationChannelName,
-      scheduledDays,
-      scheduleFingerprint: buildScheduleFingerprint(scheduledDays),
-      latestSuccessfulSend,
-    };
-  });
+      return {
+        gameId: g.gameId,
+        gameName: g.gameName,
+        scheduleNotificationChannelId: g.scheduleNotificationChannelId,
+        scheduleNotificationChannelName: g.scheduleNotificationChannelName,
+        scheduledDays,
+        scheduleFingerprint: await buildScheduleFingerprint(scheduledDays),
+        latestSuccessfulSend,
+      };
+    }),
+  );
 }
 
-function toDialogGame(
+async function toDialogGame(
   contextGame: ScheduleNotificationContextGame,
   editedGameIds: Set<string> | null,
-): ScheduleNotificationDialogGame {
+): Promise<ScheduleNotificationDialogGame> {
   const hasPriorNotificationThisMonth = !!contextGame.latestSuccessfulSend;
   const fingerprintMatchesLastSend =
     hasPriorNotificationThisMonth &&
@@ -257,7 +259,7 @@ function toDialogGame(
   const changedSinceLastNotification =
     hasPriorNotificationThisMonth && !uneditedSinceLastNotification && !fingerprintMatchesLastSend;
 
-  const selectionState = getScheduleNotificationSelectionState({
+  const selectionState = await getScheduleNotificationSelectionState({
     hasNotificationChannel: !!contextGame.scheduleNotificationChannelId,
     scheduledDayCount: contextGame.scheduledDays.length,
     hasPriorNotificationThisMonth,
@@ -295,7 +297,9 @@ export const getScheduleNotificationDialogData = asResult(
     return {
       year,
       month,
-      games: contextGames.map((contextGame) => toDialogGame(contextGame, editedSet)),
+      games: await Promise.all(
+        contextGames.map((contextGame) => toDialogGame(contextGame, editedSet)),
+      ),
     } satisfies ScheduleNotificationDialogData;
   },
   'Something went wrong loading schedule notification data.',
@@ -315,7 +319,9 @@ export const sendScheduleNotifications = asResult(
 
     const editedSet = editedGameIds.length > 0 ? new Set(editedGameIds) : null;
     const contextGames = await getScheduleNotificationContextGames(guildId, year, month);
-    const dialogGames = contextGames.map((contextGame) => toDialogGame(contextGame, editedSet));
+    const dialogGames = await Promise.all(
+      contextGames.map((contextGame) => toDialogGame(contextGame, editedSet)),
+    );
     const validGameIds = new Set(dialogGames.map((g) => g.gameId));
 
     for (const selection of selections) {
@@ -352,7 +358,7 @@ export const sendScheduleNotifications = asResult(
         continue;
       }
 
-      const message = buildScheduleNotificationMessage({
+      const message = await buildScheduleNotificationMessage({
         year,
         month,
         scheduledDays: gameData.scheduledDays,
@@ -372,7 +378,7 @@ export const sendScheduleNotifications = asResult(
           gameId: gameData.gameId,
           year,
           month,
-          scheduleFingerprint: buildScheduleFingerprint(gameData.scheduledDays),
+          scheduleFingerprint: await buildScheduleFingerprint(gameData.scheduledDays),
           sentByDiscordUserId: discordAccount.userId,
           outcome: 'sent',
           error: null,
@@ -392,7 +398,7 @@ export const sendScheduleNotifications = asResult(
           gameId: gameData.gameId,
           year,
           month,
-          scheduleFingerprint: buildScheduleFingerprint(gameData.scheduledDays),
+          scheduleFingerprint: await buildScheduleFingerprint(gameData.scheduledDays),
           sentByDiscordUserId: discordAccount.userId,
           outcome: 'failed',
           error: reason,

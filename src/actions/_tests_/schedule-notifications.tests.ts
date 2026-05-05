@@ -26,13 +26,13 @@ import {
 } from '../schedule-notifications';
 
 describe('schedule notification helpers', () => {
-  it('builds stable schedule fingerprints by sorting days', () => {
-    expect(buildScheduleFingerprint([14, 2, 9])).toBe('2,9,14');
+  it('builds stable schedule fingerprints by sorting days', async () => {
+    expect(await buildScheduleFingerprint([14, 2, 9])).toBe('2,9,14');
   });
 
-  it('disables selection when channel is missing', () => {
+  it('disables selection when channel is missing', async () => {
     expect(
-      getScheduleNotificationSelectionState({
+      await getScheduleNotificationSelectionState({
         hasNotificationChannel: false,
         scheduledDayCount: 3,
         hasPriorNotificationThisMonth: false,
@@ -46,9 +46,9 @@ describe('schedule notification helpers', () => {
     });
   });
 
-  it('defaults unchecked with unedited label when already sent and unchanged', () => {
+  it('defaults unchecked with unedited label when already sent and unchanged', async () => {
     expect(
-      getScheduleNotificationSelectionState({
+      await getScheduleNotificationSelectionState({
         hasNotificationChannel: true,
         scheduledDayCount: 4,
         hasPriorNotificationThisMonth: true,
@@ -62,9 +62,9 @@ describe('schedule notification helpers', () => {
     });
   });
 
-  it('defaults checked for games with scheduled days when not blocked by prior unchanged send', () => {
+  it('defaults checked for games with scheduled days when not blocked by prior unchanged send', async () => {
     expect(
-      getScheduleNotificationSelectionState({
+      await getScheduleNotificationSelectionState({
         hasNotificationChannel: true,
         scheduledDayCount: 2,
         hasPriorNotificationThisMonth: false,
@@ -78,9 +78,9 @@ describe('schedule notification helpers', () => {
     });
   });
 
-  it('returns exact no-sessions message for zero-day schedules', () => {
+  it('returns exact no-sessions message for zero-day schedules', async () => {
     expect(
-      buildScheduleNotificationMessage({
+      await buildScheduleNotificationMessage({
         year: 2026,
         month: 5,
         scheduledDays: [],
@@ -89,9 +89,9 @@ describe('schedule notification helpers', () => {
     ).toBe('No sessions scheduled for this month.');
   });
 
-  it('includes changed prefix for edited schedules', () => {
+  it('includes changed prefix for edited schedules', async () => {
     expect(
-      buildScheduleNotificationMessage({
+      await buildScheduleNotificationMessage({
         year: 2026,
         month: 5,
         scheduledDays: [6, 12],

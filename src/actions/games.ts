@@ -707,7 +707,7 @@ export const saveMonthSchedule = asResult(
         ),
       );
 
-    const changedGameIds = getChangedGameIdsForMonthSchedule(
+    const changedGameIds = await getChangedGameIdsForMonthSchedule(
       guildGameIdsList,
       existingSessions,
       gameDates,
@@ -756,7 +756,7 @@ interface ExistingScheduledSession {
   day: number;
 }
 
-export function getChangedGameIdsForMonthSchedule(
+export async function getChangedGameIdsForMonthSchedule(
   guildGameIds: string[],
   existingSessions: ExistingScheduledSession[],
   gameDates: Record<string, number[]>,

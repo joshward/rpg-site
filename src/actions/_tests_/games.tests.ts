@@ -20,8 +20,8 @@ vi.mock('@/lib/discord/api', () => ({
 import { getChangedGameIdsForMonthSchedule } from '../games';
 
 describe('getChangedGameIdsForMonthSchedule', () => {
-  it('returns no changed games when effective day sets are unchanged', () => {
-    const changedGameIds = getChangedGameIdsForMonthSchedule(
+  it('returns no changed games when effective day sets are unchanged', async () => {
+    const changedGameIds = await getChangedGameIdsForMonthSchedule(
       ['game-1', 'game-2'],
       [
         { gameId: 'game-1', day: 5 },
@@ -37,8 +37,8 @@ describe('getChangedGameIdsForMonthSchedule', () => {
     expect(changedGameIds).toEqual([]);
   });
 
-  it('marks games as changed when days are added, removed, or moved', () => {
-    const changedGameIds = getChangedGameIdsForMonthSchedule(
+  it('marks games as changed when days are added, removed, or moved', async () => {
+    const changedGameIds = await getChangedGameIdsForMonthSchedule(
       ['game-1', 'game-2', 'game-3'],
       [
         { gameId: 'game-1', day: 7 },
@@ -54,8 +54,8 @@ describe('getChangedGameIdsForMonthSchedule', () => {
     expect(changedGameIds).toEqual(['game-1', 'game-2', 'game-3']);
   });
 
-  it('treats omitted game entries as cleared schedules', () => {
-    const changedGameIds = getChangedGameIdsForMonthSchedule(
+  it('treats omitted game entries as cleared schedules', async () => {
+    const changedGameIds = await getChangedGameIdsForMonthSchedule(
       ['game-1', 'game-2'],
       [
         { gameId: 'game-1', day: 11 },
