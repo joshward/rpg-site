@@ -1,8 +1,11 @@
-import { pgTable, text, integer, timestamp, boolean, unique } from 'drizzle-orm/pg-core';
+import { pgTable, text, integer, timestamp, boolean, unique, index } from 'drizzle-orm/pg-core';
 import { guild } from './guild';
 
 export const gameStatusEnum = ['draft', 'active', 'paused', 'archived'] as const;
 export type GameStatus = (typeof gameStatusEnum)[number];
+
+export const scheduleNotificationOutcomeEnum = ['sent', 'failed'] as const;
+export type ScheduleNotificationOutcome = (typeof scheduleNotificationOutcomeEnum)[number];
 
 export const game = pgTable('games', {
   id: text()
@@ -17,6 +20,8 @@ export const game = pgTable('games', {
   sessionsPerMonth: integer().default(0).notNull(),
   discordChannelId: text(),
   discordChannelName: text(),
+  scheduleNotificationChannelId: text(),
+  scheduleNotificationChannelName: text(),
   schedulingDetails: text(),
   createdAt: timestamp().defaultNow().notNull(),
   updatedAt: timestamp()
@@ -63,4 +68,30 @@ export const scheduledSession = pgTable(
       .notNull(),
   },
   (table) => [unique().on(table.guildId, table.year, table.month, table.day)],
+);
+
+export const scheduleNotificationSend = pgTable(
+  'schedule_notification_sends',
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    guildId: text()
+      .notNull()
+      .references(() => guild.id, { onDelete: 'cascade' }),
+    gameId: text()
+      .notNull()
+      .references(() => game.id, { onDelete: 'cascade' }),
+    year: integer().notNull(),
+    month: integer().notNull(),
+    scheduleFingerprint: text().notNull(),
+    sentByDiscordUserId: text().notNull(),
+    outcome: text({ enum: scheduleNotificationOutcomeEnum }).notNull(),
+    error: text(),
+    sentAt: timestamp().defaultNow().notNull(),
+  },
+  (table) => [
+    index('sns_game_month_sent_at_idx').on(table.gameId, table.year, table.month, table.sentAt),
+    index('sns_guild_month_idx').on(table.guildId, table.year, table.month),
+  ],
 );
