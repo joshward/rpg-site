@@ -29,6 +29,8 @@ export const getGames = asResult(
         sessionsPerMonth: game.sessionsPerMonth,
         discordChannelId: game.discordChannelId,
         discordChannelName: game.discordChannelName,
+        scheduleNotificationChannelId: game.scheduleNotificationChannelId,
+        scheduleNotificationChannelName: game.scheduleNotificationChannelName,
         schedulingDetails: game.schedulingDetails,
         createdAt: game.createdAt,
         updatedAt: game.updatedAt,
@@ -67,6 +69,8 @@ export const getMemberGames = asResult(
         guildId: game.guildId,
         discordChannelId: game.discordChannelId,
         discordChannelName: game.discordChannelName,
+        scheduleNotificationChannelId: game.scheduleNotificationChannelId,
+        scheduleNotificationChannelName: game.scheduleNotificationChannelName,
         schedulingDetails: game.schedulingDetails,
         isRequired: gameMember.isRequired,
       })
@@ -101,6 +105,8 @@ export const getMyGames = asResult(
         guildId: game.guildId,
         discordChannelId: game.discordChannelId,
         discordChannelName: game.discordChannelName,
+        scheduleNotificationChannelId: game.scheduleNotificationChannelId,
+        scheduleNotificationChannelName: game.scheduleNotificationChannelName,
         schedulingDetails: game.schedulingDetails,
         isRequired: gameMember.isRequired,
       })
@@ -274,8 +280,10 @@ export type GameFormData = {
   description: string | null;
   status: GameStatus;
   sessionsPerMonth: number;
-  discordChannelId?: string;
-  discordChannelName?: string;
+  discordChannelId?: string | null;
+  discordChannelName?: string | null;
+  scheduleNotificationChannelId?: string | null;
+  scheduleNotificationChannelName?: string | null;
   schedulingDetails?: string;
   members: {
     discordUserId: string;
@@ -304,6 +312,8 @@ export const createGame = asResult(
           sessionsPerMonth: data.sessionsPerMonth,
           discordChannelId: data.discordChannelId,
           discordChannelName: data.discordChannelName,
+          scheduleNotificationChannelId: data.scheduleNotificationChannelId ?? null,
+          scheduleNotificationChannelName: data.scheduleNotificationChannelName ?? null,
           schedulingDetails: data.schedulingDetails,
         })
         .returning();
@@ -359,6 +369,8 @@ export const updateGame = asResult(
           sessionsPerMonth: data.sessionsPerMonth,
           discordChannelId: data.discordChannelId,
           discordChannelName: data.discordChannelName,
+          scheduleNotificationChannelId: data.scheduleNotificationChannelId ?? null,
+          scheduleNotificationChannelName: data.scheduleNotificationChannelName ?? null,
           schedulingDetails: data.schedulingDetails,
           updatedAt: new Date(),
         })

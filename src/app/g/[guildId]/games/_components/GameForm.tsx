@@ -13,8 +13,9 @@ import Button from '@/components/Button';
 import MarkdownPreview from '@/components/MarkdownPreview';
 import { usePlausible } from 'next-plausible';
 import { createGame, updateGame, deleteGame } from '@/actions/games';
+import { checkBotPermissionsAction } from '@/actions/guilds';
 import { GameStatus } from '@/db/schema/games';
-import { isFailure } from '@/actions/result';
+import { isFailure, isSuccess } from '@/actions/result';
 import { useNotification } from '@/components/Notification';
 import { TrashIcon, PersonIcon } from '@radix-ui/react-icons';
 import ComboBox from '@/components/Combobox';
@@ -52,6 +53,8 @@ interface GameFormProps {
     sessionsPerMonth: number;
     discordChannelId: string | null;
     discordChannelName: string | null;
+    scheduleNotificationChannelId: string | null;
+    scheduleNotificationChannelName: string | null;
     schedulingDetails: string | null;
     members: {
       discordUserId: string;
@@ -61,6 +64,21 @@ interface GameFormProps {
   eligibleMembers: EligibleMember[];
   channels: ComboboxOption[];
 }
+
+export const validateScheduleNotificationChannelPermissions = async (
+  guildId: string,
+  value: ComboboxOption | null,
+) => {
+  if (!value) return undefined;
+
+  const result = await checkBotPermissionsAction(guildId, value.id as string);
+  if (isFailure(result)) return result.error;
+  if (isSuccess(result) && !result.data.hasPermissions) {
+    return `Bot is missing permissions in this channel: ${result.data.missing.join(', ')}`;
+  }
+
+  return undefined;
+};
 
 export default function GameForm({ initialData, eligibleMembers, channels }: GameFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
@@ -113,6 +131,8 @@ export default function GameForm({ initialData, eligibleMembers, channels }: Gam
       status: GAME_STATUS_OPTIONS.find((opt) => opt.id === (initialData?.status ?? 'draft'))!,
       sessionsPerMonth: initialData?.sessionsPerMonth ?? 0,
       discordChannel: channels.find((c) => c.id === initialData?.discordChannelId) ?? null,
+      scheduleNotificationChannel:
+        channels.find((c) => c.id === initialData?.scheduleNotificationChannelId) ?? null,
       schedulingDetails: initialData?.schedulingDetails ?? '',
       members: initialMembers,
     },
@@ -122,8 +142,12 @@ export default function GameForm({ initialData, eligibleMembers, channels }: Gam
         description: value.description || null,
         status: value.status.id as GameStatus,
         sessionsPerMonth: Number(value.sessionsPerMonth),
-        discordChannelId: value.discordChannel?.id as string | undefined,
-        discordChannelName: value.discordChannel?.label as string | undefined,
+        discordChannelId: (value.discordChannel?.id as string | undefined) ?? null,
+        discordChannelName: (value.discordChannel?.label as string | undefined) ?? null,
+        scheduleNotificationChannelId:
+          (value.scheduleNotificationChannel?.id as string | undefined) ?? null,
+        scheduleNotificationChannelName:
+          (value.scheduleNotificationChannel?.label as string | undefined) ?? null,
         schedulingDetails: value.schedulingDetails || undefined,
         members: value.members.map((m) => ({
           discordUserId: m.discordUserId,
@@ -271,6 +295,31 @@ export default function GameForm({ initialData, eligibleMembers, channels }: Gam
                 placeholder="Select a channel..."
                 value={field.state.value}
                 onValueChange={(val) => field.handleChange(val as ComboboxOption | null)}
+              />
+            )}
+          </form.Field>
+
+          <form.Field
+            name="scheduleNotificationChannel"
+            validators={{
+              onChangeAsync: ({ value }) =>
+                validateScheduleNotificationChannelPermissions(
+                  guildId,
+                  value as ComboboxOption | null,
+                ),
+              onChangeAsyncDebounceMs: 500,
+            }}
+          >
+            {(field) => (
+              <FormComboBox
+                label="Schedule Notification Channel"
+                description="If provided, schedule notifications can be sent to this channel."
+                items={channels}
+                placeholder="Select a channel..."
+                value={field.state.value}
+                onValueChange={(val) => field.handleChange(val as ComboboxOption | null)}
+                error={field.state.meta.errors.join(', ')}
+                invalid={field.state.meta.errors.length > 0}
               />
             )}
           </form.Field>
