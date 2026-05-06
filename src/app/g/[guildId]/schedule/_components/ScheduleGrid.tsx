@@ -12,14 +12,22 @@ import {
   ExclamationTriangleIcon,
   TrashIcon,
   CheckIcon,
+  BellIcon,
 } from '@radix-ui/react-icons';
 import { saveMonthSchedule } from '@/actions/games';
+import {
+  getScheduleNotificationDialogData,
+  sendScheduleNotifications,
+  type ScheduleNotificationDialogData,
+  type ScheduleNotificationSelection,
+} from '@/actions/schedule-notifications';
 import { useRouter } from 'next/navigation';
 import { usePlausible } from 'next-plausible';
 import Button from '@/components/Button';
 import { getOptimalDays } from '@/lib/scoring';
 import { useNotification } from '@/components/Notification';
 import type { PlausibleEvents } from '@/lib/plausible-events';
+import ScheduleNotificationDialog from './ScheduleNotificationDialog';
 
 interface Member {
   discordUserId: string;
@@ -63,6 +71,15 @@ export default function ScheduleGrid({
     return Object.fromEntries(games.map((g) => [g.id, g.scheduledDays]));
   });
   const [saving, setSaving] = useState(false);
+  const [scheduleNotificationDialogOpen, setScheduleNotificationDialogOpen] = useState(false);
+  const [scheduleNotificationDialogLoading, setScheduleNotificationDialogLoading] = useState(false);
+  const [scheduleNotificationDialogSending, setScheduleNotificationDialogSending] = useState(false);
+  const [scheduleNotificationDialogData, setScheduleNotificationDialogData] =
+    useState<ScheduleNotificationDialogData | null>(null);
+  const [scheduleNotificationSelections, setScheduleNotificationSelections] = useState<
+    Record<string, boolean>
+  >({});
+  const [lastChangedGameIds, setLastChangedGameIds] = useState<string[] | undefined>(undefined);
   const router = useRouter();
   const plausible = usePlausible<PlausibleEvents>();
   const { add: addNotification } = useNotification();
@@ -152,6 +169,50 @@ export default function ScheduleGrid({
     });
   };
 
+  const setDialogDataWithDefaults = (data: ScheduleNotificationDialogData) => {
+    setScheduleNotificationDialogData(data);
+    setScheduleNotificationSelections(
+      Object.fromEntries(
+        data.games.map((dialogGame) => [dialogGame.gameId, dialogGame.defaultSelected]),
+      ),
+    );
+  };
+
+  const loadScheduleNotificationDialog = async (changedGameIds?: string[]) => {
+    setScheduleNotificationDialogLoading(true);
+
+    try {
+      const result = await getScheduleNotificationDialogData(
+        guildId,
+        target.year,
+        target.month,
+        changedGameIds?.length ? changedGameIds : undefined,
+      );
+
+      if (result.type === 'failure') {
+        addNotification({
+          type: 'error',
+          title: 'Failed to load schedule notifications',
+          description: result.error,
+        });
+        setScheduleNotificationDialogData(null);
+      } else {
+        setDialogDataWithDefaults(result.data);
+      }
+    } finally {
+      setScheduleNotificationDialogLoading(false);
+    }
+  };
+
+  const openScheduleNotificationDialog = async (changedGameIds?: string[]) => {
+    if (scheduleNotificationDialogLoading) {
+      return;
+    }
+
+    setScheduleNotificationDialogOpen(true);
+    await loadScheduleNotificationDialog(changedGameIds);
+  };
+
   const handleSave = async () => {
     if (!isEditable || saving) return;
     setSaving(true);
@@ -163,6 +224,9 @@ export default function ScheduleGrid({
         description: result.error,
       });
     } else {
+      const changedGameIds = result.data.changedGameIds;
+      setLastChangedGameIds(changedGameIds);
+
       plausible('save_schedule', {
         props: { guildId, year: target.year, month: target.month },
       });
@@ -171,9 +235,54 @@ export default function ScheduleGrid({
         title: 'Schedule saved',
         description: 'The schedule has been successfully saved.',
       });
+      await openScheduleNotificationDialog(changedGameIds);
       router.refresh();
     }
     setSaving(false);
+  };
+
+  const handleToggleScheduleNotificationGame = (gameId: string, send: boolean) => {
+    setScheduleNotificationSelections((prev) => ({
+      ...prev,
+      [gameId]: send,
+    }));
+  };
+
+  const handleSendScheduleNotifications = async (selections: ScheduleNotificationSelection[]) => {
+    setScheduleNotificationDialogSending(true);
+
+    try {
+      const result = await sendScheduleNotifications(
+        guildId,
+        target.year,
+        target.month,
+        selections,
+        lastChangedGameIds?.length ? lastChangedGameIds : undefined,
+      );
+
+      if (result.type === 'failure') {
+        addNotification({
+          type: 'error',
+          title: 'Failed to send schedule notifications',
+          description: result.error,
+        });
+        return null;
+      }
+
+      addNotification({
+        type: 'success',
+        title: 'Schedule notifications sent',
+        description: 'Notification send completed. See per-game results in the dialog.',
+      });
+
+      setLastChangedGameIds(undefined);
+      await loadScheduleNotificationDialog();
+      router.refresh();
+
+      return result.data;
+    } finally {
+      setScheduleNotificationDialogSending(false);
+    }
   };
 
   const gameWarnings = useMemo(() => {
@@ -408,6 +517,17 @@ export default function ScheduleGrid({
 
   return (
     <div className="flex flex-col gap-4">
+      <ScheduleNotificationDialog
+        open={scheduleNotificationDialogOpen}
+        onOpenChange={setScheduleNotificationDialogOpen}
+        loading={scheduleNotificationDialogLoading}
+        sending={scheduleNotificationDialogSending}
+        data={scheduleNotificationDialogData}
+        selectedByGameId={scheduleNotificationSelections}
+        onToggleGame={handleToggleScheduleNotificationGame}
+        onSend={handleSendScheduleNotifications}
+      />
+
       <div className="flex justify-between items-center bg-sage-2 p-3 rounded-xl border border-sage-4">
         <div className="flex items-center gap-2 text-xs font-medium text-sage-11">
           {!isEditable && (
@@ -418,6 +538,15 @@ export default function ScheduleGrid({
           )}
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            size="sm"
+            onClick={() => openScheduleNotificationDialog(lastChangedGameIds)}
+            className="gap-1"
+          >
+            <BellIcon />
+            Send Notifications
+          </Button>
+
           {isEditable && (
             <>
               <Button

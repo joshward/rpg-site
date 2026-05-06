@@ -29,6 +29,8 @@ export const getGames = asResult(
         sessionsPerMonth: game.sessionsPerMonth,
         discordChannelId: game.discordChannelId,
         discordChannelName: game.discordChannelName,
+        scheduleNotificationChannelId: game.scheduleNotificationChannelId,
+        scheduleNotificationChannelName: game.scheduleNotificationChannelName,
         schedulingDetails: game.schedulingDetails,
         createdAt: game.createdAt,
         updatedAt: game.updatedAt,
@@ -67,6 +69,8 @@ export const getMemberGames = asResult(
         guildId: game.guildId,
         discordChannelId: game.discordChannelId,
         discordChannelName: game.discordChannelName,
+        scheduleNotificationChannelId: game.scheduleNotificationChannelId,
+        scheduleNotificationChannelName: game.scheduleNotificationChannelName,
         schedulingDetails: game.schedulingDetails,
         isRequired: gameMember.isRequired,
       })
@@ -101,6 +105,8 @@ export const getMyGames = asResult(
         guildId: game.guildId,
         discordChannelId: game.discordChannelId,
         discordChannelName: game.discordChannelName,
+        scheduleNotificationChannelId: game.scheduleNotificationChannelId,
+        scheduleNotificationChannelName: game.scheduleNotificationChannelName,
         schedulingDetails: game.schedulingDetails,
         isRequired: gameMember.isRequired,
       })
@@ -274,8 +280,10 @@ export type GameFormData = {
   description: string | null;
   status: GameStatus;
   sessionsPerMonth: number;
-  discordChannelId?: string;
-  discordChannelName?: string;
+  discordChannelId?: string | null;
+  discordChannelName?: string | null;
+  scheduleNotificationChannelId?: string | null;
+  scheduleNotificationChannelName?: string | null;
   schedulingDetails?: string;
   members: {
     discordUserId: string;
@@ -304,6 +312,8 @@ export const createGame = asResult(
           sessionsPerMonth: data.sessionsPerMonth,
           discordChannelId: data.discordChannelId,
           discordChannelName: data.discordChannelName,
+          scheduleNotificationChannelId: data.scheduleNotificationChannelId ?? null,
+          scheduleNotificationChannelName: data.scheduleNotificationChannelName ?? null,
           schedulingDetails: data.schedulingDetails,
         })
         .returning();
@@ -359,6 +369,8 @@ export const updateGame = asResult(
           sessionsPerMonth: data.sessionsPerMonth,
           discordChannelId: data.discordChannelId,
           discordChannelName: data.discordChannelName,
+          scheduleNotificationChannelId: data.scheduleNotificationChannelId ?? null,
+          scheduleNotificationChannelName: data.scheduleNotificationChannelName ?? null,
           schedulingDetails: data.schedulingDetails,
           updatedAt: new Date(),
         })
@@ -662,6 +674,7 @@ export const saveMonthSchedule = asResult(
     // Validate game data
     const guildGames = await db.select({ id: game.id }).from(game).where(eq(game.guildId, guildId));
     const guildGameIds = new Set(guildGames.map((g) => g.id));
+    const guildGameIdsList = guildGames.map((g) => g.id);
     const daysInMonth = getDaysInMonth(year, month);
     const scheduledDays = new Set<number>();
 
@@ -679,6 +692,26 @@ export const saveMonthSchedule = asResult(
         scheduledDays.add(day);
       }
     }
+
+    const existingSessions = await db
+      .select({
+        gameId: scheduledSession.gameId,
+        day: scheduledSession.day,
+      })
+      .from(scheduledSession)
+      .where(
+        and(
+          eq(scheduledSession.guildId, guildId),
+          eq(scheduledSession.year, year),
+          eq(scheduledSession.month, month),
+        ),
+      );
+
+    const changedGameIds = await getChangedGameIdsForMonthSchedule(
+      guildGameIdsList,
+      existingSessions,
+      gameDates,
+    );
 
     await db.transaction(async (tx) => {
       // 1. Delete all existing scheduled sessions for this guild/year/month
@@ -712,6 +745,45 @@ export const saveMonthSchedule = asResult(
     });
 
     revalidatePath(`/g/${guildId}/schedule`);
+
+    return { changedGameIds };
   },
   'Something went wrong saving the schedule.',
 );
+
+interface ExistingScheduledSession {
+  gameId: string;
+  day: number;
+}
+
+export async function getChangedGameIdsForMonthSchedule(
+  guildGameIds: string[],
+  existingSessions: ExistingScheduledSession[],
+  gameDates: Record<string, number[]>,
+) {
+  const existingDaysByGameId = new Map<string, number[]>();
+
+  for (const session of existingSessions) {
+    const currentDays = existingDaysByGameId.get(session.gameId) ?? [];
+    currentDays.push(session.day);
+    existingDaysByGameId.set(session.gameId, currentDays);
+  }
+
+  const normalizeDays = (days: number[]) => [...days].sort((a, b) => a - b);
+
+  const areSameDays = (left: number[], right: number[]) => {
+    if (left.length !== right.length) return false;
+    for (let i = 0; i < left.length; i += 1) {
+      if (left[i] !== right[i]) return false;
+    }
+    return true;
+  };
+
+  return guildGameIds
+    .filter((gameId) => {
+      const currentDays = normalizeDays(existingDaysByGameId.get(gameId) ?? []);
+      const nextDays = normalizeDays(gameDates[gameId] ?? []);
+      return !areSameDays(currentDays, nextDays);
+    })
+    .sort((a, b) => a.localeCompare(b));
+}
