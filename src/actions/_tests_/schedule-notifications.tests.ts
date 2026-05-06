@@ -78,6 +78,38 @@ describe('schedule notification helpers', () => {
     });
   });
 
+  it('defaults unchecked for games with no scheduled days and no prior notification', async () => {
+    expect(
+      await getScheduleNotificationSelectionState({
+        hasNotificationChannel: true,
+        scheduledDayCount: 0,
+        hasPriorNotificationThisMonth: false,
+        uneditedSinceLastNotification: false,
+      }),
+    ).toEqual({
+      defaultSelected: false,
+      disabled: false,
+      disabledReason: null,
+      stateReason: null,
+    });
+  });
+
+  it('defaults checked for games with cleared schedule when prior notification exists', async () => {
+    expect(
+      await getScheduleNotificationSelectionState({
+        hasNotificationChannel: true,
+        scheduledDayCount: 0,
+        hasPriorNotificationThisMonth: true,
+        uneditedSinceLastNotification: false,
+      }),
+    ).toEqual({
+      defaultSelected: true,
+      disabled: false,
+      disabledReason: null,
+      stateReason: null,
+    });
+  });
+
   it('returns exact no-sessions message for zero-day schedules', async () => {
     expect(
       await buildScheduleNotificationMessage({

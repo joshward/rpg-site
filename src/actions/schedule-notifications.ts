@@ -116,7 +116,7 @@ export async function getScheduleNotificationSelectionState({
   }
 
   return {
-    defaultSelected: scheduledDayCount > 0,
+    defaultSelected: scheduledDayCount > 0 || hasPriorNotificationThisMonth,
     disabled: false,
     disabledReason: null,
     stateReason: null,
