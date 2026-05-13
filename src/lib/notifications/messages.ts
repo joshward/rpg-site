@@ -309,19 +309,23 @@ export function generateScheduleNotification({
   guildId,
   year,
   month,
+  gameName,
   scheduledDays,
   changedSinceLastNotification,
+  schedulingDetails,
   prefix = '',
 }: {
   guildId: string;
   year: number;
   month: number;
+  gameName: string;
   scheduledDays: number[];
   changedSinceLastNotification: boolean;
+  schedulingDetails: string | null;
   prefix?: string;
 }): DiscordMessage {
   const monthLabel = new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'long' });
-  const title = `${monthLabel} ${year} Schedule`;
+  const title = `${gameName} ${monthLabel} ${year} Schedule`;
   const homeLink = joinUrl(config.siteUrl, `/g/${guildId}`);
 
   let description: string;
@@ -331,10 +335,16 @@ export function generateScheduleNotification({
     const changeNotice = changedSinceLastNotification ? 'Schedule has changed.\n\n' : '';
     const daysList = [...scheduledDays]
       .sort((a, b) => a - b)
-      .map((day) => `- ${getOrdinalDate(day)}`)
+      .map((day) => {
+        const date = new Date(year, month - 1, day);
+        const dayOfWeek = date.toLocaleString('en-US', { weekday: 'long' });
+        return `- ${getOrdinalDate(day)} (${dayOfWeek})`;
+      })
       .join('\n');
 
-    description = `${changeNotice}Scheduled days for **${monthLabel} ${year}**:\n${daysList}`;
+    const details = schedulingDetails ? `\n\n${schedulingDetails}` : '';
+
+    description = `${changeNotice}Scheduled days for **${monthLabel} ${year}**:\n${daysList}${details}`;
   }
 
   return {
@@ -355,6 +365,64 @@ export function generateScheduleNotification({
                 type: ComponentType.BUTTON,
                 style: ButtonStyle.LINK,
                 label: 'View my schedule',
+                url: homeLink,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+export function generateGameSessionReminder({
+  guildId,
+  gameName,
+  daysUntil,
+  sessionDate,
+  schedulingDetails,
+  prefix = '',
+}: {
+  guildId: string;
+  gameName: string;
+  daysUntil: number;
+  sessionDate: Date;
+  schedulingDetails: string | null;
+  prefix?: string;
+}): DiscordMessage {
+  const timeLabel = daysUntil === 0 ? 'today' : `in ${daysUntil} days`;
+  const title = `${gameName} session ${timeLabel}`;
+  const homeLink = joinUrl(config.siteUrl, `/g/${guildId}`);
+
+  let description = schedulingDetails || '';
+  if (daysUntil > 0) {
+    const dayOfWeek = sessionDate.toLocaleString('en-US', {
+      weekday: 'long',
+      timeZone: 'UTC',
+    });
+    const ordinalDay = getOrdinalDate(sessionDate.getUTCDate());
+    const dateLine = `**${dayOfWeek} the ${ordinalDay}**`;
+    description = description ? `${dateLine}\n\n${description}` : dateLine;
+  }
+
+  return {
+    flags: MessageFlags.IS_COMPONENTS_V2,
+    components: [
+      {
+        type: ComponentType.CONTAINER,
+        accent_color: COLORS.INFO,
+        components: [
+          {
+            type: ComponentType.TEXT_DISPLAY,
+            content: `# ${prefix}${title}\n\n${description}\n\n[Tavern Master](${homeLink})`,
+          },
+          {
+            type: ComponentType.ACTION_ROW,
+            components: [
+              {
+                type: ComponentType.BUTTON,
+                style: ButtonStyle.LINK,
+                label: 'View schedule',
                 url: homeLink,
               },
             ],
