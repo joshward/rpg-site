@@ -6,6 +6,7 @@ import { ActionError, asResult } from '@/actions/action-helpers';
 import { ensureAdmin } from '@/actions/auth-helpers';
 import { db } from '@/db/db';
 import { game, scheduledSession, scheduleNotificationSend } from '@/db/schema/games';
+import { guild } from '@/db/schema/guild';
 import { sendDiscordMessage } from '@/lib/discord/api';
 import { generateScheduleNotification, type DiscordMessage } from '@/lib/notifications/messages';
 import { getPrefix } from '@/lib/notifications/utils';
@@ -20,6 +21,7 @@ export interface ScheduleNotificationDialogGame {
   scheduledDayCount: number;
   scheduleNotificationChannelId: string | null;
   scheduleNotificationChannelName: string | null;
+  schedulingDetails: string | null;
   hasPriorNotificationThisMonth: boolean;
   alreadySentThisMonth: boolean;
   lastSentAt: Date | null;
@@ -74,6 +76,7 @@ interface ScheduleNotificationContextGame {
   gameName: string;
   scheduleNotificationChannelId: string | null;
   scheduleNotificationChannelName: string | null;
+  schedulingDetails: string | null;
   scheduledDays: number[];
   scheduleFingerprint: string;
   latestSuccessfulSend: {
@@ -128,21 +131,27 @@ export async function buildScheduleNotificationMessage({
   guildId,
   year,
   month,
+  gameName,
   scheduledDays,
   changedSinceLastNotification,
+  schedulingDetails,
 }: {
   guildId: string;
   year: number;
   month: number;
+  gameName: string;
   scheduledDays: number[];
   changedSinceLastNotification: boolean;
+  schedulingDetails: string | null;
 }): Promise<DiscordMessage> {
   return generateScheduleNotification({
     guildId,
     year,
     month,
+    gameName,
     scheduledDays,
     changedSinceLastNotification,
+    schedulingDetails,
     prefix: getPrefix(),
   });
 }
@@ -152,12 +161,22 @@ async function getScheduleNotificationContextGames(
   year: number,
   month: number,
 ): Promise<ScheduleNotificationContextGame[]> {
+  const guildData = await db
+    .select({
+      defaultSchedulingDetails: guild.defaultSchedulingDetails,
+    })
+    .from(guild)
+    .where(eq(guild.id, guildId))
+    .limit(1)
+    .then((rows) => rows[0]);
+
   const activeGames = await db
     .select({
       gameId: game.id,
       gameName: game.name,
       scheduleNotificationChannelId: game.scheduleNotificationChannelId,
       scheduleNotificationChannelName: game.scheduleNotificationChannelName,
+      schedulingDetails: game.schedulingDetails,
     })
     .from(game)
     .where(and(eq(game.guildId, guildId), eq(game.status, 'active')))
@@ -236,6 +255,7 @@ async function getScheduleNotificationContextGames(
         gameName: g.gameName,
         scheduleNotificationChannelId: g.scheduleNotificationChannelId,
         scheduleNotificationChannelName: g.scheduleNotificationChannelName,
+        schedulingDetails: g.schedulingDetails || guildData?.defaultSchedulingDetails || null,
         scheduledDays,
         scheduleFingerprint: await buildScheduleFingerprint(scheduledDays),
         latestSuccessfulSend,
@@ -276,6 +296,7 @@ async function toDialogGame(
     scheduledDayCount: contextGame.scheduledDays.length,
     scheduleNotificationChannelId: contextGame.scheduleNotificationChannelId,
     scheduleNotificationChannelName: contextGame.scheduleNotificationChannelName,
+    schedulingDetails: contextGame.schedulingDetails,
     hasPriorNotificationThisMonth,
     alreadySentThisMonth: hasPriorNotificationThisMonth,
     lastSentAt: contextGame.latestSuccessfulSend?.sentAt ?? null,
@@ -365,8 +386,10 @@ export const sendScheduleNotifications = asResult(
         guildId,
         year,
         month,
+        gameName: gameData.gameName,
         scheduledDays: gameData.scheduledDays,
         changedSinceLastNotification: gameData.changedSinceLastNotification,
+        schedulingDetails: gameData.schedulingDetails,
       });
 
       try {

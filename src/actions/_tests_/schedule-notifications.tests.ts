@@ -116,10 +116,13 @@ describe('schedule notification helpers', () => {
       guildId: 'guild-1',
       year: 2026,
       month: 5,
+      gameName: 'Test Game',
       scheduledDays: [],
       changedSinceLastNotification: false,
+      schedulingDetails: 'Weekly on Fridays',
     });
     expect(JSON.stringify(message)).toContain(NO_SESSIONS_SCHEDULED_MESSAGE);
+    expect(JSON.stringify(message)).toContain('Test Game May 2026 Schedule');
   });
 
   it('includes changed prefix for edited schedules', async () => {
@@ -127,24 +130,30 @@ describe('schedule notification helpers', () => {
       guildId: 'guild-1',
       year: 2026,
       month: 5,
+      gameName: 'Test Game',
       scheduledDays: [6, 12],
       changedSinceLastNotification: true,
+      schedulingDetails: null,
     });
     expect(JSON.stringify(message)).toContain('Schedule has changed.');
   });
 
-  it('includes ordinal dates in the message', async () => {
+  it('includes ordinal dates and days of the week in the message', async () => {
     const message = await buildScheduleNotificationMessage({
       guildId: 'guild-1',
       year: 2026,
       month: 5,
+      gameName: 'Test Game',
       scheduledDays: [1, 2, 3, 4],
       changedSinceLastNotification: false,
+      schedulingDetails: 'Some details',
     });
     const content = JSON.stringify(message);
-    expect(content).toContain('1st');
-    expect(content).toContain('2nd');
-    expect(content).toContain('3rd');
-    expect(content).toContain('4th');
+    expect(content).toContain('1st (Friday)');
+    expect(content).toContain('2nd (Saturday)');
+    expect(content).toContain('3rd (Sunday)');
+    expect(content).toContain('4th (Monday)');
+    expect(content).toContain('Some details');
+    expect(content).toContain('Test Game May 2026 Schedule');
   });
 });

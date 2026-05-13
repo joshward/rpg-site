@@ -309,19 +309,23 @@ export function generateScheduleNotification({
   guildId,
   year,
   month,
+  gameName,
   scheduledDays,
   changedSinceLastNotification,
+  schedulingDetails,
   prefix = '',
 }: {
   guildId: string;
   year: number;
   month: number;
+  gameName: string;
   scheduledDays: number[];
   changedSinceLastNotification: boolean;
+  schedulingDetails: string | null;
   prefix?: string;
 }): DiscordMessage {
   const monthLabel = new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'long' });
-  const title = `${monthLabel} ${year} Schedule`;
+  const title = `${gameName} ${monthLabel} ${year} Schedule`;
   const homeLink = joinUrl(config.siteUrl, `/g/${guildId}`);
 
   let description: string;
@@ -331,10 +335,16 @@ export function generateScheduleNotification({
     const changeNotice = changedSinceLastNotification ? 'Schedule has changed.\n\n' : '';
     const daysList = [...scheduledDays]
       .sort((a, b) => a - b)
-      .map((day) => `- ${getOrdinalDate(day)}`)
+      .map((day) => {
+        const date = new Date(year, month - 1, day);
+        const dayOfWeek = date.toLocaleString('en-US', { weekday: 'long' });
+        return `- ${getOrdinalDate(day)} (${dayOfWeek})`;
+      })
       .join('\n');
 
-    description = `${changeNotice}Scheduled days for **${monthLabel} ${year}**:\n${daysList}`;
+    const details = schedulingDetails ? `\n\n${schedulingDetails}` : '';
+
+    description = `${changeNotice}Scheduled days for **${monthLabel} ${year}**:\n${daysList}${details}`;
   }
 
   return {
