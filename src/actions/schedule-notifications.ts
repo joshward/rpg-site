@@ -7,8 +7,9 @@ import { ensureAdmin } from '@/actions/auth-helpers';
 import { db } from '@/db/db';
 import { game, scheduledSession, scheduleNotificationSend } from '@/db/schema/games';
 import { sendDiscordMessage } from '@/lib/discord/api';
+import { generateScheduleNotification, type DiscordMessage } from '@/lib/notifications/messages';
+import { getPrefix } from '@/lib/notifications/utils';
 
-const NO_SESSIONS_SCHEDULED_MESSAGE = 'No sessions scheduled for this month.';
 const MISSING_CHANNEL_REASON = 'No notification channel configured';
 const UNEDITED_SINCE_LAST_NOTIFICATION = 'Unedited since last notification';
 
@@ -124,24 +125,26 @@ export async function getScheduleNotificationSelectionState({
 }
 
 export async function buildScheduleNotificationMessage({
+  guildId,
   year,
   month,
   scheduledDays,
   changedSinceLastNotification,
 }: {
+  guildId: string;
   year: number;
   month: number;
   scheduledDays: number[];
   changedSinceLastNotification: boolean;
-}): Promise<string> {
-  if (scheduledDays.length === 0) {
-    return NO_SESSIONS_SCHEDULED_MESSAGE;
-  }
-
-  const monthLabel = new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'long' });
-  const prefix = changedSinceLastNotification ? 'Schedule has changed. ' : '';
-
-  return `${prefix}${monthLabel} ${year} scheduled days: ${[...scheduledDays].sort((a, b) => a - b).join(', ')}`;
+}): Promise<DiscordMessage> {
+  return generateScheduleNotification({
+    guildId,
+    year,
+    month,
+    scheduledDays,
+    changedSinceLastNotification,
+    prefix: getPrefix(),
+  });
 }
 
 async function getScheduleNotificationContextGames(
@@ -253,8 +256,8 @@ async function toDialogGame(
   const uneditedSinceLastNotification = editedGameIds
     ? hasPriorNotificationThisMonth &&
       !editedGameIds.has(contextGame.gameId) &&
-      !!fingerprintMatchesLastSend
-    : !!fingerprintMatchesLastSend;
+      fingerprintMatchesLastSend
+    : fingerprintMatchesLastSend;
 
   const changedSinceLastNotification =
     hasPriorNotificationThisMonth && !uneditedSinceLastNotification && !fingerprintMatchesLastSend;
@@ -359,6 +362,7 @@ export const sendScheduleNotifications = asResult(
       }
 
       const message = await buildScheduleNotificationMessage({
+        guildId,
         year,
         month,
         scheduledDays: gameData.scheduledDays,
@@ -366,12 +370,7 @@ export const sendScheduleNotifications = asResult(
       });
 
       try {
-        await sendDiscordMessage(
-          { channelId: gameData.scheduleNotificationChannelId },
-          {
-            content: message,
-          },
-        );
+        await sendDiscordMessage({ channelId: gameData.scheduleNotificationChannelId }, message);
 
         await db.insert(scheduleNotificationSend).values({
           guildId,
