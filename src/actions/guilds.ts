@@ -21,7 +21,7 @@ import { revalidatePath } from 'next/cache';
 
 const fetchUsersGuildsCached = cache(fetchUsersGuilds);
 const getGuildRolesCached = cache((guildId: string) =>
-  getGuildRoles({ guildId }, { cacheFor: TimeSpan.fromMinutes(30) }),
+  getGuildRoles({ guildId }, { cacheFor: TimeSpan.fromMinutes(5) }),
 );
 const getGuildChannelsCached = cache((guildId: string) =>
   getGuildChannels({ guildId }, { cacheFor: TimeSpan.fromMinutes(30) }),
