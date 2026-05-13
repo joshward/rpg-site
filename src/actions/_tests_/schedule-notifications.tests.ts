@@ -24,6 +24,7 @@ import {
   buildScheduleNotificationMessage,
   getScheduleNotificationSelectionState,
 } from '../schedule-notifications';
+import { NO_SESSIONS_SCHEDULED_MESSAGE } from '@/lib/notifications/messages';
 
 describe('schedule notification helpers', () => {
   it('builds stable schedule fingerprints by sorting days', async () => {
@@ -111,24 +112,39 @@ describe('schedule notification helpers', () => {
   });
 
   it('returns exact no-sessions message for zero-day schedules', async () => {
-    expect(
-      await buildScheduleNotificationMessage({
-        year: 2026,
-        month: 5,
-        scheduledDays: [],
-        changedSinceLastNotification: false,
-      }),
-    ).toBe('No sessions scheduled for this month.');
+    const message = await buildScheduleNotificationMessage({
+      guildId: 'guild-1',
+      year: 2026,
+      month: 5,
+      scheduledDays: [],
+      changedSinceLastNotification: false,
+    });
+    expect(JSON.stringify(message)).toContain(NO_SESSIONS_SCHEDULED_MESSAGE);
   });
 
   it('includes changed prefix for edited schedules', async () => {
-    expect(
-      await buildScheduleNotificationMessage({
-        year: 2026,
-        month: 5,
-        scheduledDays: [6, 12],
-        changedSinceLastNotification: true,
-      }),
-    ).toContain('Schedule has changed.');
+    const message = await buildScheduleNotificationMessage({
+      guildId: 'guild-1',
+      year: 2026,
+      month: 5,
+      scheduledDays: [6, 12],
+      changedSinceLastNotification: true,
+    });
+    expect(JSON.stringify(message)).toContain('Schedule has changed.');
+  });
+
+  it('includes ordinal dates in the message', async () => {
+    const message = await buildScheduleNotificationMessage({
+      guildId: 'guild-1',
+      year: 2026,
+      month: 5,
+      scheduledDays: [1, 2, 3, 4],
+      changedSinceLastNotification: false,
+    });
+    const content = JSON.stringify(message);
+    expect(content).toContain('1st');
+    expect(content).toContain('2nd');
+    expect(content).toContain('3rd');
+    expect(content).toContain('4th');
   });
 });

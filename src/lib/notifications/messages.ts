@@ -303,6 +303,68 @@ export function generateStandardSimpleMessage(
   };
 }
 
+export const NO_SESSIONS_SCHEDULED_MESSAGE = 'No sessions scheduled for this month.';
+
+export function generateScheduleNotification({
+  guildId,
+  year,
+  month,
+  scheduledDays,
+  changedSinceLastNotification,
+  prefix = '',
+}: {
+  guildId: string;
+  year: number;
+  month: number;
+  scheduledDays: number[];
+  changedSinceLastNotification: boolean;
+  prefix?: string;
+}): DiscordMessage {
+  const monthLabel = new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'long' });
+  const title = `${monthLabel} ${year} Schedule`;
+  const homeLink = joinUrl(config.siteUrl, `/g/${guildId}`);
+
+  let description: string;
+  if (scheduledDays.length === 0) {
+    description = NO_SESSIONS_SCHEDULED_MESSAGE;
+  } else {
+    const changeNotice = changedSinceLastNotification ? 'Schedule has changed.\n\n' : '';
+    const daysList = [...scheduledDays]
+      .sort((a, b) => a - b)
+      .map((day) => `- ${getOrdinalDate(day)}`)
+      .join('\n');
+
+    description = `${changeNotice}Scheduled days for **${monthLabel} ${year}**:\n${daysList}`;
+  }
+
+  return {
+    flags: MessageFlags.IS_COMPONENTS_V2,
+    components: [
+      {
+        type: ComponentType.CONTAINER,
+        accent_color: COLORS.INFO,
+        components: [
+          {
+            type: ComponentType.TEXT_DISPLAY,
+            content: `# ${prefix}${title}\n\n${description}\n\n[Tavern Master](${homeLink})`,
+          },
+          {
+            type: ComponentType.ACTION_ROW,
+            components: [
+              {
+                type: ComponentType.BUTTON,
+                style: ButtonStyle.LINK,
+                label: 'View my schedule',
+                url: homeLink,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export function getNotificationContext(
   now: Date,
   guildId: string,
