@@ -1,11 +1,13 @@
+import { and, eq, isNotNull } from 'drizzle-orm';
 import { db } from '@/db/db';
+import { game, scheduledSession } from '@/db/schema/games';
 import { guild as guildTable } from '@/db/schema/guild';
-import { getGuilds } from '@/lib/discord/api';
+import { getGuilds, sendDiscordMessage } from '@/lib/discord/api';
 import { getNow, getNextMonth } from '@/lib/availability';
 import { config } from '@/lib/config';
 import { joinUrl } from '@/lib/urls';
 import { getDaysUntilEndOfMonth, getPrefix } from './utils';
-import { getNotificationContext } from './messages';
+import { getNotificationContext, generateGameSessionReminder } from './messages';
 import {
   sendT7Reminder,
   sendT4CoreReminder,
@@ -24,6 +26,9 @@ const NOTIFICATION_DAYS = [10, 7, 4, 3, 2];
 
 export async function processNotifications(dateOverride?: Date) {
   const now = dateOverride || getNow();
+
+  await processGameReminders(now);
+
   const daysUntilEnd = getDaysUntilEndOfMonth(now);
 
   console.log(
@@ -139,6 +144,66 @@ export async function processNotifications(dateOverride?: Date) {
       }
     } catch (error) {
       console.error(`Error processing notifications for guild ${guildData.id}:`, error);
+    }
+  }
+}
+
+export async function processGameReminders(now: Date) {
+  const prefix = getPrefix();
+
+  const today = now;
+  const in3Days = new Date(now);
+  in3Days.setUTCDate(in3Days.getUTCDate() + 3);
+
+  const targets = [
+    { date: today, daysUntil: 0 },
+    { date: in3Days, daysUntil: 3 },
+  ];
+
+  for (const target of targets) {
+    const sessions = await db
+      .select({
+        gameId: game.id,
+        gameName: game.name,
+        guildId: game.guildId,
+        channelId: game.scheduleNotificationChannelId,
+        schedulingDetails: game.schedulingDetails,
+        defaultSchedulingDetails: guildTable.defaultSchedulingDetails,
+      })
+      .from(scheduledSession)
+      .innerJoin(game, eq(scheduledSession.gameId, game.id))
+      .innerJoin(guildTable, eq(game.guildId, guildTable.id))
+      .where(
+        and(
+          eq(scheduledSession.year, target.date.getUTCFullYear()),
+          eq(scheduledSession.month, target.date.getUTCMonth() + 1),
+          eq(scheduledSession.day, target.date.getUTCDate()),
+          eq(game.status, 'active'),
+          isNotNull(game.scheduleNotificationChannelId),
+        ),
+      );
+
+    for (const session of sessions) {
+      console.log(
+        `[Game Reminder] Sending ${target.daysUntil} day reminder for ${session.gameName} in guild ${session.guildId}`,
+      );
+      const message = generateGameSessionReminder({
+        guildId: session.guildId,
+        gameName: session.gameName,
+        daysUntil: target.daysUntil,
+        sessionDate: target.date,
+        schedulingDetails: session.schedulingDetails || session.defaultSchedulingDetails,
+        prefix,
+      });
+
+      try {
+        await sendDiscordMessage({ channelId: session.channelId! }, message);
+      } catch (error) {
+        console.error(
+          `Error sending game reminder for ${session.gameName} (guild ${session.guildId}):`,
+          error,
+        );
+      }
     }
   }
 }

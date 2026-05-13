@@ -375,6 +375,64 @@ export function generateScheduleNotification({
   };
 }
 
+export function generateGameSessionReminder({
+  guildId,
+  gameName,
+  daysUntil,
+  sessionDate,
+  schedulingDetails,
+  prefix = '',
+}: {
+  guildId: string;
+  gameName: string;
+  daysUntil: number;
+  sessionDate: Date;
+  schedulingDetails: string | null;
+  prefix?: string;
+}): DiscordMessage {
+  const timeLabel = daysUntil === 0 ? 'today' : `in ${daysUntil} days`;
+  const title = `${gameName} session ${timeLabel}`;
+  const homeLink = joinUrl(config.siteUrl, `/g/${guildId}`);
+
+  let description = schedulingDetails || '';
+  if (daysUntil > 0) {
+    const dayOfWeek = sessionDate.toLocaleString('en-US', {
+      weekday: 'long',
+      timeZone: 'UTC',
+    });
+    const ordinalDay = getOrdinalDate(sessionDate.getUTCDate());
+    const dateLine = `**${dayOfWeek} the ${ordinalDay}**`;
+    description = description ? `${dateLine}\n\n${description}` : dateLine;
+  }
+
+  return {
+    flags: MessageFlags.IS_COMPONENTS_V2,
+    components: [
+      {
+        type: ComponentType.CONTAINER,
+        accent_color: COLORS.INFO,
+        components: [
+          {
+            type: ComponentType.TEXT_DISPLAY,
+            content: `# ${prefix}${title}\n\n${description}\n\n[Tavern Master](${homeLink})`,
+          },
+          {
+            type: ComponentType.ACTION_ROW,
+            components: [
+              {
+                type: ComponentType.BUTTON,
+                style: ButtonStyle.LINK,
+                label: 'View schedule',
+                url: homeLink,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export function getNotificationContext(
   now: Date,
   guildId: string,
