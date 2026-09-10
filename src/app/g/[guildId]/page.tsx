@@ -12,6 +12,7 @@ import { NO_LIMIT } from '@/lib/preferences';
 import { getNextMonth, isLast10DaysOfCurrentMonth, formatMonthYear } from '@/lib/availability';
 import { GuildRouteProps, getGuildName, getContactInfo } from './helpers';
 import UserGameList from './_components/UserGameList';
+import UserSchedule from './_components/UserSchedule';
 import MarkdownPreview from '@/components/MarkdownPreview';
 import { ReactNode } from 'react';
 
@@ -125,6 +126,8 @@ export default async function GuildPage({ params }: GuildRouteProps) {
           <p className="text-sage-11">Welcome to your guild.</p>
         )}
       </Paper>
+
+      <UserSchedule games={myGames} />
 
       <UserGameList
         guildId={guildId}

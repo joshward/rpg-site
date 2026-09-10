@@ -56,7 +56,7 @@ const statusColors: Record<GameStatus, string> = {
   archived: 'bg-slate-4 text-slate-11 border-slate-6',
 };
 
-function formatScheduledDate(date: { year: number; month: number; day: number }) {
+export function formatScheduledDate(date: { year: number; month: number; day: number }) {
   return new Date(date.year, date.month - 1, date.day).toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
@@ -131,14 +131,14 @@ export default function UserGameList({
   );
 }
 
-function AvailabilityIndicator({
+export function AvailabilityIndicator({
   status,
   size = 'md',
 }: {
   status: AvailabilityStatus | null;
   size?: 'sm' | 'md';
 }) {
-  const option = status ? STATUS_MAP[status] : UNSET_OPTION;
+  const option = status && STATUS_MAP[status] ? STATUS_MAP[status] : UNSET_OPTION;
   const Icon = option.icon;
 
   if (size === 'sm') {
