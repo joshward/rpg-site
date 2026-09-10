@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { AvailabilityStatus } from '@/actions/availability';
+import type { AvailabilityStatus } from '@/actions/availability';
 import { AvailabilityIndicator, formatScheduledDate } from './UserGameList';
 
 export interface UserScheduleGame {
