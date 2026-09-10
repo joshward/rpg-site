@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "npm@10.9.7",
   "scripts": {
     "op": "op run --env-file=.env.local --",
     "dev": "next dev",
@@ -91,6 +92,7 @@
     "@vitest/browser": "^4.1.0"
   },
   "volta": {
-    "node": "22.22.2"
+    "node": "22.22.2",
+    "npm": "10.9.7"
   }
 }
