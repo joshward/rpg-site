@@ -292,4 +292,154 @@ describe('ScheduleGrid', () => {
       );
     });
   });
+
+  it('allows collapsing and re-expanding game children', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ScheduleGrid
+        {...baseProps}
+        games={[
+          {
+            id: 'game-1',
+            name: 'Game One',
+            status: 'active',
+            sessionsPerMonth: 2,
+            scheduledDays: [1],
+            members: [
+              {
+                discordUserId: 'user-1',
+                displayName: 'Player One',
+                avatar: null,
+                sessionsPerMonth: 2,
+                availability: { 1: 'available' },
+                isRequired: true,
+              },
+            ],
+          },
+          {
+            id: 'game-2',
+            name: 'Game Two',
+            status: 'active',
+            sessionsPerMonth: 1,
+            scheduledDays: [],
+            members: [
+              {
+                discordUserId: 'user-2',
+                displayName: 'Player Two',
+                avatar: null,
+                sessionsPerMonth: 1,
+                availability: { 1: 'available' },
+                isRequired: false,
+              },
+            ],
+          },
+        ]}
+        unassignedMembers={[]}
+      />,
+    );
+
+    // Initial state: both games and their members are visible
+    expect(screen.getByText('Game One')).toBeInTheDocument();
+    expect(screen.getByText('Player One')).toBeInTheDocument();
+    expect(screen.getByText('Game Two')).toBeInTheDocument();
+    expect(screen.getByText('Player Two')).toBeInTheDocument();
+
+    const collapseGameOneButton = screen.getByRole('button', { name: /collapse game one/i });
+    expect(collapseGameOneButton).toBeInTheDocument();
+
+    // Collapse Game One
+    await user.click(collapseGameOneButton);
+
+    // Header row of Game One remains visible, but children (Player One) are collapsed
+    expect(screen.getByText('Game One')).toBeInTheDocument();
+    expect(screen.queryByText('Player One')).not.toBeInTheDocument();
+
+    // Game Two and its members should remain unaffected
+    expect(screen.getByText('Game Two')).toBeInTheDocument();
+    expect(screen.getByText('Player Two')).toBeInTheDocument();
+
+    // Re-expand Game One
+    const expandGameOneButton = screen.getByRole('button', { name: /expand game one/i });
+    expect(expandGameOneButton).toBeInTheDocument();
+
+    await user.click(expandGameOneButton);
+
+    // Children are visible again
+    expect(screen.getByText('Game One')).toBeInTheDocument();
+    expect(screen.getByText('Player One')).toBeInTheDocument();
+  });
+
+  it('allows expanding all and collapsing all games using header icon buttons', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ScheduleGrid
+        {...baseProps}
+        games={[
+          {
+            id: 'game-1',
+            name: 'Game One',
+            status: 'active',
+            sessionsPerMonth: 2,
+            scheduledDays: [1],
+            members: [
+              {
+                discordUserId: 'user-1',
+                displayName: 'Player One',
+                avatar: null,
+                sessionsPerMonth: 2,
+                availability: { 1: 'available' },
+                isRequired: true,
+              },
+            ],
+          },
+          {
+            id: 'game-2',
+            name: 'Game Two',
+            status: 'active',
+            sessionsPerMonth: 1,
+            scheduledDays: [],
+            members: [
+              {
+                discordUserId: 'user-2',
+                displayName: 'Player Two',
+                avatar: null,
+                sessionsPerMonth: 1,
+                availability: { 1: 'available' },
+                isRequired: false,
+              },
+            ],
+          },
+        ]}
+        unassignedMembers={[]}
+      />,
+    );
+
+    // Initial state: both games and their members are visible
+    expect(screen.getByText('Player One')).toBeInTheDocument();
+    expect(screen.getByText('Player Two')).toBeInTheDocument();
+
+    const collapseAllButton = screen.getByRole('button', { name: /^collapse all$/i });
+    const expandAllButton = screen.getByRole('button', { name: /^expand all$/i });
+
+    expect(collapseAllButton).toBeInTheDocument();
+    expect(expandAllButton).toBeInTheDocument();
+
+    // Collapse all
+    await user.click(collapseAllButton);
+
+    // Headers visible, children collapsed
+    expect(screen.getByText('Game One')).toBeInTheDocument();
+    expect(screen.getByText('Game Two')).toBeInTheDocument();
+    expect(screen.queryByText('Player One')).not.toBeInTheDocument();
+    expect(screen.queryByText('Player Two')).not.toBeInTheDocument();
+
+    // Expand all
+    await user.click(expandAllButton);
+
+    // All children visible again
+    expect(screen.getByText('Player One')).toBeInTheDocument();
+    expect(screen.getByText('Player Two')).toBeInTheDocument();
+  });
 });

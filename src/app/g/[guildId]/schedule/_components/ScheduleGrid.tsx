@@ -13,6 +13,10 @@ import {
   TrashIcon,
   CheckIcon,
   BellIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  DoubleArrowUpIcon,
+  DoubleArrowDownIcon,
 } from '@radix-ui/react-icons';
 import { saveMonthSchedule } from '@/actions/games';
 import {
@@ -67,6 +71,7 @@ export default function ScheduleGrid({
   highlightUserId,
 }: ScheduleGridProps) {
   const [showUnsetOptional, setShowUnsetOptional] = useState(true);
+  const [collapsedGameIds, setCollapsedGameIds] = useState<Record<string, boolean>>({});
   const [gameDates, setGameDates] = useState<Record<string, number[]>>(() => {
     return Object.fromEntries(games.map((g) => [g.id, g.scheduledDays]));
   });
@@ -156,6 +161,21 @@ export default function ScheduleGrid({
   const clearGame = (gameId: string) => {
     if (!isEditable) return;
     setGameDates((prev) => ({ ...prev, [gameId]: [] }));
+  };
+
+  const toggleGameCollapse = (gameId: string) => {
+    setCollapsedGameIds((prev) => ({
+      ...prev,
+      [gameId]: !prev[gameId],
+    }));
+  };
+
+  const expandAll = () => {
+    setCollapsedGameIds({});
+  };
+
+  const collapseAll = () => {
+    setCollapsedGameIds(Object.fromEntries(games.map((g) => [g.id, true])));
   };
 
   const clearAll = () => {
@@ -591,7 +611,28 @@ export default function ScheduleGrid({
         <table className="min-w-full border-collapse bg-sage-1">
           <thead>
             <tr className="sticky top-0 z-30 bg-sage-4 border-b border-sage-5 shadow-[0_1px_0_rgba(0,0,0,0.1)]">
-              <th className="sticky left-0 top-0 z-40 bg-sage-4 border-r border-sage-5 p-2 text-left w-[200px] min-w-[200px] font-bold text-sm text-sage-12"></th>
+              <th className="sticky left-0 top-0 z-40 bg-sage-4 border-r border-sage-5 p-2 text-left w-[200px] min-w-[200px] font-bold text-sm text-sage-12">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={expandAll}
+                    className="p-1 -ml-0.5 text-sage-11 hover:text-sage-12 hover:bg-sage-5/60 rounded transition-colors cursor-pointer"
+                    aria-label="Expand all"
+                    title="Expand all"
+                  >
+                    <DoubleArrowDownIcon className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={collapseAll}
+                    className="p-1 text-sage-11 hover:text-sage-12 hover:bg-sage-5/60 rounded transition-colors cursor-pointer"
+                    aria-label="Collapse all"
+                    title="Collapse all"
+                  >
+                    <DoubleArrowUpIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </th>
               {days.map((day) => {
                 const { name, isWeekend } = getDayInfo(day);
                 return (
@@ -612,12 +653,28 @@ export default function ScheduleGrid({
           <tbody>
             {filteredGames.map((game) => {
               const warning = gameWarnings.get(game.id);
+              const isCollapsed = !!collapsedGameIds[game.id];
               return (
                 <Fragment key={game.id}>
                   <tr className="bg-sage-3 border-b border-sage-4">
                     <td className="sticky left-0 z-20 bg-sage-3 p-2 font-bold text-xs uppercase tracking-wider text-sage-12 border-b border-sage-4 w-[200px] min-w-[200px]">
                       <div className="flex flex-col gap-1 min-w-0">
                         <div className="flex items-center gap-1.5 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => toggleGameCollapse(game.id)}
+                            className="p-0.5 -ml-1 text-sage-11 hover:text-sage-12 hover:bg-sage-4/50 rounded transition-colors shrink-0 cursor-pointer"
+                            aria-label={
+                              isCollapsed ? `Expand ${game.name}` : `Collapse ${game.name}`
+                            }
+                            title={isCollapsed ? 'Expand' : 'Collapse'}
+                          >
+                            {isCollapsed ? (
+                              <ChevronDownIcon className="w-3.5 h-3.5" />
+                            ) : (
+                              <ChevronUpIcon className="w-3.5 h-3.5" />
+                            )}
+                          </button>
                           <span className="truncate" title={game.name}>
                             {game.name}
                           </span>
@@ -698,7 +755,7 @@ export default function ScheduleGrid({
                       );
                     })}
                   </tr>
-                  {game.members.map((member) => renderMemberRow(member, game.id))}
+                  {!isCollapsed && game.members.map((member) => renderMemberRow(member, game.id))}
                 </Fragment>
               );
             })}
