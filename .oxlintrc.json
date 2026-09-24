@@ -7,7 +7,7 @@
   "ignorePatterns": ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts"],
   "rules": {
     "no-var": "error",
-    "@typescript-eslint/no-explicit-any": "warn",
+    "typescript/no-explicit-any": "warn",
     "react/set-state-in-effect": "warn",
     "react/no-children-prop": "warn",
     "react-hooks/exhaustive-deps": "warn",
