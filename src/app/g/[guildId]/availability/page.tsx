@@ -143,7 +143,7 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
         </Alert>
       )}
 
-      <MonthNav current={viewedMonth} defaultMonth={defaultMonth} userId={targetUserId} />
+      <MonthNav current={viewedMonth} defaultMonth={defaultMonth} />
 
       {!isFailure(gamesResult) && (
         <MemberAvailabilitySummary

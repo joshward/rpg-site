@@ -19,12 +19,9 @@ interface GuildAdminFormProps {
   initialAllowedRoles: string[];
   channels: ComboboxOption[];
   initialSupportChannelId?: string;
-  initialSupportChannelName?: string;
   initialAdminContactInfo?: string;
   initialAdminNotificationChannelId?: string;
-  initialAdminNotificationChannelName?: string;
   initialGlobalNotificationChannelId?: string;
-  initialGlobalNotificationChannelName?: string;
   initialOverviewText?: string;
   initialDefaultSchedulingDetails?: string;
 }
@@ -34,12 +31,9 @@ export default function GuildAdminForm({
   initialAllowedRoles,
   channels,
   initialSupportChannelId,
-  initialSupportChannelName,
   initialAdminContactInfo,
   initialAdminNotificationChannelId,
-  initialAdminNotificationChannelName,
   initialGlobalNotificationChannelId,
-  initialGlobalNotificationChannelName,
   initialOverviewText,
   initialDefaultSchedulingDetails,
 }: GuildAdminFormProps) {

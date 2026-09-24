@@ -74,7 +74,7 @@ export const FunctionalForm: Story = {
     items: languages,
     label: 'Primary Role',
   },
-  render: (args) => {
+  render: () => {
     const form = useForm({
       defaultValues: {
         role: null as ComboboxOption | null,

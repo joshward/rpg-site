@@ -33,12 +33,9 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
     role,
     allowedRoles,
     supportChannelId,
-    supportChannelName,
     adminContactInfo,
     adminNotificationChannelId,
-    adminNotificationChannelName,
     globalNotificationChannelId,
-    globalNotificationChannelName,
     overviewText,
     defaultSchedulingDetails,
   } = guildInfoResult.data;
@@ -76,12 +73,9 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
         initialAllowedRoles={allowedRoles}
         channels={channelsResult.data}
         initialSupportChannelId={supportChannelId}
-        initialSupportChannelName={supportChannelName}
         initialAdminContactInfo={adminContactInfo}
         initialAdminNotificationChannelId={adminNotificationChannelId}
-        initialAdminNotificationChannelName={adminNotificationChannelName}
         initialGlobalNotificationChannelId={globalNotificationChannelId}
-        initialGlobalNotificationChannelName={globalNotificationChannelName}
         initialOverviewText={overviewText}
         initialDefaultSchedulingDetails={defaultSchedulingDetails}
       />
