@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/neon-serverless';
 import { config } from '@/lib/config';
 
 declare global {
-  // eslint-disable-next-line no-var
+  // oxlint-disable-next-line no-var -- global declarations require var
   var dbPool: Pool | undefined;
 }
 

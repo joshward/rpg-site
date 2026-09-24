@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Toast } from '@base-ui/react/toast';
-import Notification, { NotificationProvider } from '../Notification';
+import { NotificationProvider } from '../Notification';
 import * as React from 'react';
 
 describe('Notification', () => {

@@ -78,7 +78,7 @@ describe('SignInButton', () => {
 
   it('renders user name when authenticated', () => {
     vi.mocked(authClient.useSession).mockReturnValue({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any -- mock session fixture
       data: { user: { name: 'Alice' } } as any,
       isPending: false,
       error: null,

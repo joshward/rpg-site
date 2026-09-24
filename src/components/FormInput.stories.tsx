@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/nextjs-vite';
 import { FormInput } from './FormInput';
 import { useForm } from '@tanstack/react-form';
-import { valibotValidator } from '@tanstack/valibot-form-adapter';
 import * as v from 'valibot';
 import Button from './Button';
 import Paper from './Paper';
@@ -48,15 +47,6 @@ export const Disabled: Story = {
 };
 
 // Full Form Example
-const SimpleSchema = v.object({
-  username: v.pipe(
-    v.string(),
-    v.minLength(3, 'Username must be at least 3 characters'),
-    v.maxLength(20, 'Username must be at most 20 characters'),
-  ),
-  email: v.pipe(v.string(), v.email('Invalid email address')),
-});
-
 export const FunctionalForm: Story = {
   render: () => {
     const form = useForm({
