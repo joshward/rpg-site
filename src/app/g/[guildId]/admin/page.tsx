@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
 import { getGuildInfo, getGuildRolesAction, getGuildChannelsAction } from '@/actions/guilds';
+import { getConsentAdminSettings } from '@/actions/consent-admin';
+import { isConsentFeatureEnabled } from '@/lib/consent/feature-gate';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
 import { GuildRouteProps, getGuildName } from '../helpers';
@@ -16,6 +18,7 @@ export async function generateMetadata({ params }: GuildRouteProps): Promise<Met
 }
 import GuildAdminForm from './_components/GuildAdminForm';
 import UsersConfig from './_components/UsersConfig';
+import ConsentSettings from './_components/ConsentSettings';
 
 export default async function GuildAdminPage({ params }: GuildRouteProps) {
   const { guildId } = await params;
@@ -65,6 +68,11 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
     );
   }
 
+  const consentResult =
+    isConsentFeatureEnabled() && guildInfoResult.data.isConfigured
+      ? await getConsentAdminSettings(guildId)
+      : null;
+
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">Guild Administration</h1>
@@ -79,6 +87,15 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
         initialOverviewText={overviewText}
         initialDefaultSchedulingDetails={defaultSchedulingDetails}
       />
+      {consentResult &&
+        (isFailure(consentResult) ? (
+          <Alert type="error">{consentResult.error}</Alert>
+        ) : (
+          <ConsentSettings
+            initialEnabled={consentResult.data.enabled}
+            initialGuidance={consentResult.data.guidance}
+          />
+        ))}
       <UsersConfig />
     </div>
   );
