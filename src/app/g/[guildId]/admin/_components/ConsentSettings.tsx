@@ -1,23 +1,33 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { saveConsentAdminSettings } from '@/actions/consent-admin';
 import { isFailure } from '@/actions/result';
+import Alert from '@/components/Alert';
 import Button from '@/components/Button';
+import ConsentTopicEditor from './ConsentTopicEditor';
+import type { OfficialConsentTopic } from '@/actions/consent-topics';
 import { FormTextarea } from '@/components/FormTextarea';
-import MarkdownPreview from '@/components/MarkdownPreview';
 import { useNotification } from '@/components/Notification';
 import Paper from '@/components/Paper';
-import { DEFAULT_CONSENT_GUIDANCE, getConsentGuidance } from '@/lib/consent/guidance';
+import { DEFAULT_CONSENT_GUIDANCE } from '@/lib/consent/guidance';
 
 interface ConsentSettingsProps {
   initialEnabled: boolean;
   initialGuidance: string | null;
+  initialTopics?: OfficialConsentTopic[];
+  topicsError?: string;
 }
 
-export default function ConsentSettings({ initialEnabled, initialGuidance }: ConsentSettingsProps) {
+export default function ConsentSettings({
+  initialEnabled,
+  initialGuidance,
+  initialTopics = [],
+  topicsError,
+}: ConsentSettingsProps) {
   const { guildId } = useParams<{ guildId: string }>();
+  const router = useRouter();
   const notification = useNotification();
   const [enabled, setEnabled] = useState(initialEnabled);
   const [guidance, setGuidance] = useState(
@@ -35,6 +45,7 @@ export default function ConsentSettings({ initialEnabled, initialGuidance }: Con
           ? { type: 'error', title: 'Could not save consent settings', description: result.error }
           : { type: 'success', title: 'Consent settings saved' },
       );
+      if (!isFailure(result)) router.refresh();
     } finally {
       setSaving(false);
     }
@@ -43,11 +54,16 @@ export default function ConsentSettings({ initialEnabled, initialGuidance }: Con
   return (
     <Paper>
       <form onSubmit={onSubmit} className="flex flex-col gap-5">
-        <div>
-          <h2 className="text-xl font-semibold">Consent checklists</h2>
-          <p className="text-sm text-sage-11">
-            Games will remain Off until individually configured.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold">Consent checklists</h2>
+            <p className="text-sm text-sage-11">
+              Games will remain Off until individually configured. Topic changes save separately.
+            </p>
+          </div>
+          <Button type="submit" variant="primary" disabled={saving} loading={saving}>
+            Save enablement &amp; guidance
+          </Button>
         </div>
         <label className="flex items-center gap-3">
           <input
@@ -82,22 +98,18 @@ export default function ConsentSettings({ initialEnabled, initialGuidance }: Con
                 </Button>
               )}
             </div>
-            <div>
-              <h3 className="font-semibold mb-2">Guidance preview</h3>
-              <MarkdownPreview content={getConsentGuidance(guidance)} />
-            </div>
           </>
         )}
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={saving}
-          loading={saving}
-          className="self-end"
-        >
-          Save consent settings
-        </Button>
       </form>
+      {enabled && initialEnabled && (
+        <section className="mt-6 border-t border-sage-7 pt-6">
+          {topicsError ? (
+            <Alert type="error">{topicsError}</Alert>
+          ) : (
+            <ConsentTopicEditor initialTopics={initialTopics} />
+          )}
+        </section>
+      )}
     </Paper>
   );
 }

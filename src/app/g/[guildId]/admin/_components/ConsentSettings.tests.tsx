@@ -2,8 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-const mocks = vi.hoisted(() => ({ save: vi.fn(), notify: vi.fn() }));
-vi.mock('next/navigation', () => ({ useParams: () => ({ guildId: 'guild-1' }) }));
+const mocks = vi.hoisted(() => ({ save: vi.fn(), notify: vi.fn(), refresh: vi.fn() }));
+vi.mock('next/navigation', () => ({
+  useParams: () => ({ guildId: 'guild-1' }),
+  useRouter: () => ({ refresh: mocks.refresh }),
+}));
 vi.mock('@/actions/consent-admin', () => ({ saveConsentAdminSettings: mocks.save }));
 vi.mock('@/components/Notification', () => ({ useNotification: () => ({ add: mocks.notify }) }));
 
@@ -25,12 +28,28 @@ describe('guild consent settings UI', () => {
 
     const user = userEvent.setup();
     await user.click(toggle);
+    expect(screen.queryByRole('heading', { name: /official topics/i })).not.toBeInTheDocument();
     const textarea = screen.getByRole('textbox', { name: /checklist guidance/i });
     expect(textarea).toHaveValue(DEFAULT_CONSENT_GUIDANCE);
-    expect(screen.getByRole('heading', { name: 'Content boundaries' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /save consent settings/i }));
+    expect(screen.queryByText('Guidance preview')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /save enablement & guidance/i }));
     await waitFor(() =>
       expect(mocks.save).toHaveBeenCalledWith('guild-1', true, DEFAULT_CONSENT_GUIDANCE),
+    );
+  });
+
+  it('shows topics inside the consent settings when consent is saved as enabled', () => {
+    const { container } = render(
+      <ConsentSettings
+        initialEnabled={true}
+        initialGuidance={null}
+        initialTopics={[{ id: 'topic-1', parentTopicId: null, name: 'Horror' }]}
+      />,
+    );
+    expect(screen.getByRole('heading', { name: /official topics/i })).toBeInTheDocument();
+    expect(screen.getByText('Horror')).toBeInTheDocument();
+    expect(container.firstElementChild).toContainElement(
+      screen.getByRole('heading', { name: /official topics/i }),
     );
   });
 
@@ -44,7 +63,7 @@ describe('guild consent settings UI', () => {
     );
     await user.click(toggle);
     expect(screen.queryByRole('textbox', { name: /checklist guidance/i })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /save consent settings/i }));
+    await user.click(screen.getByRole('button', { name: /save enablement & guidance/i }));
     await waitFor(() =>
       expect(mocks.save).toHaveBeenCalledWith('guild-1', false, '# Our guidance'),
     );
