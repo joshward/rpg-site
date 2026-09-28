@@ -4,6 +4,7 @@ import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
 import { getGuildInfo, getGuildRolesAction, getGuildChannelsAction } from '@/actions/guilds';
 import { getConsentAdminSettings } from '@/actions/consent-admin';
+import { getOfficialConsentTopics } from '@/actions/consent-topics';
 import { isConsentFeatureEnabled } from '@/lib/consent/feature-gate';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
@@ -72,6 +73,10 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
     isConsentFeatureEnabled() && guildInfoResult.data.isConfigured
       ? await getConsentAdminSettings(guildId)
       : null;
+  const topicsResult =
+    consentResult && !isFailure(consentResult) && consentResult.data.enabled
+      ? await getOfficialConsentTopics(guildId)
+      : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -94,6 +99,8 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
           <ConsentSettings
             initialEnabled={consentResult.data.enabled}
             initialGuidance={consentResult.data.guidance}
+            initialTopics={topicsResult && !isFailure(topicsResult) ? topicsResult.data : []}
+            topicsError={topicsResult && isFailure(topicsResult) ? topicsResult.error : undefined}
           />
         ))}
       <UsersConfig />
