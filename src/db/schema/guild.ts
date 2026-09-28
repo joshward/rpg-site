@@ -19,4 +19,5 @@ export const guild = pgTable('guilds', {
   defaultSchedulingDetails: text(),
   consentEnabled: boolean().default(false).notNull(),
   consentGuidance: text(),
+  consentTopicsSeededAt: timestamp(),
 });

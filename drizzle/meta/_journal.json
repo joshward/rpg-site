@@ -120,6 +120,13 @@
       "when": 1790454328027,
       "tag": "0016_add_consent_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790560053057,
+      "tag": "0017_consent_topic_seed_marker",
+      "breakpoints": true
     }
   ]
 }
