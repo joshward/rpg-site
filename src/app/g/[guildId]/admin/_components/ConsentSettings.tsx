@@ -7,7 +7,7 @@ import { isFailure } from '@/actions/result';
 import Alert from '@/components/Alert';
 import Button from '@/components/Button';
 import ConsentTopicEditor from './ConsentTopicEditor';
-import type { OfficialConsentTopic } from '@/actions/consent-topics';
+import { getOfficialConsentTopics, type OfficialConsentTopic } from '@/actions/consent-topics';
 import { FormTextarea } from '@/components/FormTextarea';
 import { useNotification } from '@/components/Notification';
 import Paper from '@/components/Paper';
@@ -34,6 +34,9 @@ export default function ConsentSettings({
     initialGuidance ?? (initialEnabled ? DEFAULT_CONSENT_GUIDANCE : ''),
   );
   const [saving, setSaving] = useState(false);
+  const [savedEnabled, setSavedEnabled] = useState(initialEnabled);
+  const [loadedTopics, setLoadedTopics] = useState<OfficialConsentTopic[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,7 +48,19 @@ export default function ConsentSettings({
           ? { type: 'error', title: 'Could not save consent settings', description: result.error }
           : { type: 'success', title: 'Consent settings saved' },
       );
-      if (!isFailure(result)) router.refresh();
+      if (!isFailure(result)) {
+        if (enabled && (!savedEnabled || loadError)) {
+          setLoadError(null);
+          const topicsResult = await getOfficialConsentTopics(guildId);
+          if (isFailure(topicsResult)) {
+            setLoadError(topicsResult.error);
+          } else {
+            setLoadedTopics(topicsResult.data);
+          }
+        }
+        setSavedEnabled(enabled);
+        router.refresh();
+      }
     } finally {
       setSaving(false);
     }
@@ -101,12 +116,17 @@ export default function ConsentSettings({
           </>
         )}
       </form>
-      {enabled && initialEnabled && (
+      {enabled && !savedEnabled && (
+        <p className="mt-6 text-sm text-sage-11">
+          Save enablement &amp; guidance to initialize and view official topics.
+        </p>
+      )}
+      {enabled && savedEnabled && (
         <section className="mt-6 border-t border-sage-7 pt-6">
-          {topicsError ? (
-            <Alert type="error">{topicsError}</Alert>
+          {loadError || (loadedTopics === null && topicsError) ? (
+            <Alert type="error">{loadError ?? topicsError}</Alert>
           ) : (
-            <ConsentTopicEditor initialTopics={initialTopics} />
+            <ConsentTopicEditor initialTopics={loadedTopics ?? initialTopics} />
           )}
         </section>
       )}

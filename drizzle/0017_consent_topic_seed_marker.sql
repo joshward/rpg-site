@@ -1,0 +1,1 @@
+ALTER TABLE "guilds" ADD COLUMN "consent_topics_seeded_at" timestamp;
