@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, isNull, asc } from 'drizzle-orm';
+import { and, eq, isNull, asc, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db/db';
 import { consentTopic } from '@/db/schema/consent-topics';
@@ -141,7 +141,7 @@ export const renameOfficialConsentTopic = asResult(
     await db.transaction(async (tx) => {
       const [updated] = await tx
         .update(consentTopic)
-        .set({ name: normalizedName })
+        .set({ name: normalizedName, revision: sql`${consentTopic.revision} + 1` })
         .where(officialInGuild(guildId, id))
         .returning({ id: consentTopic.id });
       if (!updated) throw new ActionError('Topic not found.');

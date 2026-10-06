@@ -23,12 +23,21 @@ vi.mock('@/db/db', () => ({
 import {
   getMyConsentChecklist,
   saveMyConsentOverallNote,
-  saveMyConsentResponse,
+  saveMyConsentResponse as saveConsentResponse,
+  type ConsentResponseInput,
 } from '../consent-checklist';
 import { consentChecklist, consentResponse } from '@/db/schema/consent-responses';
 
-const topic = { id: 'parent', parentTopicId: null, name: 'Horror' };
-const child = { id: 'child', parentTopicId: 'parent', name: 'Spiders' };
+const topic = { id: 'parent', parentTopicId: null, name: 'Horror', revision: 0 };
+const child = { id: 'child', parentTopicId: 'parent', name: 'Spiders', revision: 0 };
+
+function saveMyConsentResponse(
+  guildId: string,
+  topicId: string,
+  input: Omit<ConsentResponseInput, 'expectedTopicRevision'>,
+) {
+  return saveConsentResponse(guildId, topicId, { ...input, expectedTopicRevision: 0 });
+}
 const dialect = new PgDialect({ casing: 'snake_case' });
 
 function mockSelect({
@@ -78,7 +87,7 @@ function mockSelect({
       from: () => ({
         where: (condition: unknown) => {
           mocks.where(condition);
-          return { for: async () => [{ id: topic.id }] };
+          return { for: async () => [{ revision: topic.revision }] };
         },
       }),
     };
@@ -192,6 +201,59 @@ describe('private guild checklist actions', () => {
     expect(responsesQuery.params).toContain('caller-discord-id');
     expect(overallQuery.sql).toContain('"consent_checklists"."discord_user_id"');
     expect(overallQuery.params).toContain('caller-discord-id');
+  });
+
+  it('requires a valid topic revision from the checklist read before writing', async () => {
+    for (const expectedTopicRevision of [undefined, -1, 0.5, Number.NaN]) {
+      const result = await saveConsentResponse('guild-1', 'parent', {
+        expectedTopicRevision,
+        answer: 'line',
+        headsUp: false,
+        note: null,
+      } as never);
+      expect(result.type).toBe('failure');
+    }
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects stale writes after any rename, even a clear with unchanged wording', async () => {
+    mocks.select.mockReturnValue({
+      from: () => ({ where: () => ({ for: async () => [{ revision: 1 }] }) }),
+    });
+    for (const input of [
+      { answer: 'line', headsUp: false, note: 'old private note' },
+      { answer: null, headsUp: false, note: null },
+    ]) {
+      expect(await saveMyConsentResponse('guild-1', 'parent', input as never)).toEqual({
+        type: 'failure',
+        error: 'This topic changed. Reload your checklist before saving.',
+      });
+    }
+    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.delete).not.toHaveBeenCalled();
+  });
+
+  it('permits a fresh response carrying the current topic revision', async () => {
+    mocks.select.mockReturnValue({
+      from: () => ({ where: () => ({ for: async () => [{ revision: 1 }] }) }),
+    });
+    const values = vi
+      .fn()
+      .mockReturnValue({ onConflictDoUpdate: vi.fn().mockResolvedValue(undefined) });
+    mocks.insert.mockReturnValue({ values });
+    expect(
+      (
+        await saveConsentResponse('guild-1', 'parent', {
+          expectedTopicRevision: 1,
+          answer: 'veil',
+          headsUp: false,
+          note: null,
+        })
+      ).type,
+    ).toBe('success');
+    expect(values).toHaveBeenCalledWith(
+      expect.objectContaining({ topicId: 'parent', answer: 'veil' }),
+    );
   });
 
   it('saves an answer with heads-up and notes under the authenticated Discord ID', async () => {

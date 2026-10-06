@@ -14,6 +14,7 @@ import { canAccessGuildConsent, isConsentFeatureEnabled } from '@/lib/consent/fe
 import { missingConsentTopicIds } from '@/lib/consent/completeness';
 
 export type ConsentResponseInput = {
+  expectedTopicRevision: number;
   answer: ConsentAnswer | null;
   headsUp: boolean;
   note: string | null;
@@ -42,15 +43,17 @@ function validateResponse(input: ConsentResponseInput): ConsentResponseInput {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
     throw new ActionError('Invalid checklist response.');
   }
-  const { answer, headsUp } = input;
+  const { expectedTopicRevision, answer, headsUp } = input;
   if (
+    !Number.isSafeInteger(expectedTopicRevision) ||
+    expectedTopicRevision < 0 ||
     (answer !== null && answer !== 'enthusiastic' && answer !== 'veil' && answer !== 'line') ||
     typeof headsUp !== 'boolean' ||
     (headsUp && (answer === null || answer === 'line'))
   ) {
     throw new ActionError('Invalid checklist response.');
   }
-  return { answer, headsUp, note: normalizeNote(input.note) };
+  return { expectedTopicRevision, answer, headsUp, note: normalizeNote(input.note) };
 }
 
 export const getMyConsentChecklist = asResult(
@@ -62,6 +65,7 @@ export const getMyConsentChecklist = asResult(
         id: consentTopic.id,
         parentTopicId: consentTopic.parentTopicId,
         name: consentTopic.name,
+        revision: consentTopic.revision,
       })
       .from(consentTopic)
       .where(and(eq(consentTopic.guildId, guildId), isNull(consentTopic.ownerDiscordUserId)))
@@ -114,12 +118,13 @@ export const saveMyConsentResponse = asResult(
   async (guildId: string, topicId: string, input: ConsentResponseInput) => {
     const discordUserId = await ensureMyChecklistAccess(guildId);
     if (typeof topicId !== 'string' || !topicId) throw new ActionError('Choose a valid topic.');
-    const { answer, headsUp, note } = validateResponse(input);
+    const { expectedTopicRevision, answer, headsUp, note } = validateResponse(input);
     try {
       await db.transaction(async (tx) => {
-        // Hold a shared lock against an admin's rename/clear while saving.
+        // Serialize with an admin's rename/clear, then reject saves based on
+        // older wording (including a clear that kept the same name).
         const [topic] = await tx
-          .select({ id: consentTopic.id })
+          .select({ revision: consentTopic.revision })
           .from(consentTopic)
           .where(
             and(
@@ -130,6 +135,9 @@ export const saveMyConsentResponse = asResult(
           )
           .for('share');
         if (!topic) throw new ActionError('Topic not found in this guild.');
+        if (topic.revision !== expectedTopicRevision) {
+          throw new ActionError('This topic changed. Reload your checklist before saving.');
+        }
 
         if (answer === null && note === null) {
           await tx
