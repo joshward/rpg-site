@@ -127,6 +127,20 @@
       "when": 1790560053057,
       "tag": "0017_consent_topic_seed_marker",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791246854206,
+      "tag": "0018_add_consent_responses",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791251722563,
+      "tag": "0019_add_consent_topic_revision",
+      "breakpoints": true
     }
   ]
 }

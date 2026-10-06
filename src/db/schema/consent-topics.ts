@@ -15,6 +15,8 @@ export const consentTopic = pgTable(
     parentTopicId: text(),
     ownerDiscordUserId: text(),
     name: text().notNull(),
+    // Bump on every rename so saves from an older topic wording are rejected.
+    revision: integer().default(0).notNull(),
     sortOrder: integer().default(0).notNull(),
     createdAt: timestamp().defaultNow().notNull(),
   },

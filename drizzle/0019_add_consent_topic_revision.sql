@@ -1,0 +1,1 @@
+ALTER TABLE "consent_topics" ADD COLUMN "revision" integer DEFAULT 0 NOT NULL;

@@ -1,9 +1,10 @@
 'use server';
 
-import { and, eq, isNull, asc } from 'drizzle-orm';
+import { and, eq, isNull, asc, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db/db';
 import { consentTopic } from '@/db/schema/consent-topics';
+import { consentResponse } from '@/db/schema/consent-responses';
 import { ensureAdmin } from '@/actions/auth-helpers';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { isConsentFeatureEnabled } from '@/lib/consent/feature-gate';
@@ -137,14 +138,21 @@ export const renameOfficialConsentTopic = asResult(
     if (!current) throw new ActionError('Topic not found.');
     await ensureUniqueOfficialName(guildId, current.parentTopicId, normalizedName, id);
 
-    // There are no player-answer tables yet. Before adding them, this action
-    // must clear answers, heads-up, and notes transactionally for 'clear'.
-    const [updated] = await db
-      .update(consentTopic)
-      .set({ name: normalizedName })
-      .where(officialInGuild(guildId, id))
-      .returning({ id: consentTopic.id });
-    if (!updated) throw new ActionError('Topic not found.');
+    await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(consentTopic)
+        .set({ name: normalizedName, revision: sql`${consentTopic.revision} + 1` })
+        .where(officialInGuild(guildId, id))
+        .returning({ id: consentTopic.id });
+      if (!updated) throw new ActionError('Topic not found.');
+      if (answerChoice === 'clear') {
+        // The response row contains the answer, heads-up choice and private note.
+        // Delete all of them atomically with the wording change.
+        await tx
+          .delete(consentResponse)
+          .where(and(eq(consentResponse.guildId, guildId), eq(consentResponse.topicId, id)));
+      }
+    });
     refreshTopics(guildId);
   },
   'Could not rename consent topic.',

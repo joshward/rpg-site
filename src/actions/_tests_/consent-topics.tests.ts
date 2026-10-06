@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
 
 const mocks = vi.hoisted(() => ({
   ensureAdmin: vi.fn(),
@@ -6,12 +7,19 @@ const mocks = vi.hoisted(() => ({
   insert: vi.fn(),
   update: vi.fn(),
   delete: vi.fn(),
+  transaction: vi.fn(),
   revalidatePath: vi.fn(),
 }));
 
 vi.mock('@/actions/auth-helpers', () => ({ ensureAdmin: mocks.ensureAdmin }));
 vi.mock('@/db/db', () => ({
-  db: { select: mocks.select, insert: mocks.insert, update: mocks.update, delete: mocks.delete },
+  db: {
+    select: mocks.select,
+    insert: mocks.insert,
+    update: mocks.update,
+    delete: mocks.delete,
+    transaction: mocks.transaction,
+  },
 }));
 vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath }));
 
@@ -26,6 +34,9 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv('CONSENT_FEATURE_ENABLED', 'true');
   mocks.ensureAdmin.mockResolvedValue({ guildData: { consentEnabled: true } });
+  mocks.transaction.mockImplementation(async (callback) =>
+    callback({ update: mocks.update, delete: mocks.delete }),
+  );
   mocks.select.mockReturnValue({ from: () => ({ where: () => Promise.resolve([]) }) });
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -113,7 +124,60 @@ describe('official consent topics', () => {
     expect((await renameOfficialConsentTopic('guild-1', 'topic-1', '  New  ', 'keep')).type).toBe(
       'success',
     );
-    expect(set).toHaveBeenCalledWith({ name: 'New' });
+    expect(set).toHaveBeenCalledWith({ name: 'New', revision: expect.anything() });
+    const revisionQuery = new PgDialect({ casing: 'snake_case' }).sqlToQuery(
+      set.mock.calls[0][0].revision,
+    );
+    expect(revisionQuery.sql).toBe('"consent_topics"."revision" + 1');
+    expect(mocks.transaction).toHaveBeenCalledOnce();
+    expect(mocks.delete).not.toHaveBeenCalled();
+  });
+
+  it('atomically clears all player responses, heads-up choices and notes for a renamed topic', async () => {
+    const where = vi
+      .fn()
+      .mockResolvedValueOnce([{ parentTopicId: null }])
+      .mockResolvedValueOnce([]);
+    mocks.select.mockReturnValue({ from: () => ({ where }) });
+    const set = vi.fn().mockReturnValue({
+      where: () => ({ returning: async () => [{ id: 'topic-1' }] }),
+    });
+    mocks.update.mockReturnValue({ set });
+    const deleteWhere = vi.fn().mockResolvedValue(undefined);
+    mocks.delete.mockReturnValue({ where: deleteWhere });
+    expect((await renameOfficialConsentTopic('guild-1', 'topic-1', 'New', 'clear')).type).toBe(
+      'success',
+    );
+    expect(mocks.transaction).toHaveBeenCalledOnce();
+    expect(set).toHaveBeenCalledWith({ name: 'New', revision: expect.anything() });
+    expect(mocks.delete).toHaveBeenCalledOnce();
+    expect(deleteWhere).toHaveBeenCalledOnce();
+    expect(mocks.revalidatePath).toHaveBeenCalledWith('/g/guild-1/admin');
+
+    mocks.revalidatePath.mockClear();
+    deleteWhere.mockRejectedValueOnce(new Error('Clear failed'));
+    expect((await renameOfficialConsentTopic('guild-1', 'topic-1', 'New', 'clear')).type).toBe(
+      'failure',
+    );
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('bumps the revision even when Clear answers retains the same topic name', async () => {
+    const where = vi
+      .fn()
+      .mockResolvedValueOnce([{ parentTopicId: null }])
+      .mockResolvedValueOnce([]);
+    mocks.select.mockReturnValue({ from: () => ({ where }) });
+    const set = vi.fn().mockReturnValue({
+      where: () => ({ returning: async () => [{ id: 'topic-1' }] }),
+    });
+    mocks.update.mockReturnValue({ set });
+    mocks.delete.mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) });
+    expect((await renameOfficialConsentTopic('guild-1', 'topic-1', 'Horror', 'clear')).type).toBe(
+      'success',
+    );
+    expect(set).toHaveBeenCalledWith({ name: 'Horror', revision: expect.anything() });
+    expect(mocks.delete).toHaveBeenCalledOnce();
   });
 
   it('rejects renaming to a sibling topic name', async () => {
