@@ -51,7 +51,7 @@ export default async function GuildLayout({ params, children }: GuildLayoutProps
     );
   }
 
-  const { role, isConfigured, isImpersonating } = guildInfoResult.data;
+  const { role, isConfigured, isImpersonating, consentChecklistAvailable } = guildInfoResult.data;
 
   if (role === 'none') {
     return (
@@ -90,7 +90,11 @@ export default async function GuildLayout({ params, children }: GuildLayoutProps
           })}
         </div>
       )}
-      <GuildTabBar guildId={guildId} isAdmin={role === 'admin'} />
+      <GuildTabBar
+        guildId={guildId}
+        isAdmin={role === 'admin'}
+        showConsentChecklist={consentChecklistAvailable}
+      />
       {children}
     </div>
   );

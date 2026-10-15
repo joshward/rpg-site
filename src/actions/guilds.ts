@@ -18,6 +18,7 @@ import {
 } from '@/lib/discord/api';
 import { TimeSpan } from 'timespan-ts';
 import { revalidatePath } from 'next/cache';
+import { canAccessGuildConsent } from '@/lib/consent/feature-gate';
 
 const fetchUsersGuildsCached = cache(fetchUsersGuilds);
 const getGuildRolesCached = cache((guildId: string) =>
@@ -136,6 +137,10 @@ export const getGuildInfo = asResult(
       overviewText: guildData?.overviewText ?? undefined,
       defaultSchedulingDetails: guildData?.defaultSchedulingDetails ?? undefined,
       isImpersonating: context.isImpersonating,
+      consentChecklistAvailable:
+        role !== 'none' &&
+        !context.isImpersonating &&
+        canAccessGuildConsent(guildData?.consentEnabled === true),
     };
   },
   'Something went wrong fetching guild info. Please try again later.',

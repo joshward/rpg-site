@@ -9,6 +9,7 @@ import {
   CalendarIcon,
   GearIcon,
   MixerHorizontalIcon,
+  CheckCircledIcon,
   RocketIcon,
   ClockIcon,
   HamburgerMenuIcon,
@@ -29,9 +30,10 @@ interface Tab {
 interface GuildTabBarProps {
   guildId: string;
   isAdmin: boolean;
+  showConsentChecklist: boolean;
 }
 
-export default function GuildTabBar({ guildId, isAdmin }: GuildTabBarProps) {
+export default function GuildTabBar({ guildId, isAdmin, showConsentChecklist }: GuildTabBarProps) {
   const pathname = usePathname();
   const basePath = `/g/${guildId}`;
 
@@ -40,6 +42,9 @@ export default function GuildTabBar({ guildId, isAdmin }: GuildTabBarProps) {
       { label: 'Overview', href: basePath, icon: <HomeIcon /> },
       { label: 'Availability', href: `${basePath}/availability`, icon: <CalendarIcon /> },
       { label: 'My Preferences', href: `${basePath}/preferences`, icon: <MixerHorizontalIcon /> },
+      ...(showConsentChecklist
+        ? [{ label: 'My Checklist', href: `${basePath}/checklist`, icon: <CheckCircledIcon /> }]
+        : []),
       ...(isAdmin
         ? [
             { label: 'Games', href: `${basePath}/games`, icon: <RocketIcon /> },
@@ -48,7 +53,7 @@ export default function GuildTabBar({ guildId, isAdmin }: GuildTabBarProps) {
           ]
         : []),
     ],
-    [basePath, isAdmin],
+    [basePath, isAdmin, showConsentChecklist],
   );
 
   const currentTab = useMemo(() => {
@@ -112,7 +117,7 @@ export default function GuildTabBar({ guildId, isAdmin }: GuildTabBarProps) {
       </div>
 
       {/* Desktop Tabs */}
-      <nav className="hidden md:flex gap-1 border-b border-sage-6">
+      <nav className="hidden md:flex gap-1 overflow-x-auto border-b border-sage-6">
         {tabs.map((tab) => {
           const isActive =
             tab.href === basePath ? pathname === basePath : pathname.startsWith(tab.href);
