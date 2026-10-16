@@ -15,6 +15,7 @@ import { usePlausible } from 'next-plausible';
 import { createGame, updateGame, deleteGame } from '@/actions/games';
 import { checkBotPermissionsAction } from '@/actions/guilds';
 import { GameStatus } from '@/db/schema/games';
+import type { GameConsentMode } from '@/lib/consent/game-modes';
 import { isFailure, isSuccess } from '@/actions/result';
 import { useNotification } from '@/components/Notification';
 import { TrashIcon, PersonIcon } from '@radix-ui/react-icons';
@@ -28,6 +29,12 @@ const GAME_STATUS_OPTIONS: ComboboxOption[] = [
   { id: 'active', label: 'Active' },
   { id: 'paused', label: 'Paused' },
   { id: 'archived', label: 'Archived' },
+];
+
+const GAME_CONSENT_MODE_OPTIONS: ComboboxOption[] = [
+  { id: 'off', label: 'Off' },
+  { id: 'optional', label: 'Optional' },
+  { id: 'requested', label: 'Requested' },
 ];
 
 interface EligibleMember {
@@ -50,6 +57,7 @@ interface GameFormProps {
     name: string;
     description: string | null;
     status: GameStatus;
+    consentMode: GameConsentMode;
     sessionsPerMonth: number;
     discordChannelId: string | null;
     discordChannelName: string | null;
@@ -63,6 +71,7 @@ interface GameFormProps {
   };
   eligibleMembers: EligibleMember[];
   channels: ComboboxOption[];
+  showConsentMode?: boolean;
 }
 
 export const validateScheduleNotificationChannelPermissions = async (
@@ -80,7 +89,12 @@ export const validateScheduleNotificationChannelPermissions = async (
   return undefined;
 };
 
-export default function GameForm({ initialData, eligibleMembers, channels }: GameFormProps) {
+export default function GameForm({
+  initialData,
+  eligibleMembers,
+  channels,
+  showConsentMode = false,
+}: GameFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const router = useRouter();
   const notification = useNotification();
@@ -129,6 +143,9 @@ export default function GameForm({ initialData, eligibleMembers, channels }: Gam
       name: initialData?.name ?? '',
       description: initialData?.description ?? '',
       status: GAME_STATUS_OPTIONS.find((opt) => opt.id === (initialData?.status ?? 'draft'))!,
+      consentMode: GAME_CONSENT_MODE_OPTIONS.find(
+        (opt) => opt.id === (initialData?.consentMode ?? 'off'),
+      )!,
       sessionsPerMonth: initialData?.sessionsPerMonth ?? 0,
       discordChannel: channels.find((c) => c.id === initialData?.discordChannelId) ?? null,
       scheduleNotificationChannel:
@@ -141,6 +158,7 @@ export default function GameForm({ initialData, eligibleMembers, channels }: Gam
         name: value.name,
         description: value.description || null,
         status: value.status.id as GameStatus,
+        ...(showConsentMode ? { consentMode: value.consentMode.id as GameConsentMode } : {}),
         sessionsPerMonth: Number(value.sessionsPerMonth),
         discordChannelId: (value.discordChannel?.id as string | undefined) ?? null,
         discordChannelName: (value.discordChannel?.label as string | undefined) ?? null,
@@ -266,6 +284,20 @@ export default function GameForm({ initialData, eligibleMembers, channels }: Gam
               />
             )}
           </form.Field>
+
+          {showConsentMode && (
+            <form.Field name="consentMode">
+              {(field) => (
+                <FormComboBox
+                  label="Consent Mode"
+                  description="Off disables game-specific consent. Optional is voluntary; Requested records intent to ask players. No reminders, completion enforcement or sharing of private responses are active yet."
+                  items={GAME_CONSENT_MODE_OPTIONS}
+                  value={field.state.value}
+                  onValueChange={(val) => field.handleChange(val as ComboboxOption)}
+                />
+              )}
+            </form.Field>
+          )}
 
           <form.Field
             name="sessionsPerMonth"

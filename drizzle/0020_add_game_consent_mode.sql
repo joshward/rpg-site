@@ -1,0 +1,2 @@
+ALTER TABLE "games" ADD COLUMN "consent_mode" text DEFAULT 'off' NOT NULL;--> statement-breakpoint
+ALTER TABLE "games" ADD CONSTRAINT "games_consent_mode_check" CHECK ("games"."consent_mode" IN ('off', 'optional', 'requested'));
