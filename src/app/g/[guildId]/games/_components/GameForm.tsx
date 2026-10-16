@@ -142,10 +142,11 @@ export default function GameForm({
     defaultValues: {
       name: initialData?.name ?? '',
       description: initialData?.description ?? '',
-      status: GAME_STATUS_OPTIONS.find((opt) => opt.id === (initialData?.status ?? 'draft'))!,
-      consentMode: GAME_CONSENT_MODE_OPTIONS.find(
+      status: (GAME_STATUS_OPTIONS.find((opt) => opt.id === (initialData?.status ?? 'draft')) ??
+        null) as ComboboxOption | null,
+      consentMode: (GAME_CONSENT_MODE_OPTIONS.find(
         (opt) => opt.id === (initialData?.consentMode ?? 'off'),
-      )!,
+      ) ?? null) as ComboboxOption | null,
       sessionsPerMonth: initialData?.sessionsPerMonth ?? 0,
       discordChannel: channels.find((c) => c.id === initialData?.discordChannelId) ?? null,
       scheduleNotificationChannel:
@@ -154,11 +155,15 @@ export default function GameForm({
       members: initialMembers,
     },
     onSubmit: async ({ value }) => {
+      if (!value.status || (showConsentMode && !value.consentMode)) return;
+
       const payload = {
         name: value.name,
         description: value.description || null,
         status: value.status.id as GameStatus,
-        ...(showConsentMode ? { consentMode: value.consentMode.id as GameConsentMode } : {}),
+        ...(showConsentMode && value.consentMode
+          ? { consentMode: value.consentMode.id as GameConsentMode }
+          : {}),
         sessionsPerMonth: Number(value.sessionsPerMonth),
         discordChannelId: (value.discordChannel?.id as string | undefined) ?? null,
         discordChannelName: (value.discordChannel?.label as string | undefined) ?? null,
@@ -274,26 +279,38 @@ export default function GameForm({
             )}
           </form.Field>
 
-          <form.Field name="status">
+          <form.Field
+            name="status"
+            validators={{ onChange: ({ value }) => (value ? undefined : 'Status is required.') }}
+          >
             {(field) => (
               <FormComboBox
                 label="Status"
                 items={GAME_STATUS_OPTIONS}
                 value={field.state.value}
-                onValueChange={(val) => field.handleChange(val as ComboboxOption)}
+                onValueChange={field.handleChange}
+                error={field.state.meta.errors.join(', ')}
+                invalid={field.state.meta.errors.length > 0}
               />
             )}
           </form.Field>
 
           {showConsentMode && (
-            <form.Field name="consentMode">
+            <form.Field
+              name="consentMode"
+              validators={{
+                onChange: ({ value }) => (value ? undefined : 'Consent mode is required.'),
+              }}
+            >
               {(field) => (
                 <FormComboBox
                   label="Consent Mode"
                   description="Off disables game-specific consent. Optional is voluntary; Requested records intent to ask players. No reminders, completion enforcement or sharing of private responses are active yet."
                   items={GAME_CONSENT_MODE_OPTIONS}
                   value={field.state.value}
-                  onValueChange={(val) => field.handleChange(val as ComboboxOption)}
+                  onValueChange={field.handleChange}
+                  error={field.state.meta.errors.join(', ')}
+                  invalid={field.state.meta.errors.length > 0}
                 />
               )}
             </form.Field>

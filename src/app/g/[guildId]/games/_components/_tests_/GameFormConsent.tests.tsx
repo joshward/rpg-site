@@ -29,25 +29,31 @@ vi.mock('@/components/FormComboBox', () => ({
     items,
     value,
     onValueChange,
+    error,
   }: {
     label: string;
     items: ComboboxOption[];
     value: ComboboxOption | null;
-    onValueChange: (value: ComboboxOption) => void;
+    onValueChange: (value: ComboboxOption | null) => void;
+    error?: string;
   }) => (
     <label>
       {label}
       <select
         aria-label={label}
         value={value?.id ?? ''}
-        onChange={(event) => onValueChange(items.find((item) => item.id === event.target.value)!)}
+        onChange={(event) =>
+          onValueChange(items.find((item) => item.id === event.target.value) ?? null)
+        }
       >
+        <option value="">No selection</option>
         {items.map((item) => (
           <option key={item.id} value={item.id}>
             {item.label}
           </option>
         ))}
       </select>
+      {error && <span role="alert">{error}</span>}
     </label>
   ),
 }));
@@ -126,6 +132,49 @@ describe('game form consent dropdown', () => {
         'guild-1',
         'game-1',
         expect.objectContaining({ consentMode: 'off' }),
+      ),
+    );
+  });
+
+  it('shows a required error instead of submitting a cleared status', async () => {
+    render(<GameForm initialData={game} eligibleMembers={[]} channels={[]} showConsentMode />);
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Status' }), '');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Status is required.');
+    await user.click(screen.getByRole('button', { name: 'Update Game' }));
+    expect(mocks.update).not.toHaveBeenCalled();
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Status' }), 'active');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Update Game' }));
+    await waitFor(() => expect(mocks.update).toHaveBeenCalled());
+  });
+
+  it('requires a chosen consent mode when the field is shown', async () => {
+    render(<GameForm initialData={game} eligibleMembers={[]} channels={[]} showConsentMode />);
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Consent Mode' }), '');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Consent mode is required.');
+    await user.click(screen.getByRole('button', { name: 'Update Game' }));
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it('clears optional channels without blocking the game save', async () => {
+    render(
+      <GameForm
+        initialData={{ ...game, discordChannelId: 'channel-1' }}
+        eligibleMembers={[]}
+        channels={[{ id: 'channel-1', label: 'general' }]}
+      />,
+    );
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Discord Channel' }), '');
+    await user.click(screen.getByRole('button', { name: 'Update Game' }));
+    await waitFor(() =>
+      expect(mocks.update).toHaveBeenCalledWith(
+        'guild-1',
+        'game-1',
+        expect.objectContaining({ discordChannelId: null }),
       ),
     );
   });
