@@ -1,6 +1,6 @@
 'use server';
 
-import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { consentTopic } from '@/db/schema/consent-topics';
 import {
@@ -12,6 +12,7 @@ import { ensureAccess } from '@/actions/auth-helpers';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { canAccessGuildConsent, isConsentFeatureEnabled } from '@/lib/consent/feature-gate';
 import { missingConsentTopicIds } from '@/lib/consent/completeness';
+import { getConsentGuidance } from '@/lib/consent/guidance';
 
 export type ConsentResponseInput = {
   expectedTopicRevision: number;
@@ -20,7 +21,7 @@ export type ConsentResponseInput = {
   note: string | null;
 };
 
-async function ensureMyChecklistAccess(guildId: string): Promise<string> {
+async function ensureMyChecklistAccess(guildId: string) {
   if (!isConsentFeatureEnabled()) throw new ActionError('Consent checklists are not available.');
   const access = await ensureAccess(guildId);
   if (access.isImpersonating) {
@@ -29,7 +30,10 @@ async function ensureMyChecklistAccess(guildId: string): Promise<string> {
   if (!canAccessGuildConsent(access.guildData?.consentEnabled === true)) {
     throw new ActionError('Consent checklists are not enabled for this guild.');
   }
-  return access.discordAccount.userId;
+  return {
+    discordUserId: access.discordAccount.userId,
+    guidance: access.guildData?.consentGuidance ?? null,
+  };
 }
 
 function normalizeNote(value: unknown): string | null {
@@ -59,7 +63,7 @@ function validateResponse(input: ConsentResponseInput): ConsentResponseInput {
 export const getMyConsentChecklist = asResult(
   'getMyConsentChecklist',
   async (guildId: string) => {
-    const discordUserId = await ensureMyChecklistAccess(guildId);
+    const { discordUserId, guidance } = await ensureMyChecklistAccess(guildId);
     const topics = await db
       .select({
         id: consentTopic.id,
@@ -91,7 +95,7 @@ export const getMyConsentChecklist = asResult(
             ),
           )
       : [];
-    const [overall] = await db
+    const overall = await db
       .select({ overallNote: consentChecklist.overallNote })
       .from(consentChecklist)
       .where(
@@ -105,7 +109,8 @@ export const getMyConsentChecklist = asResult(
     return {
       topics,
       responses,
-      overallNote: overall?.overallNote ?? null,
+      guidance: getConsentGuidance(guidance),
+      overallNote: overall.length ? overall[0].overallNote : null,
       complete: missingTopicIds.length === 0,
       missingTopicIds,
     };
@@ -116,7 +121,7 @@ export const getMyConsentChecklist = asResult(
 export const saveMyConsentResponse = asResult(
   'saveMyConsentResponse',
   async (guildId: string, topicId: string, input: ConsentResponseInput) => {
-    const discordUserId = await ensureMyChecklistAccess(guildId);
+    const { discordUserId } = await ensureMyChecklistAccess(guildId);
     if (typeof topicId !== 'string' || !topicId) throw new ActionError('Choose a valid topic.');
     const { expectedTopicRevision, answer, headsUp, note } = validateResponse(input);
     try {
@@ -175,7 +180,7 @@ export const saveMyConsentResponse = asResult(
 export const saveMyConsentOverallNote = asResult(
   'saveMyConsentOverallNote',
   async (guildId: string, value: string | null) => {
-    const discordUserId = await ensureMyChecklistAccess(guildId);
+    const { discordUserId } = await ensureMyChecklistAccess(guildId);
     const overallNote = normalizeNote(value);
     try {
       if (overallNote === null) {
@@ -202,4 +207,136 @@ export const saveMyConsentOverallNote = asResult(
     }
   },
   'Could not save your private note.',
+);
+
+/** Save only changed topic rows and, optionally, the overall note in one transaction.
+ * Omitted topics are never cleared. A stale revision aborts the entire save. */
+export const saveMyConsentChecklist = asResult(
+  'saveMyConsentChecklist',
+  async (
+    guildId: string,
+    changes: (ConsentResponseInput & { topicId: string })[],
+    overallNote?: string | null,
+  ) => {
+    const { discordUserId } = await ensureMyChecklistAccess(guildId);
+    if (!Array.isArray(changes)) {
+      throw new ActionError('Invalid checklist changes.');
+    }
+    const normalized = changes.map((change) => {
+      if (!change || typeof change.topicId !== 'string' || !change.topicId) {
+        throw new ActionError('Choose a valid topic.');
+      }
+      return { topicId: change.topicId, ...validateResponse(change) };
+    });
+    const topicIds = normalized.map((change) => change.topicId);
+    if (new Set(topicIds).size !== topicIds.length) {
+      throw new ActionError('A topic can only be saved once at a time.');
+    }
+    const validatedOverallNote = overallNote === undefined ? undefined : normalizeNote(overallNote);
+
+    try {
+      await db.transaction(async (tx) => {
+        if (topicIds.length) {
+          if (topicIds.length > 200) {
+            // Large guilds may have more than 200 official topics. Reject oversized
+            // batches only when they exceed this guild's actual topic catalog.
+            const [{ total }] = await tx
+              .select({ total: count() })
+              .from(consentTopic)
+              .where(
+                and(eq(consentTopic.guildId, guildId), isNull(consentTopic.ownerDiscordUserId)),
+              );
+            if (topicIds.length > total) throw new ActionError('Invalid checklist changes.');
+          }
+          const lockedTopics = await tx
+            .select({ id: consentTopic.id, revision: consentTopic.revision })
+            .from(consentTopic)
+            .where(
+              and(
+                eq(consentTopic.guildId, guildId),
+                isNull(consentTopic.ownerDiscordUserId),
+                inArray(consentTopic.id, topicIds),
+              ),
+            )
+            .orderBy(asc(consentTopic.id))
+            .for('share');
+          const revisions = new Map(lockedTopics.map((topic) => [topic.id, topic.revision]));
+          if (
+            normalized.some(
+              (change) => revisions.get(change.topicId) !== change.expectedTopicRevision,
+            )
+          ) {
+            throw new ActionError('A topic changed. Reload your checklist before saving.');
+          }
+          const removedIds = normalized
+            .filter((change) => change.answer === null && change.note === null)
+            .map((change) => change.topicId);
+          if (removedIds.length) {
+            await tx
+              .delete(consentResponse)
+              .where(
+                and(
+                  eq(consentResponse.guildId, guildId),
+                  eq(consentResponse.discordUserId, discordUserId),
+                  inArray(consentResponse.topicId, removedIds),
+                ),
+              );
+          }
+          const upserts = normalized
+            .filter((change) => change.answer !== null || change.note !== null)
+            .map(({ topicId, answer, headsUp, note }) => ({
+              guildId,
+              discordUserId,
+              topicId,
+              answer,
+              headsUp,
+              note,
+            }));
+          if (upserts.length) {
+            await tx
+              .insert(consentResponse)
+              .values(upserts)
+              .onConflictDoUpdate({
+                target: [
+                  consentResponse.guildId,
+                  consentResponse.discordUserId,
+                  consentResponse.topicId,
+                ],
+                set: {
+                  answer: sql`excluded.answer`,
+                  headsUp: sql`excluded.heads_up`,
+                  note: sql`excluded.note`,
+                  updatedAt: new Date(),
+                },
+              });
+          }
+        }
+        if (validatedOverallNote !== undefined) {
+          if (validatedOverallNote === null) {
+            await tx
+              .delete(consentChecklist)
+              .where(
+                and(
+                  eq(consentChecklist.guildId, guildId),
+                  eq(consentChecklist.discordUserId, discordUserId),
+                ),
+              );
+          } else {
+            await tx
+              .insert(consentChecklist)
+              .values({ guildId, discordUserId, overallNote: validatedOverallNote })
+              .onConflictDoUpdate({
+                target: [consentChecklist.guildId, consentChecklist.discordUserId],
+                set: { overallNote: validatedOverallNote, updatedAt: new Date() },
+              });
+          }
+        }
+      });
+    } catch (error) {
+      // Drizzle errors may include private notes in their query parameters.
+      if (error instanceof ActionError) throw error;
+      throw new ActionError('Could not save your consent checklist.');
+    }
+  },
+  'Could not save your consent checklist.',
 );

@@ -22,6 +22,7 @@ vi.mock('@/db/db', () => ({
 
 import {
   getMyConsentChecklist,
+  saveMyConsentChecklist,
   saveMyConsentOverallNote,
   saveMyConsentResponse as saveConsentResponse,
   type ConsentResponseInput,
@@ -128,6 +129,7 @@ describe('private guild checklist actions', () => {
       ).type,
     ).toBe('failure');
     expect((await saveMyConsentOverallNote('guild-1', 'private')).type).toBe('failure');
+    expect((await saveMyConsentChecklist('guild-1', [], 'private')).type).toBe('failure');
     expect(mocks.ensureAccess).not.toHaveBeenCalled();
     expect(mocks.select).not.toHaveBeenCalled();
   });
@@ -185,6 +187,7 @@ describe('private guild checklist actions', () => {
       data: {
         topics: [topic, child],
         responses: [{ topicId: 'child', answer: 'veil', headsUp: true, note: 'private' }],
+        guidance: expect.stringContaining('Content boundaries'),
         overallNote: 'private overall',
         complete: false,
         missingTopicIds: ['parent'],
@@ -351,6 +354,170 @@ describe('private guild checklist actions', () => {
     ).toBe('failure');
     expect((await saveMyConsentOverallNote('guild-1', 'sensitive note')).type).toBe('failure');
     expect(vi.mocked(console.error).mock.calls.flat().join(' ')).not.toContain('sensitive note');
+  });
+
+  it('atomically saves changed topics and a cleared overall note for the authenticated caller', async () => {
+    mocks.select.mockReturnValue({
+      from: () => ({
+        where: (condition: unknown) => {
+          mocks.where(condition);
+          return {
+            orderBy: () => ({
+              for: async () => [
+                { id: 'parent', revision: 0 },
+                { id: 'child', revision: 0 },
+              ],
+            }),
+          };
+        },
+      }),
+    });
+    const values = vi
+      .fn()
+      .mockReturnValue({ onConflictDoUpdate: vi.fn().mockResolvedValue(undefined) });
+    mocks.insert.mockReturnValue({ values });
+    mocks.delete.mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) });
+    const result = await saveMyConsentChecklist(
+      'guild-1',
+      [
+        {
+          topicId: 'parent',
+          expectedTopicRevision: 0,
+          answer: 'veil',
+          headsUp: true,
+          note: 'private',
+        },
+        { topicId: 'child', expectedTopicRevision: 0, answer: null, headsUp: false, note: null },
+      ],
+      null,
+    );
+    expect(result.type).toBe('success');
+    expect(mocks.transaction).toHaveBeenCalledOnce();
+    const topicQuery = dialect.sqlToQuery(mocks.where.mock.calls[0][0]);
+    expect(topicQuery.sql).toContain('"consent_topics"."owner_discord_user_id" is null');
+    expect(topicQuery.params).toContain('guild-1');
+    expect(mocks.delete).toHaveBeenCalledWith(consentResponse);
+    expect(mocks.delete).toHaveBeenCalledWith(consentChecklist);
+    expect(values).toHaveBeenCalledWith([
+      {
+        guildId: 'guild-1',
+        discordUserId: 'caller-discord-id',
+        topicId: 'parent',
+        answer: 'veil',
+        headsUp: true,
+        note: 'private',
+      },
+    ]);
+  });
+
+  it('saves more than 200 valid guild topics and the overall note in one transaction', async () => {
+    const changes = Array.from({ length: 201 }, (_, index) => ({
+      topicId: `topic-${index}`,
+      expectedTopicRevision: 0,
+      answer: 'veil' as const,
+      headsUp: false,
+      note: null,
+    }));
+    mocks.select.mockImplementation((fields) => {
+      if ('total' in fields) {
+        return {
+          from: () => ({
+            where: async (condition: unknown) => {
+              mocks.where(condition);
+              return [{ total: changes.length }];
+            },
+          }),
+        };
+      }
+      return {
+        from: () => ({
+          where: () => ({
+            orderBy: () => ({
+              for: async () => changes.map(({ topicId }) => ({ id: topicId, revision: 0 })),
+            }),
+          }),
+        }),
+      };
+    });
+    const values = vi
+      .fn()
+      .mockReturnValue({ onConflictDoUpdate: vi.fn().mockResolvedValue(undefined) });
+    mocks.insert.mockReturnValue({ values });
+    expect(await saveMyConsentChecklist('guild-1', changes, 'overall note')).toEqual({
+      type: 'success',
+      data: undefined,
+    });
+    expect(mocks.transaction).toHaveBeenCalledOnce();
+    expect(values.mock.calls[0][0]).toHaveLength(201);
+    expect(mocks.insert).toHaveBeenCalledWith(consentChecklist);
+    const countQuery = dialect.sqlToQuery(mocks.where.mock.calls[0][0]);
+    expect(countQuery.sql).toContain('"consent_topics"."owner_discord_user_id" is null');
+    expect(countQuery.params).toContain('guild-1');
+  });
+
+  it('rejects batches larger than the guild catalog before writing anything', async () => {
+    const changes = Array.from({ length: 201 }, (_, index) => ({
+      topicId: `topic-${index}`,
+      expectedTopicRevision: 0,
+      answer: 'line' as const,
+      headsUp: false,
+      note: null,
+    }));
+    mocks.select.mockReturnValue({
+      from: () => ({ where: async () => [{ total: 200 }] }),
+    });
+    expect(await saveMyConsentChecklist('guild-1', changes, 'overall note')).toEqual({
+      type: 'failure',
+      error: 'Invalid checklist changes.',
+    });
+    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.delete).not.toHaveBeenCalled();
+  });
+
+  it('aborts the entire checklist save if a topic has been renamed', async () => {
+    mocks.select.mockReturnValue({
+      from: () => ({
+        where: () => ({ orderBy: () => ({ for: async () => [{ id: 'parent', revision: 1 }] }) }),
+      }),
+    });
+    expect(
+      await saveMyConsentChecklist(
+        'guild-1',
+        [
+          {
+            topicId: 'parent',
+            expectedTopicRevision: 0,
+            answer: 'line',
+            headsUp: false,
+            note: 'private',
+          },
+        ],
+        'new overall note',
+      ),
+    ).toEqual({
+      type: 'failure',
+      error: 'A topic changed. Reload your checklist before saving.',
+    });
+    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.delete).not.toHaveBeenCalled();
+  });
+
+  it('rejects duplicate or malformed batch changes before writing', async () => {
+    const response = {
+      topicId: 'parent',
+      expectedTopicRevision: 0,
+      answer: 'line' as const,
+      headsUp: false,
+      note: null,
+    };
+    expect((await saveMyConsentChecklist('guild-1', [response, response])).type).toBe('failure');
+    expect(
+      (await saveMyConsentChecklist('guild-1', [{ ...response, expectedTopicRevision: -1 }])).type,
+    ).toBe('failure');
+    expect((await saveMyConsentChecklist('guild-1', [response], 'x'.repeat(10001))).type).toBe(
+      'failure',
+    );
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it('saves and removes a private overall note without requiring topic answers', async () => {

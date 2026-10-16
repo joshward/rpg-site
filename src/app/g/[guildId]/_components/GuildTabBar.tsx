@@ -112,7 +112,7 @@ export default function GuildTabBar({ guildId, isAdmin }: GuildTabBarProps) {
       </div>
 
       {/* Desktop Tabs */}
-      <nav className="hidden md:flex gap-1 border-b border-sage-6">
+      <nav className="hidden md:flex gap-1 overflow-x-auto border-b border-sage-6">
         {tabs.map((tab) => {
           const isActive =
             tab.href === basePath ? pathname === basePath : pathname.startsWith(tab.href);
