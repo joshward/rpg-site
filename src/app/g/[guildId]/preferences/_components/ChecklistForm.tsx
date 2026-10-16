@@ -19,6 +19,7 @@ import Alert from '@/components/Alert';
 import Button from '@/components/Button';
 import MarkdownPreview from '@/components/MarkdownPreview';
 import { useNotification } from '@/components/Notification';
+import { reloadChecklistPage } from './reloadChecklistPage';
 
 export type ChecklistData = Extract<
   Awaited<ReturnType<typeof getMyConsentChecklist>>,
@@ -91,9 +92,22 @@ function ChecklistLegend({ compact }: { compact: boolean }) {
   const activeLabel = hovered ?? clicked;
   const activeItem = legend.find((item) => item.label === activeLabel);
 
+  useEffect(() => {
+    if (!activeLabel) return;
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setHovered(null);
+        setClicked(null);
+      }
+    };
+    document.addEventListener('keydown', dismiss);
+    return () => document.removeEventListener('keydown', dismiss);
+  }, [activeLabel]);
+
   return (
     <div
       aria-label="Checklist icon legend"
+      onMouseLeave={() => setHovered(null)}
       className={`relative mt-2 border-t border-sage-6 pt-2 text-xs text-sage-11 ${
         compact ? 'flex flex-wrap items-center justify-end gap-x-3 gap-y-1' : 'flex flex-wrap gap-3'
       }`}
@@ -108,15 +122,8 @@ function ChecklistLegend({ compact }: { compact: boolean }) {
             aria-expanded={activeLabel === label}
             aria-controls={activeLabel === label ? 'checklist-legend-description' : undefined}
             onMouseEnter={() => setHovered(label)}
-            onMouseLeave={() => setHovered(null)}
             onClick={() => setClicked((current) => (current === label ? null : label))}
             onBlur={() => setClicked(null)}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                setHovered(null);
-                setClicked(null);
-              }
-            }}
           >
             <span
               className={`flex size-6 shrink-0 items-center justify-center rounded-md ${active}`}
@@ -143,9 +150,11 @@ function ChecklistLegend({ compact }: { compact: boolean }) {
         <div
           id="checklist-legend-description"
           role="tooltip"
-          className="absolute top-full right-0 z-50 mt-1 w-64 max-w-full rounded-md border border-sage-7 bg-sage-2 p-2 text-sage-12 shadow-lg"
+          className="absolute top-full right-0 z-50 w-64 max-w-full pt-1"
         >
-          <strong>{activeItem.label}:</strong> {activeItem.description}
+          <div className="rounded-md border border-sage-7 bg-sage-2 p-2 text-sage-12 shadow-lg">
+            <strong>{activeItem.label}:</strong> {activeItem.description}
+          </div>
         </div>
       )}
     </div>
@@ -369,9 +378,9 @@ export default function ChecklistForm({
           <Alert type="error" className="mt-2 p-2 text-sm">
             {error}{' '}
             {error.includes('Reload your checklist') && (
-              <a className="underline" href={`/g/${guildId}/preferences#content-checklist`}>
+              <button type="button" className="underline" onClick={reloadChecklistPage}>
                 Reload your checklist
-              </a>
+              </button>
             )}
           </Alert>
         )}

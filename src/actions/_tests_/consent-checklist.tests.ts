@@ -410,6 +410,70 @@ describe('private guild checklist actions', () => {
     ]);
   });
 
+  it('saves more than 200 valid guild topics and the overall note in one transaction', async () => {
+    const changes = Array.from({ length: 201 }, (_, index) => ({
+      topicId: `topic-${index}`,
+      expectedTopicRevision: 0,
+      answer: 'veil' as const,
+      headsUp: false,
+      note: null,
+    }));
+    mocks.select.mockImplementation((fields) => {
+      if ('total' in fields) {
+        return {
+          from: () => ({
+            where: async (condition: unknown) => {
+              mocks.where(condition);
+              return [{ total: changes.length }];
+            },
+          }),
+        };
+      }
+      return {
+        from: () => ({
+          where: () => ({
+            orderBy: () => ({
+              for: async () => changes.map(({ topicId }) => ({ id: topicId, revision: 0 })),
+            }),
+          }),
+        }),
+      };
+    });
+    const values = vi
+      .fn()
+      .mockReturnValue({ onConflictDoUpdate: vi.fn().mockResolvedValue(undefined) });
+    mocks.insert.mockReturnValue({ values });
+    expect(await saveMyConsentChecklist('guild-1', changes, 'overall note')).toEqual({
+      type: 'success',
+      data: undefined,
+    });
+    expect(mocks.transaction).toHaveBeenCalledOnce();
+    expect(values.mock.calls[0][0]).toHaveLength(201);
+    expect(mocks.insert).toHaveBeenCalledWith(consentChecklist);
+    const countQuery = dialect.sqlToQuery(mocks.where.mock.calls[0][0]);
+    expect(countQuery.sql).toContain('"consent_topics"."owner_discord_user_id" is null');
+    expect(countQuery.params).toContain('guild-1');
+  });
+
+  it('rejects batches larger than the guild catalog before writing anything', async () => {
+    const changes = Array.from({ length: 201 }, (_, index) => ({
+      topicId: `topic-${index}`,
+      expectedTopicRevision: 0,
+      answer: 'line' as const,
+      headsUp: false,
+      note: null,
+    }));
+    mocks.select.mockReturnValue({
+      from: () => ({ where: async () => [{ total: 200 }] }),
+    });
+    expect(await saveMyConsentChecklist('guild-1', changes, 'overall note')).toEqual({
+      type: 'failure',
+      error: 'Invalid checklist changes.',
+    });
+    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.delete).not.toHaveBeenCalled();
+  });
+
   it('aborts the entire checklist save if a topic has been renamed', async () => {
     mocks.select.mockReturnValue({
       from: () => ({

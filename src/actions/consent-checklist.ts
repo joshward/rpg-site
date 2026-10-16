@@ -1,6 +1,6 @@
 'use server';
 
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { consentTopic } from '@/db/schema/consent-topics';
 import {
@@ -219,7 +219,7 @@ export const saveMyConsentChecklist = asResult(
     overallNote?: string | null,
   ) => {
     const { discordUserId } = await ensureMyChecklistAccess(guildId);
-    if (!Array.isArray(changes) || changes.length > 200) {
+    if (!Array.isArray(changes)) {
       throw new ActionError('Invalid checklist changes.');
     }
     const normalized = changes.map((change) => {
@@ -237,6 +237,17 @@ export const saveMyConsentChecklist = asResult(
     try {
       await db.transaction(async (tx) => {
         if (topicIds.length) {
+          if (topicIds.length > 200) {
+            // Large guilds may have more than 200 official topics. Reject oversized
+            // batches only when they exceed this guild's actual topic catalog.
+            const [{ total }] = await tx
+              .select({ total: count() })
+              .from(consentTopic)
+              .where(
+                and(eq(consentTopic.guildId, guildId), isNull(consentTopic.ownerDiscordUserId)),
+              );
+            if (topicIds.length > total) throw new ActionError('Invalid checklist changes.');
+          }
           const lockedTopics = await tx
             .select({ id: consentTopic.id, revision: consentTopic.revision })
             .from(consentTopic)

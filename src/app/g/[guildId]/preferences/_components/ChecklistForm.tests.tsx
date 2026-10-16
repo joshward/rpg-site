@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-const mocks = vi.hoisted(() => ({ save: vi.fn(), notify: vi.fn() }));
+const mocks = vi.hoisted(() => ({ save: vi.fn(), notify: vi.fn(), reload: vi.fn() }));
 vi.mock('@/actions/consent-checklist', () => ({ saveMyConsentChecklist: mocks.save }));
 vi.mock('@/components/Notification', () => ({ useNotification: () => ({ add: mocks.notify }) }));
+vi.mock('./reloadChecklistPage', () => ({ reloadChecklistPage: mocks.reload }));
 
 import ChecklistForm, { type ChecklistData } from './ChecklistForm';
 
@@ -105,13 +106,20 @@ describe('player content checklist', () => {
     expect(veil).toHaveClass('items-center');
     expect(veil).toHaveAttribute('aria-expanded', 'false');
     fireEvent.mouseEnter(veil);
-    expect(within(header).getByRole('tooltip')).toHaveTextContent(description);
-    fireEvent.mouseLeave(veil);
+    const tooltip = within(header).getByRole('tooltip');
+    expect(tooltip).toHaveTextContent(description);
+    fireEvent.mouseLeave(veil, { relatedTarget: tooltip });
+    fireEvent.mouseEnter(tooltip, { relatedTarget: veil });
+    expect(tooltip).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(within(header).queryByRole('tooltip')).not.toBeInTheDocument();
+    fireEvent.mouseEnter(veil);
+    fireEvent.mouseLeave(header.querySelector('[aria-label="Checklist icon legend"]')!);
     expect(within(header).queryByRole('tooltip')).not.toBeInTheDocument();
     fireEvent.click(veil);
     expect(veil).toHaveAttribute('aria-expanded', 'true');
     expect(within(header).getByRole('tooltip')).toHaveTextContent(description);
-    fireEvent.keyDown(veil, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(within(header).queryByRole('tooltip')).not.toBeInTheDocument();
     fireEvent.click(veil);
     expect(within(header).getByRole('tooltip')).toHaveTextContent(description);
@@ -260,9 +268,9 @@ describe('player content checklist', () => {
     );
     await user.click(screen.getByRole('button', { name: /save checklist/i }));
     const header = container.querySelector('header')!;
-    expect(
-      await within(header).findByRole('link', { name: /reload your checklist/i }),
-    ).toHaveAttribute('href', '/g/guild-1/preferences#content-checklist');
+    const reload = await within(header).findByRole('button', { name: /reload your checklist/i });
+    await user.click(reload);
+    expect(mocks.reload).toHaveBeenCalledOnce();
     expect(
       within(horror).getByRole('button', { name: 'Hard line (do not include) for Horror' }),
     ).toHaveAttribute('aria-pressed', 'true');
