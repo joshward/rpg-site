@@ -9,7 +9,6 @@ import {
   CalendarIcon,
   GearIcon,
   MixerHorizontalIcon,
-  CheckCircledIcon,
   RocketIcon,
   ClockIcon,
   HamburgerMenuIcon,
@@ -30,10 +29,9 @@ interface Tab {
 interface GuildTabBarProps {
   guildId: string;
   isAdmin: boolean;
-  showConsentChecklist: boolean;
 }
 
-export default function GuildTabBar({ guildId, isAdmin, showConsentChecklist }: GuildTabBarProps) {
+export default function GuildTabBar({ guildId, isAdmin }: GuildTabBarProps) {
   const pathname = usePathname();
   const basePath = `/g/${guildId}`;
 
@@ -42,9 +40,6 @@ export default function GuildTabBar({ guildId, isAdmin, showConsentChecklist }: 
       { label: 'Overview', href: basePath, icon: <HomeIcon /> },
       { label: 'Availability', href: `${basePath}/availability`, icon: <CalendarIcon /> },
       { label: 'My Preferences', href: `${basePath}/preferences`, icon: <MixerHorizontalIcon /> },
-      ...(showConsentChecklist
-        ? [{ label: 'My Checklist', href: `${basePath}/checklist`, icon: <CheckCircledIcon /> }]
-        : []),
       ...(isAdmin
         ? [
             { label: 'Games', href: `${basePath}/games`, icon: <RocketIcon /> },
@@ -53,7 +48,7 @@ export default function GuildTabBar({ guildId, isAdmin, showConsentChecklist }: 
           ]
         : []),
     ],
-    [basePath, isAdmin, showConsentChecklist],
+    [basePath, isAdmin],
   );
 
   const currentTab = useMemo(() => {

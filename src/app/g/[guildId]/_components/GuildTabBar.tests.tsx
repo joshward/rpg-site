@@ -14,15 +14,12 @@ vi.mock('next/link', () => ({
 import GuildTabBar from './GuildTabBar';
 
 describe('guild navigation', () => {
-  it('only links to a private checklist when the server says it is available', () => {
-    const { rerender } = render(
-      <GuildTabBar guildId="guild-1" isAdmin={false} showConsentChecklist={false} />,
-    );
+  it('keeps one preferences tab without a separate checklist tab', () => {
+    render(<GuildTabBar guildId="guild-1" isAdmin={false} />);
     expect(screen.queryByRole('link', { name: 'My Checklist' })).not.toBeInTheDocument();
-    rerender(<GuildTabBar guildId="guild-1" isAdmin={false} showConsentChecklist />);
-    expect(screen.getByRole('link', { name: 'My Checklist' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'My Preferences' })).toHaveAttribute(
       'href',
-      '/g/guild-1/checklist',
+      '/g/guild-1/preferences',
     );
   });
 });

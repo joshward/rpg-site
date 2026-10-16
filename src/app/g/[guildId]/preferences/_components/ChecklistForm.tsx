@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   BellIcon,
   CrossCircledIcon,
@@ -26,31 +26,130 @@ export type ChecklistData = Extract<
 >['data'];
 type Topic = ChecklistData['topics'][number];
 type Draft = Omit<ConsentResponseInput, 'expectedTopicRevision'> & { note: string };
+// Amber 9 stays bright in both themes; amber 12 becomes pale in dark mode.
+const amberActive = 'bg-amber-9 text-amber-12 dark:text-amber-1';
+const jadeActive = 'bg-jade-9 text-jade-12 dark:text-jade-1';
+const plumActive = 'bg-plum-9 text-white';
 const choices = [
   {
     value: 'enthusiastic',
-    label: 'Enthusiastic consent',
+    label: 'All good',
+    legend: 'All good',
+    description: 'I am comfortable if this content ends up on-screen in the game.',
     icon: HeartFilledIcon,
-    active: 'bg-plum-9 text-white',
+    active: jadeActive,
   },
   {
     value: 'veil',
     label: 'Veil (off-screen)',
+    legend: 'Veil',
+    description: 'It can happen, but leave it off-screen or without detail.',
     icon: EyeClosedIcon,
-    active: 'bg-amber-9 text-white',
+    active: amberActive,
   },
   {
     value: 'line',
     label: 'Hard line (do not include)',
+    legend: 'Hard line',
+    description:
+      'Do not depict or focus on this content in the game. It may exist in the world, but it won’t be part of play.',
     icon: CrossCircledIcon,
     active: 'bg-ruby-9 text-white',
   },
 ] as const;
 
+const legend = [
+  ...choices.map(({ legend: label, description, icon, active }) => ({
+    label,
+    description,
+    icon,
+    active,
+  })),
+  {
+    label: 'Heads-up',
+    description: "Warn me before this comes up or if it's a likely topic of this game.",
+    icon: BellIcon,
+    active: plumActive,
+  },
+  {
+    label: 'Note',
+    description: 'Add private context for consent coordinators in my games.',
+    icon: Pencil2Icon,
+    active: 'bg-violet-9 text-white',
+  },
+];
+
 const toggleBase =
   'flex size-9 shrink-0 items-center justify-center rounded-md border border-sage-7 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-8 disabled:cursor-not-allowed disabled:opacity-40';
 function toggleStyle(active: boolean, activeStyle: string) {
   return `${toggleBase} ${active ? activeStyle : 'bg-sage-2 text-sage-11 hover:bg-sage-4'}`;
+}
+
+function ChecklistLegend({ compact }: { compact: boolean }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [clicked, setClicked] = useState<string | null>(null);
+  const activeLabel = hovered ?? clicked;
+  const activeItem = legend.find((item) => item.label === activeLabel);
+
+  return (
+    <div
+      aria-label="Checklist icon legend"
+      className={`relative mt-2 border-t border-sage-6 pt-2 text-xs text-sage-11 ${
+        compact ? 'flex flex-wrap items-center justify-end gap-x-3 gap-y-1' : 'flex flex-wrap gap-3'
+      }`}
+    >
+      {legend.map(({ label, description, icon: Icon, active }) =>
+        compact ? (
+          <button
+            key={label}
+            type="button"
+            className="flex items-center gap-1.5 rounded-md text-sage-12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-8"
+            aria-label={`${label}: ${description}`}
+            aria-expanded={activeLabel === label}
+            aria-controls={activeLabel === label ? 'checklist-legend-description' : undefined}
+            onMouseEnter={() => setHovered(label)}
+            onMouseLeave={() => setHovered(null)}
+            onClick={() => setClicked((current) => (current === label ? null : label))}
+            onBlur={() => setClicked(null)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setHovered(null);
+                setClicked(null);
+              }
+            }}
+          >
+            <span
+              className={`flex size-6 shrink-0 items-center justify-center rounded-md ${active}`}
+            >
+              <Icon aria-hidden="true" className="size-4" />
+            </span>
+            <span className="font-semibold leading-none">{label}</span>
+          </button>
+        ) : (
+          <div key={label} className="flex min-w-40 flex-1 items-start gap-2">
+            <span
+              className={`flex size-9 shrink-0 items-center justify-center rounded-md ${active}`}
+            >
+              <Icon aria-hidden="true" className="size-4" />
+            </span>
+            <span>
+              <strong className="font-semibold text-sage-12">{label}</strong>
+              <span className="block">{description}</span>
+            </span>
+          </div>
+        ),
+      )}
+      {compact && activeItem && (
+        <div
+          id="checklist-legend-description"
+          role="tooltip"
+          className="absolute top-full right-0 z-50 mt-1 w-64 max-w-full rounded-md border border-sage-7 bg-sage-2 p-2 text-sage-12 shadow-lg"
+        >
+          <strong>{activeItem.label}:</strong> {activeItem.description}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function initialDrafts(checklist: ChecklistData): Record<string, Draft> {
@@ -91,7 +190,31 @@ export default function ChecklistForm({
   const [saved, setSaved] = useState(false);
   const [openNotes, setOpenNotes] = useState<Record<string, boolean>>({});
   const [overallNoteOpen, setOverallNoteOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(true);
+  const [isSticky, setIsSticky] = useState(false);
+  const stickySentinel = useRef<HTMLDivElement>(null);
+  const stickyHeader = useRef<HTMLElement>(null);
   const { topics, guidance } = initialChecklist;
+
+  useEffect(() => {
+    const sentinel = stickySentinel.current;
+    const header = stickyHeader.current;
+    if (!sentinel || !header) return;
+
+    const onScroll = () => {
+      const distancePastStart = -sentinel.getBoundingClientRect().top;
+      setIsSticky((wasSticky) => {
+        // Wait until the expanded header has passed the viewport before shrinking.
+        // Keep it shrunk until we return to the start; this gap prevents layout
+        // changes and browser scroll anchoring from rapidly flipping modes.
+        if (wasSticky) return distancePastStart > 0;
+        return distancePastStart > Math.max(160, header.offsetHeight + 24);
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   const dirtyTopics = topics.filter((topic) => !sameDraft(drafts[topic.id], savedDrafts[topic.id]));
   const isDirty = dirtyTopics.length > 0 || overallNote !== savedOverallNote;
   const missing = missingConsentTopicIds(
@@ -142,7 +265,7 @@ export default function ChecklistForm({
     const canRequestHeadsUp = draft.answer === 'enthusiastic' || draft.answer === 'veil';
     const noteOpen = openNotes[topic.id] ?? false;
     return (
-      <fieldset className="min-w-0 border-b border-sage-6 last:border-0">
+      <fieldset className="min-w-0 border-b border-sage-7/60">
         <legend className="sr-only">{topic.name}</legend>
         <div className="flex items-center gap-2 py-1">
           <span className="min-w-0 flex-1 text-sm font-medium text-sage-12">{topic.name}</span>
@@ -174,12 +297,12 @@ export default function ChecklistForm({
             <button
               type="button"
               disabled={saving || !canRequestHeadsUp}
-              className={toggleStyle(draft.headsUp, 'bg-amber-9 text-white')}
+              className={toggleStyle(draft.headsUp, plumActive)}
               aria-label={`Heads-up for ${topic.name}`}
               title={
                 canRequestHeadsUp
                   ? `Heads-up for ${topic.name}`
-                  : 'Choose Enthusiastic consent or Veil to request a heads-up'
+                  : 'Choose All good or Veil to request a heads-up'
               }
               aria-pressed={draft.headsUp}
               onClick={() => updateDraft(topic.id, { headsUp: !draft.headsUp })}
@@ -222,10 +345,14 @@ export default function ChecklistForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3">
-      <header className="sticky top-0 z-30 rounded-lg border border-sage-7 bg-sage-2 p-2 shadow-lg md:p-3">
+      <div ref={stickySentinel} aria-hidden="true" className="h-px" />
+      <header
+        ref={stickyHeader}
+        className="sticky top-0 z-30 rounded-lg border border-sage-7 bg-sage-2 p-2 shadow-lg md:p-3"
+      >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-lg font-bold text-sage-12">My Content Checklist</h1>
+            <h2 className="text-lg font-bold text-sage-12">My Content Checklist</h2>
             <p className="text-xs text-sage-11">
               {missing.length === 0
                 ? 'All official topics covered'
@@ -237,38 +364,23 @@ export default function ChecklistForm({
             Save checklist
           </Button>
         </div>
-        <div
-          aria-label="Checklist icon legend"
-          className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-sage-6 pt-1 text-xs text-sage-11"
-        >
-          <span className="flex items-center gap-1">
-            <HeartFilledIcon aria-hidden="true" /> Enthusiastic
-          </span>
-          <span className="flex items-center gap-1">
-            <EyeClosedIcon aria-hidden="true" /> Veil
-          </span>
-          <span className="flex items-center gap-1">
-            <CrossCircledIcon aria-hidden="true" /> Hard line
-          </span>
-          <span className="flex items-center gap-1">
-            <BellIcon aria-hidden="true" /> Heads-up
-          </span>
-          <span className="flex items-center gap-1">
-            <Pencil2Icon aria-hidden="true" /> Note
-          </span>
-        </div>
+        <ChecklistLegend key={isSticky ? 'compact' : 'expanded'} compact={isSticky} />
         {error && (
           <Alert type="error" className="mt-2 p-2 text-sm">
             {error}{' '}
             {error.includes('Reload your checklist') && (
-              <a className="underline" href={`/g/${guildId}/checklist`}>
+              <a className="underline" href={`/g/${guildId}/preferences#content-checklist`}>
                 Reload your checklist
               </a>
             )}
           </Alert>
         )}
       </header>
-      <details className="rounded-lg border border-sage-6 bg-sage-2 p-3 text-sm">
+      <details
+        open={guideOpen}
+        onToggle={(event) => setGuideOpen(event.currentTarget.open)}
+        className="rounded-lg border border-sage-6 bg-sage-2 p-3 text-sm"
+      >
         <summary className="cursor-pointer font-medium text-sage-12">Checklist guidance</summary>
         <div className="mt-2">
           <MarkdownPreview content={guidance} />
