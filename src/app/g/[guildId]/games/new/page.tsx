@@ -60,7 +60,11 @@ export default async function NewGamePage({ params }: GuildRouteProps) {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">Create New Game</h1>
-      <GameForm eligibleMembers={membersResult.data} channels={channelsResult.data} />
+      <GameForm
+        eligibleMembers={membersResult.data}
+        channels={channelsResult.data}
+        showConsentMode={guildInfoResult.data.consentChecklistAvailable}
+      />
     </div>
   );
 }

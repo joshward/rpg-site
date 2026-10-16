@@ -77,6 +77,7 @@ export default async function EditGamePage({
         initialData={gameResult.data}
         eligibleMembers={membersResult.data}
         channels={channelsResult.data}
+        showConsentMode={guildInfoResult.data.consentChecklistAvailable}
       />
     </div>
   );

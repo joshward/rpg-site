@@ -6,6 +6,8 @@ import { db } from '@/db/db';
 import { asResult, ActionError } from '@/actions/action-helpers';
 import { ensureAdmin, ensureAccess } from '@/actions/auth-helpers';
 import { game, gameMember, gameStatusEnum, GameStatus, scheduledSession } from '@/db/schema/games';
+import { gameConsentModeEnum, type GameConsentMode } from '@/lib/consent/game-modes';
+import { canAccessGuildConsent } from '@/lib/consent/feature-gate';
 import { availabilitySubmission, availabilityDay } from '@/db/schema/availability';
 import { AvailabilityStatus } from '@/actions/availability';
 import { memberPreference } from '@/db/schema/member-preferences';
@@ -275,10 +277,27 @@ export const getGame = asResult(
   'Something went wrong fetching the game.',
 );
 
+function validateGameConsentMode(
+  mode: unknown,
+  access: Awaited<ReturnType<typeof ensureAdmin>>,
+): GameConsentMode | undefined {
+  // An omitted field means this form did not offer consent settings. Preserve
+  // existing modes rather than resetting them when the feature or guild is Off.
+  if (mode === undefined) return undefined;
+  if (access.isImpersonating || !canAccessGuildConsent(access.guildData?.consentEnabled === true)) {
+    throw new ActionError('Game consent settings are not available.');
+  }
+  if (typeof mode !== 'string' || !gameConsentModeEnum.some((option) => option === mode)) {
+    throw new ActionError('Choose a valid consent mode.');
+  }
+  return mode as GameConsentMode;
+}
+
 export type GameFormData = {
   name: string;
   description: string | null;
   status: GameStatus;
+  consentMode?: GameConsentMode;
   sessionsPerMonth: number;
   discordChannelId?: string | null;
   discordChannelName?: string | null;
@@ -294,7 +313,8 @@ export type GameFormData = {
 export const createGame = asResult(
   'createGame',
   async (guildId: string, data: GameFormData) => {
-    await ensureAdmin(guildId);
+    const access = await ensureAdmin(guildId);
+    const consentMode = validateGameConsentMode(data.consentMode, access);
 
     // Validate data
     if (!data.name) throw new ActionError('Game name is required.');
@@ -309,6 +329,7 @@ export const createGame = asResult(
           name: data.name,
           description: data.description,
           status: data.status,
+          ...(consentMode !== undefined ? { consentMode } : {}),
           sessionsPerMonth: data.sessionsPerMonth,
           discordChannelId: data.discordChannelId,
           discordChannelName: data.discordChannelName,
@@ -340,7 +361,8 @@ export const createGame = asResult(
 export const updateGame = asResult(
   'updateGame',
   async (guildId: string, gameId: string, data: GameFormData) => {
-    await ensureAdmin(guildId);
+    const access = await ensureAdmin(guildId);
+    const consentMode = validateGameConsentMode(data.consentMode, access);
 
     // Validate data
     if (!data.name) throw new ActionError('Game name is required.');
@@ -366,6 +388,7 @@ export const updateGame = asResult(
           name: data.name,
           description: data.description,
           status: data.status,
+          ...(consentMode !== undefined ? { consentMode } : {}),
           sessionsPerMonth: data.sessionsPerMonth,
           discordChannelId: data.discordChannelId,
           discordChannelName: data.discordChannelName,
