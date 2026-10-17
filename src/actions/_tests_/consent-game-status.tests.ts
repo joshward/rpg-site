@@ -3,6 +3,7 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 
 const mocks = vi.hoisted(() => ({
   ensureAdmin: vi.fn(),
+  context: vi.fn(),
   select: vi.fn(),
   responseWhere: vi.fn(),
   guildMembers: vi.fn(),
@@ -11,7 +12,10 @@ const mocks = vi.hoisted(() => ({
   memberRows: [] as unknown[],
   responseRows: [] as unknown[],
 }));
-vi.mock('@/actions/auth-helpers', () => ({ ensureAdmin: mocks.ensureAdmin }));
+vi.mock('@/actions/auth-helpers', () => ({
+  ensureAdmin: mocks.ensureAdmin,
+  getEffectiveUserContext: mocks.context,
+}));
 vi.mock('@/db/db', () => ({ db: { select: mocks.select } }));
 vi.mock('@/lib/discord/api', () => ({
   getGuildMembers: mocks.guildMembers,
@@ -35,6 +39,7 @@ beforeEach(() => {
     isImpersonating: false,
     guildData: { consentEnabled: true },
   });
+  mocks.context.mockResolvedValue({ isImpersonating: false });
   mocks.gameRows = [{ id: 'game-1', name: 'Game', consentMode: 'optional' }];
   mocks.topicRows = topics;
   mocks.memberRows = [{ discordUserId: 'ada' }, { discordUserId: 'bob' }, { discordUserId: 'cy' }];
@@ -111,6 +116,15 @@ describe('admin-only game consent status', () => {
       new Error('Only guild administrators can perform this action.'),
     );
     expect((await getGameConsentStatus('guild-1', 'game-1')).type).toBe('failure');
+    expect(mocks.select).not.toHaveBeenCalled();
+  });
+
+  it('denies active cross-guild impersonation even if ensureAdmin falls back to the real admin', async () => {
+    // The impersonated user has no access to guild-1, so ensureAdmin reports
+    // the real admin and isImpersonating: false. The cookie context is active.
+    mocks.context.mockResolvedValueOnce({ isImpersonating: true });
+    expect((await getGameConsentStatus('guild-1', 'game-1')).type).toBe('failure');
+    expect(mocks.context).toHaveBeenCalledWith('guild-1');
     expect(mocks.select).not.toHaveBeenCalled();
   });
 

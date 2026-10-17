@@ -5,7 +5,7 @@ import { db } from '@/db/db';
 import { game, gameMember } from '@/db/schema/games';
 import { consentTopic } from '@/db/schema/consent-topics';
 import { consentResponse } from '@/db/schema/consent-responses';
-import { ensureAdmin } from '@/actions/auth-helpers';
+import { ensureAdmin, getEffectiveUserContext } from '@/actions/auth-helpers';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { canAccessGameConsent, canAccessGuildConsent } from '@/lib/consent/feature-gate';
 import { missingConsentTopicIdsFromAnsweredTopics } from '@/lib/consent/completeness';
@@ -18,7 +18,13 @@ export const getGameConsentStatus = asResult(
   'getGameConsentStatus',
   async (guildId: string, gameId: string) => {
     const access = await ensureAdmin(guildId);
+    // ensureAccess can fall back to the real admin when the impersonated user
+    // cannot access this guild. The active impersonation must still block this
+    // private status read, including calls that bypass the page.
+    const context = await getEffectiveUserContext(guildId);
     if (
+      !context ||
+      context.isImpersonating ||
       access.isImpersonating ||
       !canAccessGuildConsent(access.guildData?.consentEnabled === true)
     ) {
