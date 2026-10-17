@@ -5,7 +5,7 @@ import { db } from '@/db/db';
 import { game, gameMember } from '@/db/schema/games';
 import { consentTopic } from '@/db/schema/consent-topics';
 import { consentResponse } from '@/db/schema/consent-responses';
-import { ensureAdmin, getEffectiveUserContext } from '@/actions/auth-helpers';
+import { ensureAccess, getEffectiveUserContext } from '@/actions/auth-helpers';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { canAccessGameConsent, canAccessGuildConsent } from '@/lib/consent/feature-gate';
 import { missingConsentTopicIdsFromAnsweredTopics } from '@/lib/consent/completeness';
@@ -17,7 +17,7 @@ import { TimeSpan } from 'timespan-ts';
 export const getGameConsentStatus = asResult(
   'getGameConsentStatus',
   async (guildId: string, gameId: string) => {
-    const access = await ensureAdmin(guildId);
+    const access = await ensureAccess(guildId);
     // ensureAccess can fall back to the real admin when the impersonated user
     // cannot access this guild. The active impersonation must still block this
     // private status read, including calls that bypass the page.
@@ -39,6 +39,20 @@ export const getGameConsentStatus = asResult(
     if (!selectedGame) throw new ActionError('Game not found.');
     if (!canAccessGameConsent(true, selectedGame.consentMode)) {
       throw new ActionError('Game consent status is not available.');
+    }
+
+    if (access.role !== 'admin') {
+      const [assignment] = await db
+        .select({ id: gameMember.id })
+        .from(gameMember)
+        .where(
+          and(
+            eq(gameMember.gameId, selectedGame.id),
+            eq(gameMember.discordUserId, access.discordAccount.userId),
+            eq(gameMember.isConsentCoordinator, true),
+          ),
+        );
+      if (!assignment) throw new ActionError('Game consent status is not available.');
     }
 
     const topics = await db

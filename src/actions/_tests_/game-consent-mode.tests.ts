@@ -1,19 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
 
 const mocks = vi.hoisted(() => ({
   ensureAdmin: vi.fn(),
+  context: vi.fn(),
   transaction: vi.fn(),
   select: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
   delete: vi.fn(),
+  deleteWhere: vi.fn(),
   inserted: vi.fn(),
+  conflict: vi.fn(),
   updated: vi.fn(),
   revalidatePath: vi.fn(),
 }));
 vi.mock('@/actions/auth-helpers', () => ({
   ensureAdmin: mocks.ensureAdmin,
   ensureAccess: vi.fn(),
+  getEffectiveUserContext: mocks.context,
 }));
 vi.mock('@/db/db', () => ({ db: { transaction: mocks.transaction } }));
 vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath }));
@@ -37,6 +42,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv('CONSENT_FEATURE_ENABLED', 'true');
   vi.spyOn(console, 'error').mockImplementation(() => {});
+  mocks.context.mockResolvedValue({ isImpersonating: false });
   mocks.ensureAdmin.mockResolvedValue({
     guildData: { consentEnabled: true },
     isImpersonating: false,
@@ -44,7 +50,7 @@ beforeEach(() => {
   mocks.insert.mockReturnValue({
     values: (value: unknown) => {
       mocks.inserted(value);
-      return { returning: async () => [{ id: 'game-1' }] };
+      return { returning: async () => [{ id: 'game-1' }], onConflictDoUpdate: mocks.conflict };
     },
   });
   mocks.select.mockReturnValue({ from: () => ({ where: async () => [{ id: 'game-1' }] }) });
@@ -54,7 +60,7 @@ beforeEach(() => {
       return { where: () => ({ returning: async () => [{ id: 'game-1' }] }) };
     },
   });
-  mocks.delete.mockReturnValue({ where: async () => undefined });
+  mocks.delete.mockReturnValue({ where: mocks.deleteWhere });
   mocks.transaction.mockImplementation((callback) =>
     callback({
       insert: mocks.insert,
@@ -95,6 +101,44 @@ describe('consent mode in game saves', () => {
       consentMode: 'requested',
     });
     expect(mocks.transaction).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves coordinator assignments when membership flags are omitted', async () => {
+    const member = { discordUserId: 'player-1', isRequired: true };
+    expect((await updateGame('guild-1', 'game-1', { ...data, members: [member] })).type).toBe(
+      'success',
+    );
+    const inserted = mocks.inserted.mock.calls[0][0];
+    expect(inserted).toEqual([{ gameId: 'game-1', discordUserId: 'player-1', isRequired: true }]);
+    expect(Object.keys(mocks.conflict.mock.calls[0][0].set)).toEqual(['isRequired']);
+    const deletion = new PgDialect().sqlToQuery(mocks.deleteWhere.mock.calls[0][0]);
+    expect(deletion.sql).toContain('not in');
+    expect(deletion.params).toEqual(['game-1', 'player-1']);
+  });
+
+  it('saves coordinator checkboxes in the same game transaction', async () => {
+    const members = [{ discordUserId: 'player-1', isRequired: true, isConsentCoordinator: true }];
+    expect((await updateGame('guild-1', 'game-1', { ...data, members })).type).toBe('success');
+    expect(mocks.updated).toHaveBeenLastCalledWith({ isConsentCoordinator: true });
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects forged coordinator flags for unavailable consent, impersonation or invalid values', async () => {
+    const members = [{ discordUserId: 'player-1', isRequired: true, isConsentCoordinator: true }];
+    vi.stubEnv('CONSENT_FEATURE_ENABLED', undefined);
+    expect((await updateGame('guild-1', 'game-1', { ...data, members })).type).toBe('failure');
+    vi.stubEnv('CONSENT_FEATURE_ENABLED', 'true');
+    mocks.context.mockResolvedValueOnce({ isImpersonating: true });
+    expect((await createGame('guild-1', { ...data, members })).type).toBe('failure');
+    expect(
+      (
+        await createGame('guild-1', {
+          ...data,
+          members: [{ ...members[0], isConsentCoordinator: 'yes' as never }],
+        })
+      ).type,
+    ).toBe('failure');
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it('rejects forged mode changes when the feature or guild is Off or during impersonation', async () => {

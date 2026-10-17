@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { ClipboardIcon } from '@radix-ui/react-icons';
 import { notFound } from 'next/navigation';
 import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
@@ -77,7 +78,13 @@ export default async function EditGamePage({
       <h1 className="text-2xl font-bold">Edit Game: {gameResult.data.name}</h1>
       {guildInfoResult.data.consentChecklistAvailable &&
         canAccessGameConsent(true, gameResult.data.consentMode) && (
-          <Link href={`/g/${guildId}/games/${gameId}/consent`}>View consent status</Link>
+          <Link
+            href={`/g/${guildId}/games/${gameId}/consent`}
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
+          >
+            <ClipboardIcon aria-hidden="true" className="size-4" />
+            View consent status
+          </Link>
         )}
       <GameForm
         initialData={gameResult.data}

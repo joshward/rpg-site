@@ -34,7 +34,7 @@ describe('game consent status page', () => {
   it('denies non-admins and hidden guild/feature/impersonation before fetching status', async () => {
     mocks.info.mockResolvedValueOnce({
       type: 'success',
-      data: { role: 'member', consentChecklistAvailable: true },
+      data: { role: 'none', consentChecklistAvailable: false },
     });
     await expect(GameConsentStatusPage(props)).rejects.toThrow('not found');
     mocks.info.mockResolvedValueOnce({
@@ -59,6 +59,16 @@ describe('game consent status page', () => {
     expect(screen.getByText('Player')).toBeInTheDocument();
     expect(screen.getByText('Complete')).toBeInTheDocument();
     expect(screen.queryByText('private note')).not.toBeInTheDocument();
+  });
+
+  it('allows an assigned member through the page when the server read authorizes them', async () => {
+    mocks.info.mockResolvedValueOnce({
+      type: 'success',
+      data: { role: 'member', consentChecklistAvailable: true },
+    });
+    render(await GameConsentStatusPage(props));
+    expect(screen.getByText('Complete')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/g/guild-1');
   });
 
   it('shows an empty game without inventing completion statuses', async () => {

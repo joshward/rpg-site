@@ -6,7 +6,7 @@ import Link from '@/components/Link';
 import MarkdownPreview from '@/components/MarkdownPreview';
 import { GameStatus } from '@/db/schema/games';
 import { twMerge } from 'tailwind-merge';
-import { ChevronDownIcon, ChevronUpIcon } from '@radix-ui/react-icons';
+import { ChevronDownIcon, ChevronUpIcon, ClipboardIcon } from '@radix-ui/react-icons';
 import { STATUS_MAP, UNSET_OPTION } from '../availability/_components/availability-status';
 import { AvailabilityStatus } from '@/actions/availability';
 
@@ -28,6 +28,7 @@ interface Game {
   discordChannelName?: string | null;
   schedulingDetails?: string | null;
   isRequired: boolean;
+  canViewConsentStatus?: boolean;
   scheduledDates?: {
     year: number;
     month: number;
@@ -270,8 +271,18 @@ function UserGameItem({
               )}
             </div>
           </div>
+          {game.canViewConsentStatus && (
+            <Link
+              href={`/g/${guildId}/games/${game.id}/consent`}
+              className="mt-2 inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <ClipboardIcon aria-hidden="true" className="size-4" />
+              View consent status
+            </Link>
+          )}
         </div>
-        <div className="flex items-center justify-end gap-2 text-sage-11">
+        <div className="flex items-center justify-end gap-2 text-sage-11 sm:self-end">
           <span className="text-sm font-medium">
             {isExpanded ? 'Hide Details' : 'Show Details'}
           </span>
