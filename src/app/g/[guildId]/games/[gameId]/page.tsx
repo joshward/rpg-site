@@ -2,10 +2,12 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
+import Link from '@/components/Link';
 import { getEligibleGameMembers, getGame } from '@/actions/games';
 import { getGuildChannelsAction, getGuildInfo } from '@/actions/guilds';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
+import { canAccessGameConsent } from '@/lib/consent/feature-gate';
 import { GuildRouteProps, getGuildName } from '../../helpers';
 import GameForm from '../_components/GameForm';
 
@@ -73,6 +75,10 @@ export default async function EditGamePage({
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">Edit Game: {gameResult.data.name}</h1>
+      {guildInfoResult.data.consentChecklistAvailable &&
+        canAccessGameConsent(true, gameResult.data.consentMode) && (
+          <Link href={`/g/${guildId}/games/${gameId}/consent`}>View consent status</Link>
+        )}
       <GameForm
         initialData={gameResult.data}
         eligibleMembers={membersResult.data}

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 const mocks = vi.hoisted(() => ({
@@ -41,6 +41,8 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => vi.unstubAllEnvs());
+
 describe('edit game page consent dropdown', () => {
   it('hides consent controls when the server feature, guild or impersonation hides them', async () => {
     mocks.info.mockResolvedValueOnce({
@@ -64,6 +66,25 @@ describe('edit game page consent dropdown', () => {
         initialData: expect.objectContaining({ consentMode: 'requested' }),
       }),
     );
+  });
+
+  it('links to status only when the feature, guild and game mode all allow it', async () => {
+    vi.stubEnv('CONSENT_FEATURE_ENABLED', 'true');
+    mocks.game.mockResolvedValueOnce({
+      type: 'success',
+      data: { name: 'Game', consentMode: 'optional' },
+    });
+    render(await EditGamePage(props));
+    expect(screen.getByRole('link', { name: 'View consent status' })).toHaveAttribute(
+      'href',
+      '/g/guild-1/games/game-1/consent',
+    );
+  });
+
+  it('does not link to status for an Off game even when guild consent is enabled', async () => {
+    vi.stubEnv('CONSENT_FEATURE_ENABLED', 'true');
+    render(await EditGamePage(props));
+    expect(screen.queryByRole('link', { name: 'View consent status' })).not.toBeInTheDocument();
   });
 
   it('denies non-admin access before fetching a game', async () => {

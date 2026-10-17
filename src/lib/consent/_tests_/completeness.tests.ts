@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { missingConsentTopicIds } from '../completeness';
+import { missingConsentTopicIds, missingConsentTopicIdsFromAnsweredTopics } from '../completeness';
 
 const topics = [
   { id: 'parent', parentTopicId: null },
@@ -26,6 +26,14 @@ describe('guild checklist completeness', () => {
         { topicId: 'other', answer: 'veil' },
       ]),
     ).toEqual([]);
+  });
+
+  it('derives the same result from answer presence without needing private answer values', () => {
+    expect(missingConsentTopicIdsFromAnsweredTopics(topics, ['parent', 'other'])).toEqual([]);
+    expect(missingConsentTopicIdsFromAnsweredTopics(topics, ['child'])).toEqual([
+      'parent',
+      'other',
+    ]);
   });
 
   it('does not count note-only responses as consent, but still inherits an answered parent', () => {
