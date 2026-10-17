@@ -6,7 +6,7 @@ import Link from '@/components/Link';
 import MarkdownPreview from '@/components/MarkdownPreview';
 import { GameStatus } from '@/db/schema/games';
 import { twMerge } from 'tailwind-merge';
-import { ChevronDownIcon, ChevronUpIcon } from '@radix-ui/react-icons';
+import { ChevronDownIcon, ChevronUpIcon, ClipboardIcon } from '@radix-ui/react-icons';
 import { STATUS_MAP, UNSET_OPTION } from '../availability/_components/availability-status';
 import { AvailabilityStatus } from '@/actions/availability';
 
@@ -204,14 +204,6 @@ function UserGameItem({
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-lg font-bold leading-tight">{game.name}</h3>
-            {game.canViewConsentStatus && (
-              <Link
-                href={`/g/${guildId}/games/${game.id}/consent`}
-                onClick={(event) => event.stopPropagation()}
-              >
-                View consent status
-              </Link>
-            )}
             <span
               className={twMerge(
                 'px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border leading-none',
@@ -279,6 +271,16 @@ function UserGameItem({
               )}
             </div>
           </div>
+          {game.canViewConsentStatus && (
+            <Link
+              href={`/g/${guildId}/games/${game.id}/consent`}
+              className="mt-2 inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <ClipboardIcon aria-hidden="true" className="size-4" />
+              View consent status
+            </Link>
+          )}
         </div>
         <div className="flex items-center justify-end gap-2 text-sage-11">
           <span className="text-sm font-medium">
