@@ -36,9 +36,7 @@ describe('availability checklist prompt', () => {
   it('uses the same banner and checklist link for the signed-in player', async () => {
     render(await AvailabilityPage(props));
     expect(
-      screen.getByText(
-        "One or more of the games you're in request a completed content checklist.",
-      ),
+      screen.getByText("One or more of the games you're in request a completed content checklist."),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Please complete your checklist.' })).toHaveAttribute(
       'href',
