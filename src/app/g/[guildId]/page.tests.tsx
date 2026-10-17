@@ -28,8 +28,10 @@ beforeEach(() => {
 describe('guild overview checklist prompt', () => {
   it('renders one banner linking directly to the checklist', async () => {
     render(await GuildPage(props));
-    expect(screen.getAllByRole('link', { name: 'Complete your checklist' })).toHaveLength(1);
-    expect(screen.getByRole('link', { name: 'Complete your checklist' })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: 'Please complete your checklist.' })).toHaveLength(
+      1,
+    );
+    expect(screen.getByRole('link', { name: 'Please complete your checklist.' })).toHaveAttribute(
       'href',
       '/g/guild-1/preferences#content-checklist',
     );
@@ -41,7 +43,9 @@ describe('guild overview checklist prompt', () => {
     });
     render(await GuildPage(props));
     expect(mocks.prompt).not.toHaveBeenCalled();
-    expect(screen.queryByRole('link', { name: 'Complete your checklist' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Please complete your checklist.' }),
+    ).not.toBeInTheDocument();
   });
   it.each([
     { type: 'success', data: false },
@@ -49,7 +53,9 @@ describe('guild overview checklist prompt', () => {
   ])('does not invent a prompt on a false/failed eligibility read', async (result) => {
     mocks.prompt.mockResolvedValueOnce(result);
     render(await GuildPage(props));
-    expect(screen.queryByRole('link', { name: 'Complete your checklist' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Please complete your checklist.' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText('Your games')).toBeInTheDocument();
   });
 });

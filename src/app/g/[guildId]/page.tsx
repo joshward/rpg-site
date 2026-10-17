@@ -13,6 +13,7 @@ import { NO_LIMIT } from '@/lib/preferences';
 import { getNextMonth, isLast10DaysOfCurrentMonth, formatMonthYear } from '@/lib/availability';
 import { GuildRouteProps, getGuildName, getContactInfo } from './helpers';
 import UserGameList from './_components/UserGameList';
+import ConsentChecklistBanner from './_components/ConsentChecklistBanner';
 import UserSchedule from './_components/UserSchedule';
 import MarkdownPreview from '@/components/MarkdownPreview';
 import { ReactNode } from 'react';
@@ -49,13 +50,7 @@ export default async function GuildPage({ params }: GuildRouteProps) {
   if (guildData?.consentChecklistAvailable) {
     const prompt = await getMyConsentPrompt(guildId);
     if (!isFailure(prompt) && prompt.data) {
-      banners.push(
-        <Alert key="consent-checklist" type="info">
-          One or more of your games requests a completed guild content checklist.{' '}
-          <Link href={`/g/${guildId}/preferences#content-checklist`}>Complete your checklist</Link>.{' '}
-          Checklist completion does not indicate consent to a particular game.
-        </Alert>,
-      );
+      banners.push(<ConsentChecklistBanner key="consent-checklist" guildId={guildId} />);
     }
   }
 

@@ -7,6 +7,8 @@ import {
   type DayAvailability,
 } from '@/actions/availability';
 import { getGuildInfo } from '@/actions/guilds';
+import { getMyConsentPrompt } from '@/actions/consent-prompt';
+import ConsentChecklistBanner from '../_components/ConsentChecklistBanner';
 import { getMemberGames } from '@/actions/games';
 import { getMyPreference, getAdminMemberPreference } from '@/actions/preferences';
 import { isFailure } from '@/actions/result';
@@ -135,8 +137,16 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
     }
   }
 
+  const consentPrompt =
+    !targetUserId && guildData?.consentChecklistAvailable
+      ? await getMyConsentPrompt(guildId)
+      : null;
+
   return (
     <div className="flex flex-col gap-4">
+      {consentPrompt && !isFailure(consentPrompt) && consentPrompt.data && (
+        <ConsentChecklistBanner guildId={guildId} />
+      )}
       {targetMember && (
         <Alert type="info">
           You are editing availability for <strong>{targetMember.displayName}</strong>.
