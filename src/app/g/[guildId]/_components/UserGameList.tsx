@@ -282,7 +282,7 @@ function UserGameItem({
             </Link>
           )}
         </div>
-        <div className="flex items-center justify-end gap-2 text-sage-11">
+        <div className="flex items-center justify-end gap-2 text-sage-11 sm:self-end">
           <span className="text-sm font-medium">
             {isExpanded ? 'Hide Details' : 'Show Details'}
           </span>
