@@ -95,12 +95,20 @@ if ($LASTEXITCODE -ne 0 -or -not $pooled) { throw 'Could not verify the pooled l
 try {
   $target = [uri]$env:DATABASE_URL
   $hosts = @(([uri]$direct.Trim()).Host, ([uri]$pooled.Trim()).Host)
+  # PG-compatible clients can override the URI host via query keys (e.g. ?host=...).
+  # Compare raw pairs so even percent-encoded keys fail closed; only Neon TLS
+  # options are allowed, and never allow a fragment.
+  $allowedQueryPairs = @('sslmode=require', 'channel_binding=require')
+  $queryPairs = $target.Query.TrimStart('?').Split('&')
+  $safeQuery = -not $target.Query -or
+    @($queryPairs | Where-Object { $_ -cnotin $allowedQueryPairs }).Count -eq 0
   $isLocal = $target.Scheme -in @('postgres', 'postgresql') -and
-    $target.Host -in $hosts -and $target.AbsolutePath.Trim('/') -eq 'neondb'
+    $target.Host -in $hosts -and $target.AbsolutePath.Trim('/') -eq 'neondb' -and
+    $safeQuery -and -not $target.Fragment
 } catch {
   throw 'DATABASE_URL is not a valid Neon local database URL.'
 }
-if (-not $isLocal) { throw 'DATABASE_URL does not target the Neon local neondb database.' }
+if (-not $isLocal) { throw 'DATABASE_URL is not the Neon local neondb database or has unsupported connection options.' }
 Write-Output 'Verified: Neon local child branch and resolved development database.'
 
 $env:SITE_URL = 'http://localhost:3000'
