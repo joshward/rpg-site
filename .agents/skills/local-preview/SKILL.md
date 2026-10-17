@@ -1,0 +1,18 @@
+---
+name: local-preview
+description: Start or stop the Tavern Master local app for human smoke tests in a second terminal tab of the current Pane. Use for local dev previews, consent testing, and requests to run the app.
+---
+
+# Tavern Master local preview (Windows Pane)
+
+Read `AGENTS.md` first. This workflow never uses production credentials or resets a Neon branch.
+
+1. **Ask the human for approval before any `op` command**, for each new preview session. Do not infer approval from an earlier run. Ensure the PR/worktree has the desired code, no other app is listening on port 3000, and inspect new `drizzle/*.sql` and `drizzle/meta` changes before approving migrations.
+2. From the current worktree, check `runpane doctor --json` and `runpane agent-context --json`, then `runpane agent-context --command "panels create" --json`. If Pane is unreachable, stop and tell the human; do not fall back to a hidden background process. Confirm `PANE_SESSION_ID` identifies the current Pane. Follow the installed `pane` skill for Pane commands.
+3. Once approved, run this from a Windows Pane terminal (no `.env.local` copy needed):
+   `runpane panels create --pane "$env:PANE_SESSION_ID" --tool-command "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -Approved" --title "Local preview" --source agent --no-focus --wait-ready --yes --json`
+   Record the returned panel ID. The new panel shares this Pane's worktree and keeps the server in the foreground. Do not launch a new Pane/worktree for the server.
+4. Use `runpane panels screen --panel <panel-id> --limit 60 --json` or `runpane panels wait --panel <panel-id> --for text --contains "Ready in" --json` to verify Next is ready. Check `http://localhost:3000` returns HTTP 200 before telling the human. Optionally show it using `runpane panels open --url http://localhost:3000 --source agent --yes --json`. Never paste a resolved URL, secret, connection string, or logs that might contain user data into chat.
+5. Leave the panel running for the smoke test. When the human is done, stop it with Ctrl-C in that terminal tab, then confirm port 3000 is no longer listening. Do not delete the base repository's ignored `.env.local` or `.neon` context.
+
+The launcher `scripts/local-preview.ps1` uses the base repository's ignored `.env.local` and `.neon` context, validates that the resolved `DATABASE_URL` hostname belongs to the non-default, non-protected Neon `local` child branch's `neondb` database, then sets local-only `SITE_URL` and `CONSENT_FEATURE_ENABLED=true`. Only after verification does it run `npm run db:migrate` and `npm run dev` **inside the single 1Password-populated process**. Outside that process, use the project's `!` scripts instead. The launcher requires `-Approved`, fails closed on missing context or verification failures, and never prints secrets.
