@@ -5,6 +5,7 @@ import Link from '@/components/Link';
 import { getGuildInfo } from '@/actions/guilds';
 import { getMyPreference } from '@/actions/preferences';
 import { getMyGames } from '@/actions/games';
+import { getMyConsentPrompt } from '@/actions/consent-prompt';
 import { getMyAvailability } from '@/actions/availability';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
@@ -43,6 +44,20 @@ export default async function GuildPage({ params }: GuildRouteProps) {
     guildData?.supportChannelName,
     guildData?.adminContactInfo,
   );
+
+  // A single self-only prompt, irrespective of how many Requested games qualify.
+  if (guildData?.consentChecklistAvailable) {
+    const prompt = await getMyConsentPrompt(guildId);
+    if (!isFailure(prompt) && prompt.data) {
+      banners.push(
+        <Alert key="consent-checklist" type="info">
+          One or more of your games requests a completed guild content checklist.{' '}
+          <Link href={`/g/${guildId}/preferences#content-checklist`}>Complete your checklist</Link>.{' '}
+          Checklist completion does not indicate consent to a particular game.
+        </Alert>,
+      );
+    }
+  }
 
   // 1. Availability alert (only in last 7 days and if not filled)
   if (
