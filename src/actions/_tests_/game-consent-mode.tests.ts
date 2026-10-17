@@ -3,6 +3,7 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 
 const mocks = vi.hoisted(() => ({
   ensureAdmin: vi.fn(),
+  context: vi.fn(),
   transaction: vi.fn(),
   select: vi.fn(),
   insert: vi.fn(),
@@ -17,6 +18,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/actions/auth-helpers', () => ({
   ensureAdmin: mocks.ensureAdmin,
   ensureAccess: vi.fn(),
+  getEffectiveUserContext: mocks.context,
 }));
 vi.mock('@/db/db', () => ({ db: { transaction: mocks.transaction } }));
 vi.mock('next/cache', () => ({ revalidatePath: mocks.revalidatePath }));
@@ -40,6 +42,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv('CONSENT_FEATURE_ENABLED', 'true');
   vi.spyOn(console, 'error').mockImplementation(() => {});
+  mocks.context.mockResolvedValue({ isImpersonating: false });
   mocks.ensureAdmin.mockResolvedValue({
     guildData: { consentEnabled: true },
     isImpersonating: false,
@@ -100,8 +103,8 @@ describe('consent mode in game saves', () => {
     expect(mocks.transaction).toHaveBeenCalledTimes(2);
   });
 
-  it('preserves coordinator assignments on retained memberships without accepting assignments from the payload', async () => {
-    const member = { discordUserId: 'player-1', isRequired: true, isConsentCoordinator: true };
+  it('preserves coordinator assignments when membership flags are omitted', async () => {
+    const member = { discordUserId: 'player-1', isRequired: true };
     expect((await updateGame('guild-1', 'game-1', { ...data, members: [member] })).type).toBe(
       'success',
     );
@@ -111,6 +114,31 @@ describe('consent mode in game saves', () => {
     const deletion = new PgDialect().sqlToQuery(mocks.deleteWhere.mock.calls[0][0]);
     expect(deletion.sql).toContain('not in');
     expect(deletion.params).toEqual(['game-1', 'player-1']);
+  });
+
+  it('saves coordinator checkboxes in the same game transaction', async () => {
+    const members = [{ discordUserId: 'player-1', isRequired: true, isConsentCoordinator: true }];
+    expect((await updateGame('guild-1', 'game-1', { ...data, members })).type).toBe('success');
+    expect(mocks.updated).toHaveBeenLastCalledWith({ isConsentCoordinator: true });
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects forged coordinator flags for unavailable consent, impersonation or invalid values', async () => {
+    const members = [{ discordUserId: 'player-1', isRequired: true, isConsentCoordinator: true }];
+    vi.stubEnv('CONSENT_FEATURE_ENABLED', undefined);
+    expect((await updateGame('guild-1', 'game-1', { ...data, members })).type).toBe('failure');
+    vi.stubEnv('CONSENT_FEATURE_ENABLED', 'true');
+    mocks.context.mockResolvedValueOnce({ isImpersonating: true });
+    expect((await createGame('guild-1', { ...data, members })).type).toBe('failure');
+    expect(
+      (
+        await createGame('guild-1', {
+          ...data,
+          members: [{ ...members[0], isConsentCoordinator: 'yes' as never }],
+        })
+      ).type,
+    ).toBe('failure');
+    expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
   it('rejects forged mode changes when the feature or guild is Off or during impersonation', async () => {

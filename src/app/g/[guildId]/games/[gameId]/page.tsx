@@ -10,7 +10,6 @@ import { getDefaultMetadata } from '@/lib/metadata';
 import { canAccessGameConsent } from '@/lib/consent/feature-gate';
 import { GuildRouteProps, getGuildName } from '../../helpers';
 import GameForm from '../_components/GameForm';
-import ConsentCoordinators from '../_components/ConsentCoordinators';
 
 export async function generateMetadata({ params }: GuildRouteProps): Promise<Metadata> {
   const { guildId } = await params;
@@ -79,20 +78,6 @@ export default async function EditGamePage({
       {guildInfoResult.data.consentChecklistAvailable &&
         canAccessGameConsent(true, gameResult.data.consentMode) && (
           <Link href={`/g/${guildId}/games/${gameId}/consent`}>View consent status</Link>
-        )}
-      {guildInfoResult.data.consentChecklistAvailable &&
-        canAccessGameConsent(true, gameResult.data.consentMode) && (
-          <ConsentCoordinators
-            guildId={guildId}
-            gameId={gameId}
-            members={gameResult.data.members.map((member) => ({
-              discordUserId: member.discordUserId,
-              isConsentCoordinator: member.isConsentCoordinator,
-              displayName:
-                membersResult.data.find((m) => m.discordUserId === member.discordUserId)
-                  ?.displayName ?? 'Unknown member',
-            }))}
-          />
         )}
       <GameForm
         initialData={gameResult.data}

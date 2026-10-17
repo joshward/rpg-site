@@ -303,6 +303,26 @@ function validateGameConsentMode(
   return mode as GameConsentMode;
 }
 
+async function validateCoordinatorAssignments(
+  data: GameFormData,
+  access: Awaited<ReturnType<typeof ensureAdmin>>,
+) {
+  const submitted = data.members.filter((member) => member.isConsentCoordinator !== undefined);
+  if (!submitted.length) return;
+  const context = await getEffectiveUserContext();
+  if (
+    !context ||
+    context.isImpersonating ||
+    access.isImpersonating ||
+    !canAccessGuildConsent(access.guildData?.consentEnabled === true)
+  ) {
+    throw new ActionError('Coordinator assignments are not available.');
+  }
+  if (submitted.some((member) => typeof member.isConsentCoordinator !== 'boolean')) {
+    throw new ActionError('Invalid coordinator assignment.');
+  }
+}
+
 export type GameFormData = {
   name: string;
   description: string | null;
@@ -317,6 +337,7 @@ export type GameFormData = {
   members: {
     discordUserId: string;
     isRequired: boolean;
+    isConsentCoordinator?: boolean;
   }[];
 };
 
@@ -325,6 +346,7 @@ export const createGame = asResult(
   async (guildId: string, data: GameFormData) => {
     const access = await ensureAdmin(guildId);
     const consentMode = validateGameConsentMode(data.consentMode, access);
+    await validateCoordinatorAssignments(data, access);
 
     // Validate data
     if (!data.name) throw new ActionError('Game name is required.');
@@ -355,6 +377,7 @@ export const createGame = asResult(
             gameId: newGame.id,
             discordUserId: m.discordUserId,
             isRequired: m.isRequired,
+            isConsentCoordinator: m.isConsentCoordinator ?? false,
           })),
         );
       }
@@ -373,6 +396,7 @@ export const updateGame = asResult(
   async (guildId: string, gameId: string, data: GameFormData) => {
     const access = await ensureAdmin(guildId);
     const consentMode = validateGameConsentMode(data.consentMode, access);
+    await validateCoordinatorAssignments(data, access);
 
     // Validate data
     if (!data.name) throw new ActionError('Game name is required.');
@@ -439,6 +463,20 @@ export const updateGame = asResult(
           });
       }
 
+      // Omitted flags preserve retained assignments when the consent UI is hidden.
+      for (const member of data.members) {
+        if (member.isConsentCoordinator !== undefined) {
+          await tx
+            .update(gameMember)
+            .set({ isConsentCoordinator: member.isConsentCoordinator })
+            .where(
+              and(
+                eq(gameMember.gameId, gameId),
+                eq(gameMember.discordUserId, member.discordUserId),
+              ),
+            );
+        }
+      }
       return updatedGame;
     });
 

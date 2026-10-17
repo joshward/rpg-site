@@ -179,6 +179,56 @@ describe('game form consent dropdown', () => {
     );
   });
 
+  it('saves member coordinator checkboxes only with Update Game', async () => {
+    const user = userEvent.setup();
+    render(
+      <GameForm
+        initialData={{
+          ...game,
+          members: [{ discordUserId: 'player-1', isRequired: true, isConsentCoordinator: false }],
+        }}
+        eligibleMembers={[
+          { discordUserId: 'player-1', username: 'Player', displayName: 'Player', avatar: null },
+        ]}
+        channels={[]}
+        showConsentMode
+      />,
+    );
+    await user.click(screen.getByRole('checkbox', { name: 'Consent coordinator: Player' }));
+    expect(mocks.update).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Update Game' }));
+    await waitFor(() =>
+      expect(mocks.update).toHaveBeenCalledWith(
+        'guild-1',
+        'game-1',
+        expect.objectContaining({
+          members: [{ discordUserId: 'player-1', isRequired: true, isConsentCoordinator: true }],
+        }),
+      ),
+    );
+  });
+
+  it('hides and omits member coordinator flags when guild consent is unavailable', async () => {
+    const user = userEvent.setup();
+    render(
+      <GameForm
+        initialData={{
+          ...game,
+          members: [{ discordUserId: 'player-1', isRequired: true, isConsentCoordinator: true }],
+        }}
+        eligibleMembers={[
+          { discordUserId: 'player-1', username: 'Player', displayName: 'Player', avatar: null },
+        ]}
+        channels={[]}
+      />,
+    );
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    await user.type(screen.getByRole('textbox', { name: 'Game Name' }), ' Updated');
+    await user.click(screen.getByRole('button', { name: 'Update Game' }));
+    await waitFor(() => expect(mocks.update).toHaveBeenCalled());
+    expect(mocks.update.mock.calls[0][2].members[0]).not.toHaveProperty('isConsentCoordinator');
+  });
+
   it('omits mode from a normal game save when the control is hidden', async () => {
     render(
       <GameForm initialData={game} eligibleMembers={[]} channels={[]} showConsentMode={false} />,

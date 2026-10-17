@@ -16,9 +16,6 @@ vi.mock('@/actions/guilds', () => ({
 vi.mock('@/actions/games', () => ({ getGame: mocks.game, getEligibleGameMembers: mocks.members }));
 vi.mock('next/navigation', () => ({ notFound: mocks.notFound }));
 vi.mock('../../helpers', () => ({ getGuildName: vi.fn() }));
-vi.mock('../_components/ConsentCoordinators', () => ({
-  default: () => <div>Coordinator assignments</div>,
-}));
 vi.mock('../_components/GameForm', () => ({
   default: (props: { showConsentMode: boolean; initialData: { consentMode: string } }) => {
     mocks.form(props);

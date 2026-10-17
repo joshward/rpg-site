@@ -47,6 +47,7 @@ interface EligibleMember {
 interface GameMember {
   discordUserId: string;
   isRequired: boolean;
+  isConsentCoordinator?: boolean;
   displayName: string;
   avatar: string | null | undefined;
 }
@@ -67,6 +68,7 @@ interface GameFormProps {
     members: {
       discordUserId: string;
       isRequired: boolean;
+      isConsentCoordinator?: boolean;
     }[];
   };
   eligibleMembers: EligibleMember[];
@@ -175,6 +177,7 @@ export default function GameForm({
         members: value.members.map((m) => ({
           discordUserId: m.discordUserId,
           isRequired: m.isRequired,
+          ...(showConsentMode ? { isConsentCoordinator: m.isConsentCoordinator === true } : {}),
         })),
       };
 
@@ -230,6 +233,7 @@ export default function GameForm({
       {
         discordUserId,
         isRequired: true,
+        isConsentCoordinator: false,
         displayName: memberInfo.displayName,
         avatar: memberInfo.avatar,
       },
@@ -491,6 +495,26 @@ export default function GameForm({
                               >
                                 {m.isRequired ? 'Core Participant' : 'Optional Participant'}
                               </button>
+                              {showConsentMode && (
+                                <label className="flex items-center gap-2 mt-2 text-xs text-sage-11">
+                                  <input
+                                    type="checkbox"
+                                    aria-label={`Consent coordinator: ${m.displayName}`}
+                                    checked={m.isConsentCoordinator === true}
+                                    onChange={(event) => {
+                                      const assigned = event.target.checked;
+                                      field.handleChange(
+                                        field.state.value.map((member) =>
+                                          member.discordUserId === m.discordUserId
+                                            ? { ...member, isConsentCoordinator: assigned }
+                                            : member,
+                                        ),
+                                      );
+                                    }}
+                                  />
+                                  Consent coordinator
+                                </label>
+                              )}
                             </div>
                           </div>
                           <button
