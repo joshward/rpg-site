@@ -37,7 +37,7 @@ describe('availability checklist prompt', () => {
     render(await AvailabilityPage(props));
     expect(
       screen.getByText(
-        "One or more of the games you're in requests a completed content checklist.",
+        "One or more of the games you're in request a completed content checklist.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Please complete your checklist.' })).toHaveAttribute(
