@@ -62,6 +62,7 @@ export const gameMember = pgTable(
       .references(() => game.id, { onDelete: 'cascade' }),
     discordUserId: text().notNull(),
     isRequired: boolean().default(true).notNull(),
+    isConsentCoordinator: boolean().default(false).notNull(),
     createdAt: timestamp().defaultNow().notNull(),
   },
   (table) => [unique().on(table.gameId, table.discordUserId)],

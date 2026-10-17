@@ -1,0 +1,1 @@
+ALTER TABLE "game_members" ADD COLUMN "is_consent_coordinator" boolean DEFAULT false NOT NULL;

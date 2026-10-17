@@ -15,7 +15,7 @@ export default async function GameConsentStatusPage({
 }) {
   const { guildId, gameId } = await params;
   const info = await getGuildInfo(guildId);
-  if (isFailure(info) || info.data.role !== 'admin' || !info.data.consentChecklistAvailable) {
+  if (isFailure(info) || !info.data.consentChecklistAvailable) {
     notFound();
   }
 
@@ -29,10 +29,10 @@ export default async function GameConsentStatusPage({
     <div className="flex flex-col gap-6">
       <div>
         <Link
-          href={`/g/${guildId}/games/${gameId}`}
+          href={info.data.role === 'admin' ? `/g/${guildId}/games/${gameId}` : `/g/${guildId}`}
           className="text-sm text-plum-11 hover:underline"
         >
-          Back to game editor
+          Back
         </Link>
         <h1 className="text-2xl font-bold mt-2">Consent status: {gameName}</h1>
         <p className="text-sm text-sage-11 mt-1">

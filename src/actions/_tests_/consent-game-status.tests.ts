@@ -3,9 +3,11 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 
 const mocks = vi.hoisted(() => ({
   ensureAdmin: vi.fn(),
+  assignments: [] as unknown[],
   context: vi.fn(),
   select: vi.fn(),
   responseWhere: vi.fn(),
+  assignmentWhere: vi.fn(),
   guildMembers: vi.fn(),
   gameRows: [] as unknown[],
   topicRows: [] as unknown[],
@@ -13,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   responseRows: [] as unknown[],
 }));
 vi.mock('@/actions/auth-helpers', () => ({
-  ensureAdmin: mocks.ensureAdmin,
+  ensureAccess: mocks.ensureAdmin,
   getEffectiveUserContext: mocks.context,
 }));
 vi.mock('@/db/db', () => ({ db: { select: mocks.select } }));
@@ -37,8 +39,11 @@ beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   mocks.ensureAdmin.mockResolvedValue({
     isImpersonating: false,
+    role: 'admin',
+    discordAccount: { userId: 'ada' },
     guildData: { consentEnabled: true },
   });
+  mocks.assignments = [];
   mocks.context.mockResolvedValue({ isImpersonating: false });
   mocks.gameRows = [{ id: 'game-1', name: 'Game', consentMode: 'optional' }];
   mocks.topicRows = topics;
@@ -57,11 +62,14 @@ beforeEach(() => {
     if ('consentMode' in columns) rows = mocks.gameRows;
     else if ('parentTopicId' in columns) rows = mocks.topicRows;
     else if ('topicId' in columns) rows = mocks.responseRows;
+    else if ('id' in columns) rows = mocks.assignments;
     else rows = mocks.memberRows;
     return {
       from: () => ({
         where: (condition: unknown) => {
           if ('topicId' in columns) mocks.responseWhere(condition);
+          if ('id' in columns && !('consentMode' in columns) && !('parentTopicId' in columns))
+            mocks.assignmentWhere(condition);
           return 'parentTopicId' in columns ? { orderBy: async () => rows } : Promise.resolve(rows);
         },
       }),
@@ -74,7 +82,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('admin-only game consent status', () => {
+describe('admin or explicitly assigned member game consent status', () => {
   it('returns only member names and status, never answers, heads-up choices or private notes', async () => {
     const result = await getGameConsentStatus('guild-1', 'game-1');
     expect(result).toEqual({
@@ -126,6 +134,26 @@ describe('admin-only game consent status', () => {
     expect((await getGameConsentStatus('guild-1', 'game-1')).type).toBe('failure');
     expect(mocks.context).toHaveBeenCalledWith('guild-1');
     expect(mocks.select).not.toHaveBeenCalled();
+  });
+
+  it('permits an assigned member, but denies an unassigned or removed member', async () => {
+    mocks.ensureAdmin.mockResolvedValue({
+      role: 'member',
+      discordAccount: { userId: 'ada' },
+      isImpersonating: false,
+      guildData: { consentEnabled: true },
+    });
+    expect((await getGameConsentStatus('guild-1', 'game-1')).type).toBe('failure');
+    expect(mocks.responseWhere).not.toHaveBeenCalled();
+    const assignmentQuery = new PgDialect({ casing: 'snake_case' }).sqlToQuery(
+      mocks.assignmentWhere.mock.calls[0][0],
+    );
+    expect(assignmentQuery.params).toEqual(['game-1', 'ada', true]);
+    expect(assignmentQuery.sql).toContain('"is_consent_coordinator"');
+    mocks.assignments = [{ id: 'membership-1' }];
+    expect((await getGameConsentStatus('guild-1', 'game-1')).type).toBe('success');
+    mocks.assignments = [];
+    expect((await getGameConsentStatus('guild-1', 'game-1')).type).toBe('failure');
   });
 
   it('denies a game outside the guild or in Off mode before reading responses', async () => {

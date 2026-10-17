@@ -1,13 +1,13 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { and, eq, inArray, count, or, gt, gte } from 'drizzle-orm';
+import { and, eq, inArray, notInArray, count, or, gt, gte, sql } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { asResult, ActionError } from '@/actions/action-helpers';
-import { ensureAdmin, ensureAccess } from '@/actions/auth-helpers';
+import { ensureAdmin, ensureAccess, getEffectiveUserContext } from '@/actions/auth-helpers';
 import { game, gameMember, gameStatusEnum, GameStatus, scheduledSession } from '@/db/schema/games';
 import { gameConsentModeEnum, type GameConsentMode } from '@/lib/consent/game-modes';
-import { canAccessGuildConsent } from '@/lib/consent/feature-gate';
+import { canAccessGuildConsent, canAccessGameConsent } from '@/lib/consent/feature-gate';
 import { availabilitySubmission, availabilityDay } from '@/db/schema/availability';
 import { AvailabilityStatus } from '@/actions/availability';
 import { memberPreference } from '@/db/schema/member-preferences';
@@ -93,8 +93,10 @@ export const getMemberGames = asResult(
 export const getMyGames = asResult(
   'getMyGames',
   async (guildId: string) => {
-    const { discordAccount } = await ensureAccess(guildId);
+    const access = await ensureAccess(guildId);
+    const { discordAccount } = access;
     const discordUserId = discordAccount.userId;
+    const context = await getEffectiveUserContext(guildId);
 
     // 1. Find all games where the user is a member and the status is active or paused
     const userGames = await db
@@ -103,6 +105,8 @@ export const getMyGames = asResult(
         name: game.name,
         description: game.description,
         status: game.status,
+        consentMode: game.consentMode,
+        isConsentCoordinator: gameMember.isConsentCoordinator,
         sessionsPerMonth: game.sessionsPerMonth,
         guildId: game.guildId,
         discordChannelId: game.discordChannelId,
@@ -227,6 +231,12 @@ export const getMyGames = asResult(
     // 5. Combine them
     return userGames.map((g) => ({
       ...g,
+      canViewConsentStatus:
+        !!context &&
+        !context.isImpersonating &&
+        !access.isImpersonating &&
+        g.isConsentCoordinator &&
+        canAccessGameConsent(access.guildData?.consentEnabled === true, g.consentMode),
       scheduledDates: scheduled
         .filter((s) => s.gameId === g.id)
         .map((s) => ({
@@ -400,17 +410,33 @@ export const updateGame = asResult(
         .where(eq(game.id, gameId))
         .returning();
 
-      // Update members
-      // Simplest way: delete all and re-insert (or diff)
-      await tx.delete(gameMember).where(eq(gameMember.gameId, gameId));
+      // Retain existing membership rows (including coordinator assignments).
+      // Removing a member deletes their assignment; re-adding starts unassigned.
+      await tx.delete(gameMember).where(
+        and(
+          eq(gameMember.gameId, gameId),
+          data.members.length
+            ? notInArray(
+                gameMember.discordUserId,
+                data.members.map((m) => m.discordUserId),
+              )
+            : undefined,
+        ),
+      );
       if (data.members.length > 0) {
-        await tx.insert(gameMember).values(
-          data.members.map((m) => ({
-            gameId,
-            discordUserId: m.discordUserId,
-            isRequired: m.isRequired,
-          })),
-        );
+        await tx
+          .insert(gameMember)
+          .values(
+            data.members.map((m) => ({
+              gameId,
+              discordUserId: m.discordUserId,
+              isRequired: m.isRequired,
+            })),
+          )
+          .onConflictDoUpdate({
+            target: [gameMember.gameId, gameMember.discordUserId],
+            set: { isRequired: sql`excluded.is_required` },
+          });
       }
 
       return updatedGame;

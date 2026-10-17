@@ -16,6 +16,9 @@ vi.mock('@/actions/guilds', () => ({
 vi.mock('@/actions/games', () => ({ getGame: mocks.game, getEligibleGameMembers: mocks.members }));
 vi.mock('next/navigation', () => ({ notFound: mocks.notFound }));
 vi.mock('../../helpers', () => ({ getGuildName: vi.fn() }));
+vi.mock('../_components/ConsentCoordinators', () => ({
+  default: () => <div>Coordinator assignments</div>,
+}));
 vi.mock('../_components/GameForm', () => ({
   default: (props: { showConsentMode: boolean; initialData: { consentMode: string } }) => {
     mocks.form(props);
@@ -72,7 +75,7 @@ describe('edit game page consent dropdown', () => {
     vi.stubEnv('CONSENT_FEATURE_ENABLED', 'true');
     mocks.game.mockResolvedValueOnce({
       type: 'success',
-      data: { name: 'Game', consentMode: 'optional' },
+      data: { name: 'Game', consentMode: 'optional', members: [] },
     });
     render(await EditGamePage(props));
     expect(screen.getByRole('link', { name: 'View consent status' })).toHaveAttribute(

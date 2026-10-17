@@ -28,6 +28,7 @@ interface Game {
   discordChannelName?: string | null;
   schedulingDetails?: string | null;
   isRequired: boolean;
+  canViewConsentStatus?: boolean;
   scheduledDates?: {
     year: number;
     month: number;
@@ -203,6 +204,14 @@ function UserGameItem({
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-lg font-bold leading-tight">{game.name}</h3>
+            {game.canViewConsentStatus && (
+              <Link
+                href={`/g/${guildId}/games/${game.id}/consent`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                View consent status
+              </Link>
+            )}
             <span
               className={twMerge(
                 'px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full border leading-none',
