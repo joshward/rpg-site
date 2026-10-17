@@ -10,6 +10,7 @@ import { getDefaultMetadata } from '@/lib/metadata';
 import { GuildRouteProps, getGuildName } from '../helpers';
 import PreferencesForm from './_components/PreferencesForm';
 import ChecklistForm from './_components/ChecklistForm';
+import ChecklistSection from './_components/ChecklistSection';
 
 export async function generateMetadata({ params }: GuildRouteProps): Promise<Metadata> {
   const { guildId } = await params;
@@ -48,7 +49,7 @@ export default async function PreferencesPage({ params }: GuildRouteProps) {
       <h2 className="text-xl font-bold">My Preferences</h2>
       <PreferencesForm initialSessionsPerMonth={sessionsPerMonth} />
       {checklist && (
-        <section id="content-checklist" aria-label="Content Checklist">
+        <ChecklistSection>
           {isFailure(checklist) ? (
             <Paper>
               <Alert type="error">{checklist.error}</Alert>
@@ -56,7 +57,7 @@ export default async function PreferencesPage({ params }: GuildRouteProps) {
           ) : (
             <ChecklistForm guildId={guildId} initialChecklist={checklist.data} />
           )}
-        </section>
+        </ChecklistSection>
       )}
     </div>
   );

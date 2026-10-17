@@ -5,6 +5,7 @@ import Link from '@/components/Link';
 import { getGuildInfo } from '@/actions/guilds';
 import { getMyPreference } from '@/actions/preferences';
 import { getMyGames } from '@/actions/games';
+import { getMyConsentPrompt } from '@/actions/consent-prompt';
 import { getMyAvailability } from '@/actions/availability';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
@@ -12,6 +13,7 @@ import { NO_LIMIT } from '@/lib/preferences';
 import { getNextMonth, isLast10DaysOfCurrentMonth, formatMonthYear } from '@/lib/availability';
 import { GuildRouteProps, getGuildName, getContactInfo } from './helpers';
 import UserGameList from './_components/UserGameList';
+import ConsentChecklistBanner from './_components/ConsentChecklistBanner';
 import UserSchedule from './_components/UserSchedule';
 import MarkdownPreview from '@/components/MarkdownPreview';
 import { ReactNode } from 'react';
@@ -43,6 +45,14 @@ export default async function GuildPage({ params }: GuildRouteProps) {
     guildData?.supportChannelName,
     guildData?.adminContactInfo,
   );
+
+  // A single self-only prompt, irrespective of how many Requested games qualify.
+  if (guildData?.consentChecklistAvailable) {
+    const prompt = await getMyConsentPrompt(guildId);
+    if (!isFailure(prompt) && prompt.data) {
+      banners.push(<ConsentChecklistBanner key="consent-checklist" guildId={guildId} />);
+    }
+  }
 
   // 1. Availability alert (only in last 7 days and if not filled)
   if (
