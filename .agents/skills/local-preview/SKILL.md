@@ -1,0 +1,18 @@
+---
+name: local-preview
+description: Start or stop the Tavern Master local app for human smoke tests in a second terminal tab of the current Pane. Use for local dev previews, consent testing, and requests to run the app.
+---
+
+# Tavern Master local preview (Windows Pane)
+
+Read `AGENTS.md` first. This workflow never uses production credentials or resets a Neon branch.
+
+1. **Ask the human for approval before any `op` command**, for each new preview session. Do not infer approval from an earlier run. Ensure the PR/worktree has the desired code, no other app is listening on port 3000, and inspect new `drizzle/*.sql` and `drizzle/meta` changes before approving migrations.
+2. From the current worktree, check `runpane doctor --json` and `runpane agent-context --json`, then `runpane agent-context --command "panels create" --json`. If Pane is unreachable, stop and tell the human; do not fall back to a hidden background process. Confirm `PANE_SESSION_ID` identifies the current Pane. Follow the installed `pane` skill for Pane commands.
+3. Once approved, run this from a Windows Pane terminal (no `.env.local` copy needed):
+   `runpane panels create --pane "$env:PANE_SESSION_ID" --tool-command "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -Approved" --title "Local preview" --source agent --no-focus --yes --json`
+   Record the returned panel ID. Do not use `--wait-ready` for this long-running non-agent command: it may report a readiness failure even when the terminal and server started. If creation reports a failure, list the Pane's panels and inspect any existing Local preview tab before trying again. The new panel shares this Pane's worktree and keeps the server in the foreground. Do not launch a new Pane/worktree for the server.
+4. Use `runpane panels screen --panel <panel-id> --limit 60 --json` or `runpane panels wait --panel <panel-id> --for text --contains "Ready in" --json` to verify Next is ready. Check `http://localhost:3000` returns HTTP 200 before telling the human. Optionally show it using `runpane panels open --url http://localhost:3000 --source agent --yes --json`. Never paste a resolved URL, secret, connection string, or logs that might contain user data into chat.
+5. Leave the panel running for the smoke test. **Do not send Ctrl-C to the Pane tab on Windows:** `op`/npm batch wrappers can leave a `Terminate batch job (Y/N)?` prompt. When the human is done, from the agent tab (or another terminal in this worktree) run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -Stop`. This uses the ignored per-worktree PID/start-time record to stop only the preview process tree, without loading 1Password. Confirm port 3000 is no longer listening; the exited preview tab can be closed. Never delete the base repository's ignored `.env.local` or `.neon` context.
+
+The launcher `scripts/local-preview.ps1` uses the base repository's ignored `.env.local` and `.neon` context, validates that the resolved `DATABASE_URL` hostname belongs to the non-default, non-protected Neon `local` child branch's `neondb` database and rejects query options other than the expected Neon TLS options, then sets local-only `SITE_URL` and `CONSENT_FEATURE_ENABLED=true`. Only after verification does it run `npm run db:migrate` and `npm run dev` **inside the single 1Password-populated process**. Outside that process, use the project's `!` scripts instead. The launcher requires `-Approved` for starting, fails closed on missing context or verification failures, and never prints secrets. `-Stop` needs no approval or secrets and only targets the recorded process tree for this worktree.
