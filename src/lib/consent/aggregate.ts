@@ -13,6 +13,11 @@ export type AggregatedTopic = AggregateTopic & {
   missingAnswers: number;
   needsCare: boolean;
 };
+/** The shared overview reports missing answers without exposing counts to players. */
+export type ConsentOverviewTopic = Omit<AggregatedTopic, 'missingAnswers'> & {
+  missingAnswers: number | null;
+  hasMissingAnswers?: boolean;
+};
 const priority = { enthusiastic: 1, veil: 2, line: 3 };
 
 /** Resolve each player's child override before combining. Never return identities

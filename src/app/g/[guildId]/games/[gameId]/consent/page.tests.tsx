@@ -27,6 +27,10 @@ describe('overview initial server render', () => {
     expect(
       screen.getByRole('heading', { name: 'Content Consent Overview: Game' }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Review or change my checklist' })).toHaveAttribute(
+      'href',
+      '/g/guild-1/preferences#content-checklist',
+    );
     expect(mocks.overview).toHaveBeenCalledWith({
       guildId: 'guild-1',
       gameId: 'game-1',

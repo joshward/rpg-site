@@ -1,10 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-const mocks = vi.hoisted(() => ({ topic: vi.fn(), overall: vi.fn(), status: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  topic: vi.fn(),
+  overall: vi.fn(),
+  status: vi.fn(),
+  noteTopics: vi.fn(),
+}));
 vi.mock('@/actions/consent-private-details', () => ({
   getGameConsentTopicDetails: mocks.topic,
   getGameConsentOverallNotes: mocks.overall,
+  getGameConsentNoteTopics: mocks.noteTopics,
 }));
 vi.mock('@/actions/consent-game-status', () => ({ getGameConsentStatus: mocks.status }));
 import ConsentOverview from '../ConsentOverview';
@@ -40,6 +46,7 @@ const topicData = {
 };
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.noteTopics.mockResolvedValue({ type: 'success', data: [] });
   mocks.topic.mockResolvedValue(topicData);
   mocks.overall.mockResolvedValue({
     type: 'success',
@@ -63,6 +70,7 @@ describe('private detail mode', () => {
     expect(mocks.topic).not.toHaveBeenCalled();
     expect(mocks.status).not.toHaveBeenCalled();
     expect(mocks.overall).not.toHaveBeenCalled();
+    expect(mocks.noteTopics).not.toHaveBeenCalled();
   });
   it('loads each pane only after explicit unlock and expansion, then hides/discards all on lock', async () => {
     const user = userEvent.setup();
@@ -107,6 +115,21 @@ describe('private detail mode', () => {
     await user.click(screen.getByRole('button', { name: 'Unlock private details' }));
     expect(screen.queryByText('Private topic text', { exact: false })).not.toBeInTheDocument();
   });
+  it('ignores late note metadata after relocking', async () => {
+    const user = userEvent.setup();
+    let resolve: (value: { type: 'success'; data: string[] }) => void = () => {};
+    mocks.noteTopics.mockReturnValueOnce(
+      new Promise<{ type: 'success'; data: string[] }>((done) => {
+        resolve = done;
+      }),
+    );
+    render(<ConsentOverview {...props} />);
+    await user.click(screen.getByRole('button', { name: 'Unlock private details' }));
+    await user.click(screen.getByRole('button', { name: 'Hide all private details' }));
+    await act(async () => resolve({ type: 'success', data: ['topic-1'] }));
+    expect(screen.queryByText('Private notes')).not.toBeInTheDocument();
+  });
+
   it('relocks if a later private read is denied and drops other loaded panes', async () => {
     const user = userEvent.setup();
     mocks.status.mockResolvedValueOnce({ type: 'failure', error: 'No longer a coordinator' });
@@ -119,6 +142,37 @@ describe('private detail mode', () => {
     expect(screen.queryByText('Private topic text', { exact: false })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Unlock private details' })).toBeInTheDocument();
   });
+  it('stays unlocked when switching browser tabs', async () => {
+    const user = userEvent.setup();
+    render(<ConsentOverview {...props} />);
+    await user.click(screen.getByRole('button', { name: 'Unlock private details' }));
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    act(() => window.dispatchEvent(new Event('blur')));
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    visibility.mockRestore();
+    expect(screen.getByText('Private details visible')).toBeInTheDocument();
+  });
+
+  it('promotes All good topics with private notes to Needs care only after unlock', async () => {
+    const user = userEvent.setup();
+    mocks.noteTopics.mockResolvedValue({ type: 'success', data: ['topic-1'] });
+    render(
+      <ConsentOverview
+        {...props}
+        topics={[{ ...props.topics[0], answer: 'enthusiastic', needsCare: false }]}
+      />,
+    );
+    expect(screen.getByText('All good from everyone (1)')).toBeInTheDocument();
+    expect(mocks.noteTopics).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Unlock private details' }));
+    expect(await screen.findByText('Private notes')).toBeInTheDocument();
+    expect(screen.queryByText('All good from everyone (1)')).not.toBeInTheDocument();
+    expect(mocks.topic).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Hide all private details' }));
+    expect(screen.queryByText('Private notes')).not.toBeInTheDocument();
+    expect(screen.getByText('All good from everyone (1)')).toBeInTheDocument();
+  });
+
   it('does not persist unlock across leaving the page or remounting', async () => {
     const user = userEvent.setup();
     const { unmount } = render(<ConsentOverview {...props} />);

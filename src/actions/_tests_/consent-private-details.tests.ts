@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   access: vi.fn(),
   context: vi.fn(),
   select: vi.fn(),
+  selectDistinct: vi.fn(),
   where: vi.fn(),
   guildMembers: vi.fn(),
   game: [] as unknown[],
@@ -17,13 +18,17 @@ vi.mock('@/actions/auth-helpers', () => ({
   ensureAccess: mocks.access,
   getEffectiveUserContext: mocks.context,
 }));
-vi.mock('@/db/db', () => ({ db: { select: mocks.select } }));
+vi.mock('@/db/db', () => ({ db: { select: mocks.select, selectDistinct: mocks.selectDistinct } }));
 vi.mock('@/lib/discord/api', () => ({
   getGuildMembers: mocks.guildMembers,
   DiscordApiError: class extends Error {},
   RateLimitError: class extends Error {},
 }));
-import { getGameConsentTopicDetails, getGameConsentOverallNotes } from '../consent-private-details';
+import {
+  getGameConsentTopicDetails,
+  getGameConsentOverallNotes,
+  getGameConsentNoteTopics,
+} from '../consent-private-details';
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -58,6 +63,14 @@ beforeEach(() => {
     { discordUserId: 'outsider', overallNote: 'Other overall secret' },
   ];
   mocks.guildMembers.mockResolvedValue(['a', 'b'].map((id) => ({ user: { id, username: id } })));
+  mocks.selectDistinct.mockReturnValue({
+    from: () => ({
+      where: async (condition: unknown) => {
+        mocks.where(['topicId'], condition);
+        return [{ topicId: 'child' }];
+      },
+    }),
+  });
   mocks.select.mockImplementation((columns) => ({
     from: () => ({
       where: async (condition: unknown) => {
@@ -112,6 +125,24 @@ describe('coordinator-only private consent reads', () => {
     expect(responseQuery.params).toEqual(['guild-1', 'a', 'b', 'child', 'parent']);
     expect(queries.find((query) => query.keys.includes('parentTopicId'))?.sql).toContain('is null');
   });
+  it('returns note-presence topic IDs without note bodies or names, scoped to current members and official topics', async () => {
+    expect(await getGameConsentNoteTopics('guild-1', 'game-1')).toEqual({
+      type: 'success',
+      data: ['child'],
+    });
+    expect(mocks.selectDistinct).toHaveBeenCalledWith(
+      expect.objectContaining({ topicId: expect.anything() }),
+    );
+    expect(Object.keys(mocks.selectDistinct.mock.calls[0][0])).toEqual(['topicId']);
+    const query = new PgDialect().sqlToQuery(mocks.where.mock.calls.at(-1)![1]);
+    expect(query.params).toEqual(['guild-1', 'a', 'b', 'child']);
+    expect(query.sql).toContain('btrim');
+    expect(mocks.guildMembers).not.toHaveBeenCalled();
+    mocks.assignment = [];
+    expect((await getGameConsentNoteTopics('guild-1', 'game-1')).type).toBe('failure');
+    expect(mocks.selectDistinct).toHaveBeenCalledTimes(1);
+  });
+
   it('returns overall notes only for current game members', async () => {
     expect(await getGameConsentOverallNotes('guild-1', 'game-1')).toEqual({
       type: 'success',

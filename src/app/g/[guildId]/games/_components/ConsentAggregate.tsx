@@ -4,9 +4,10 @@ import {
   EyeClosedIcon,
   HeartFilledIcon,
   QuestionMarkCircledIcon,
+  Pencil2Icon,
 } from '@radix-ui/react-icons';
 import type { ReactNode } from 'react';
-import type { AggregatedTopic } from '@/lib/consent/aggregate';
+import type { AggregatedTopic, ConsentOverviewTopic } from '@/lib/consent/aggregate';
 import Paper from '@/components/Paper';
 
 const styles = {
@@ -41,14 +42,16 @@ export function ConsentAnswerBadge({ answer }: { answer: AggregatedTopic['answer
 export default function ConsentAggregate({
   topics,
   renderTopicDetails,
+  privateNoteTopicIds,
 }: {
-  topics: AggregatedTopic[];
-  renderTopicDetails?: (topic: AggregatedTopic) => ReactNode;
+  topics: ConsentOverviewTopic[];
+  renderTopicDetails?: (topic: ConsentOverviewTopic) => ReactNode;
+  privateNoteTopicIds?: ReadonlySet<string>;
 }) {
-  const needsCare = topics.filter((topic) => topic.needsCare);
-  const allGood = topics.filter((topic) => !topic.needsCare);
+  const needsCare = topics.filter((topic) => topic.needsCare || privateNoteTopicIds?.has(topic.id));
+  const allGood = topics.filter((topic) => !topic.needsCare && !privateNoteTopicIds?.has(topic.id));
   const names = new Map(topics.map((topic) => [topic.id, topic.name]));
-  const rows = (items: AggregatedTopic[]) => (
+  const rows = (items: ConsentOverviewTopic[]) => (
     <ul className="divide-y divide-sage-6">
       {items.map((topic) => {
         return (
@@ -68,10 +71,17 @@ export default function ConsentAggregate({
                     Heads-up
                   </span>
                 )}
-                {topic.missingAnswers > 0 && (
+                {(topic.hasMissingAnswers ?? (topic.missingAnswers ?? 0) > 0) && (
                   <span className="text-sage-11">
-                    Missing {topic.missingAnswers}{' '}
-                    {topic.missingAnswers === 1 ? 'answer' : 'answers'}
+                    {topic.missingAnswers === null
+                      ? 'Not everyone has answered'
+                      : `Missing ${topic.missingAnswers} ${topic.missingAnswers === 1 ? 'answer' : 'answers'}`}
+                  </span>
+                )}
+                {privateNoteTopicIds?.has(topic.id) && (
+                  <span className="print:hidden inline-flex items-center gap-1 rounded-md bg-violet-9 px-2 py-1 text-white">
+                    <Pencil2Icon aria-hidden="true" className="size-4" />
+                    Private notes
                   </span>
                 )}
               </div>
@@ -87,7 +97,10 @@ export default function ConsentAggregate({
       <h2 className="text-xl font-bold">Needs care</h2>
       <p className="text-sm text-sage-11">
         Hard lines, veils, heads-up choices and missing answers. Missing answers are unknown, not
-        agreement.
+        agreement.{' '}
+        {privateNoteTopicIds?.size
+          ? 'Topics with private notes are also included while unlocked.'
+          : ''}
       </p>
       {needsCare.length ? rows(needsCare) : <p>No topics currently need special care.</p>}
       {allGood.length > 0 && (

@@ -1,14 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { BellIcon, EyeClosedIcon, LockClosedIcon, LockOpen1Icon } from '@radix-ui/react-icons';
 import {
   getGameConsentTopicDetails,
   getGameConsentOverallNotes,
+  getGameConsentNoteTopics,
 } from '@/actions/consent-private-details';
 import { getGameConsentStatus } from '@/actions/consent-game-status';
 import { isFailure, type Result } from '@/actions/result';
-import type { AggregatedTopic } from '@/lib/consent/aggregate';
+import type { ConsentOverviewTopic } from '@/lib/consent/aggregate';
 import ConsentAggregate, { ConsentAnswerBadge } from './ConsentAggregate';
 import Alert from '@/components/Alert';
 import Button from '@/components/Button';
@@ -76,27 +77,30 @@ export default function ConsentOverview({
 }: {
   guildId: string;
   gameId: string;
-  topics: AggregatedTopic[];
+  topics: ConsentOverviewTopic[];
   canViewPrivateDetails: boolean;
 }) {
   const [unlocked, setUnlocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const lock = useCallback(() => setUnlocked(false), []);
-  const onFailure = useCallback(() => {
+  const [noteTopicIds, setNoteTopicIds] = useState<string[]>([]);
+  const [checkingNotes, setCheckingNotes] = useState(false);
+  const generation = useRef(0);
+  const lock = useCallback(() => {
+    generation.current++;
     setUnlocked(false);
+    setNoteTopicIds([]);
+    setCheckingNotes(false);
+  }, []);
+  const onFailure = useCallback(() => {
+    lock();
     setError(
       'Private details could not be loaded and have been hidden. Refresh before unlocking again.',
     );
-  }, []);
+  }, [lock]);
   useEffect(() => {
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') lock();
-    };
     window.addEventListener('pagehide', lock);
-    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       window.removeEventListener('pagehide', lock);
-      document.removeEventListener('visibilitychange', onVisibility);
       lock();
     };
   }, [lock]);
@@ -123,15 +127,19 @@ export default function ConsentOverview({
               </div>
               <p className="mt-2 text-sm">
                 Expanded panes contain named answers and private notes. Do not screen-share this
-                mode. Details lock when you leave this tab.
+                mode. Use Hide all private details before sharing your screen.
               </p>
+              {checkingNotes && (
+                <output className="mt-2 block text-sm">Checking topics for private notes…</output>
+              )}
             </div>
           ) : (
             <Paper>
               <h2 className="font-bold">Coordinator private details</h2>
               <p className="text-sm text-sage-11">
                 Unlock to expand named player answers, private notes and contribution status. Stop
-                screen-sharing before unlocking. No private data is loaded until you expand a pane.
+                screen-sharing before unlocking. Unlocking checks which topics have notes; note text
+                and named answers load only when you expand a pane.
               </p>
               <Button
                 type="button"
@@ -139,6 +147,20 @@ export default function ConsentOverview({
                 onClick={() => {
                   setError(null);
                   setUnlocked(true);
+                  setCheckingNotes(true);
+                  const request = ++generation.current;
+                  getGameConsentNoteTopics(guildId, gameId)
+                    .then((result) => {
+                      if (request !== generation.current) return;
+                      if (isFailure(result)) onFailure();
+                      else {
+                        setNoteTopicIds(result.data);
+                        setCheckingNotes(false);
+                      }
+                    })
+                    .catch(() => {
+                      if (request === generation.current) onFailure();
+                    });
                 }}
               >
                 <LockClosedIcon aria-hidden="true" className="mr-2" />
@@ -151,6 +173,7 @@ export default function ConsentOverview({
       {topics.length ? (
         <ConsentAggregate
           topics={topics}
+          privateNoteTopicIds={privateVisible ? new Set(noteTopicIds) : undefined}
           renderTopicDetails={
             privateVisible
               ? (topic) => (

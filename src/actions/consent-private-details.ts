@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { game, gameMember } from '@/db/schema/games';
 import { consentTopic } from '@/db/schema/consent-topics';
@@ -131,6 +131,45 @@ export const getGameConsentTopicDetails = asResult(
     }
   },
   'Could not load private topic details.',
+);
+
+/** Unlock-only metadata: topic IDs with notes, never note bodies or identities. */
+export const getGameConsentNoteTopics = asResult(
+  'getGameConsentNoteTopics',
+  async (guildId: string, gameId: string) => {
+    try {
+      const members = await coordinatorMembers(guildId, gameId);
+      if (!members.length) return [] as string[];
+      const topics = await db
+        .select({ id: consentTopic.id, parentTopicId: consentTopic.parentTopicId })
+        .from(consentTopic)
+        .where(and(eq(consentTopic.guildId, guildId), isNull(consentTopic.ownerDiscordUserId)));
+      if (!topics.length) return [] as string[];
+      const notes = await db
+        .selectDistinct({ topicId: consentResponse.topicId })
+        .from(consentResponse)
+        .where(
+          and(
+            eq(consentResponse.guildId, guildId),
+            inArray(
+              consentResponse.discordUserId,
+              members.map((member) => member.discordUserId),
+            ),
+            inArray(
+              consentResponse.topicId,
+              topics.map((topic) => topic.id),
+            ),
+            isNotNull(consentResponse.note),
+            sql`btrim(${consentResponse.note}) <> ''`,
+          ),
+        );
+      return notes.map((row) => row.topicId);
+    } catch (error) {
+      if (error instanceof ActionError) throw error;
+      throw new ActionError('Could not check private topic notes.');
+    }
+  },
+  'Could not check private topic notes.',
 );
 
 export const getGameConsentOverallNotes = asResult(

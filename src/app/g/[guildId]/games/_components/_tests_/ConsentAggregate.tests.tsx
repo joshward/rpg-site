@@ -40,6 +40,16 @@ describe('care-first aggregate view', () => {
     expect(details).not.toHaveAttribute('open');
     expect(within(details).getByText('Safe topic')).toBeInTheDocument();
   });
+  it('uses a generic missing-answer message when counts are withheld', () => {
+    render(
+      <ConsentAggregate
+        topics={[{ ...topic, missingAnswers: null, hasMissingAnswers: true, needsCare: true }]}
+      />,
+    );
+    expect(screen.getByText('Not everyone has answered')).toBeInTheDocument();
+    expect(screen.queryByText(/Missing \\d/)).not.toBeInTheDocument();
+  });
+
   it('does not present unknown topics as All good', () => {
     render(
       <ConsentAggregate
