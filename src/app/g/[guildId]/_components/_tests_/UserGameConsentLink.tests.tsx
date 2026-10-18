@@ -20,8 +20,8 @@ describe('consent overview discovery', () => {
         games={[{ ...game, canViewConsentAggregate: true, canViewConsentStatus: true }]}
       />,
     );
-    expect(screen.getAllByRole('link', { name: 'Consent overview' })).toHaveLength(1);
-    expect(screen.getByRole('link', { name: 'Consent overview' })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: 'Content Consent Overview' })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Content Consent Overview' })).toHaveAttribute(
       'href',
       '/g/guild-1/games/game-1/consent',
     );
@@ -32,10 +32,12 @@ describe('consent overview discovery', () => {
         games={[{ ...game, canViewConsentAggregate: true, canViewConsentStatus: false }]}
       />,
     );
-    expect(screen.getByRole('link', { name: 'Consent overview' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Content Consent Overview' })).toBeInTheDocument();
     rerender(
       <UserGameList guildId="guild-1" games={[{ ...game, canViewConsentAggregate: false }]} />,
     );
-    expect(screen.queryByRole('link', { name: 'Consent overview' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Content Consent Overview' }),
+    ).not.toBeInTheDocument();
   });
 });

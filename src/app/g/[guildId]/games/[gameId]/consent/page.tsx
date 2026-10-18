@@ -7,7 +7,7 @@ import Link from '@/components/Link';
 import Paper from '@/components/Paper';
 import ConsentAggregate from '../../_components/ConsentAggregate';
 
-export const metadata = getDefaultMetadata({ subtitles: ['Consent Overview'] });
+export const metadata = getDefaultMetadata({ subtitles: ['Content Consent Overview'] });
 
 export default async function GameConsentAggregatePage({
   params,
@@ -23,7 +23,9 @@ export default async function GameConsentAggregatePage({
     <div className="flex flex-col gap-6">
       <div>
         <Link href={`/g/${guildId}`}>Back to your games</Link>
-        <h1 className="mt-2 text-2xl font-bold">Consent overview: {result.data.gameName}</h1>
+        <h1 className="mt-2 text-2xl font-bold">
+          Content Consent Overview: {result.data.gameName}
+        </h1>
         <p className="mt-1 text-sm text-sage-11">
           Combined guild checklist answers for current game members. Use these boundaries to guide
           play and keep communicating at the table. No individual answers or private notes are

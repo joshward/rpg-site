@@ -68,7 +68,7 @@ describe('game consent status page', () => {
     });
     render(await GameConsentStatusPage(props));
     expect(screen.getByText('Complete')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to consent overview' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Back to Content Consent Overview' })).toHaveAttribute(
       'href',
       '/g/guild-1/games/game-1/consent',
     );

@@ -19,7 +19,9 @@ describe('aggregate page', () => {
   it('renders only data authorized by the server read', async () => {
     render(await GameConsentAggregatePage(props));
     expect(mocks.aggregate).toHaveBeenCalledWith('guild-1', 'game-1');
-    expect(screen.getByRole('heading', { name: 'Consent overview: Game' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Content Consent Overview: Game' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Official consent topics are not configured yet.')).toBeInTheDocument();
   });
   it('shows contribution navigation only for coordinators', async () => {

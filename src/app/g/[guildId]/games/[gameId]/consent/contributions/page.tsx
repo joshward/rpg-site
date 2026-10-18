@@ -32,7 +32,7 @@ export default async function GameConsentStatusPage({
           href={`/g/${guildId}/games/${gameId}/consent`}
           className="text-sm text-plum-11 hover:underline"
         >
-          Back to consent overview
+          Back to Content Consent Overview
         </Link>
         <h1 className="text-2xl font-bold mt-2">Contribution status: {gameName}</h1>
         <p className="text-sm text-sage-11 mt-1">

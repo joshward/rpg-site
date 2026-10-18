@@ -279,7 +279,7 @@ function UserGameItem({
               onClick={(event) => event.stopPropagation()}
             >
               <ClipboardIcon aria-hidden="true" className="size-4" />
-              Consent overview
+              Content Consent Overview
             </Link>
           )}
         </div>

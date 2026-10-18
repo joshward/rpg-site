@@ -82,7 +82,7 @@ export default async function EditGamePage({
             className="inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
           >
             <ClipboardIcon aria-hidden="true" className="size-4" />
-            Consent overview
+            Content Consent Overview
           </Link>
         )}
       <GameForm
