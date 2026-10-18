@@ -1,7 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { BellIcon, EyeClosedIcon, LockClosedIcon, LockOpen1Icon } from '@radix-ui/react-icons';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  BellIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  EyeClosedIcon,
+  LockClosedIcon,
+  LockOpen1Icon,
+} from '@radix-ui/react-icons';
 import {
   getGameConsentTopicDetails,
   getGameConsentOverallNotes,
@@ -84,12 +91,29 @@ export default function ConsentOverview({
   const [error, setError] = useState<string | null>(null);
   const [noteTopicIds, setNoteTopicIds] = useState<string[]>([]);
   const [checkingNotes, setCheckingNotes] = useState(false);
+  const [openTopics, setOpenTopics] = useState<string[]>([]);
+  const topicLoaders = useMemo(
+    () =>
+      new Map(
+        topics.map((topic) => [
+          topic.id,
+          () => getGameConsentTopicDetails(guildId, gameId, topic.id),
+        ]),
+      ),
+    [topics, guildId, gameId],
+  );
+  const loadStatus = useCallback(() => getGameConsentStatus(guildId, gameId), [guildId, gameId]);
+  const loadOverallNotes = useCallback(
+    () => getGameConsentOverallNotes(guildId, gameId),
+    [guildId, gameId],
+  );
   const generation = useRef(0);
   const lock = useCallback(() => {
     generation.current++;
     setUnlocked(false);
     setNoteTopicIds([]);
     setCheckingNotes(false);
+    setOpenTopics([]);
   }, []);
   const onFailure = useCallback(() => {
     lock();
@@ -174,53 +198,86 @@ export default function ConsentOverview({
         <ConsentAggregate
           topics={topics}
           privateNoteTopicIds={privateVisible ? new Set(noteTopicIds) : undefined}
-          renderTopicDetails={
+          renderTopicControl={
             privateVisible
               ? (topic) => (
-                  <PrivatePanel
-                    key={topic.id}
-                    label={`Player details: ${topic.name}`}
-                    onFailure={onFailure}
-                    load={() => getGameConsentTopicDetails(guildId, gameId, topic.id)}
-                    render={(members) => (
-                      <ul className="divide-y divide-violet-6">
-                        {members.map((member) => (
-                          <li key={member.discordUserId} className="py-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <strong>{member.displayName}</strong>
-                              <ConsentAnswerBadge answer={member.answer} />
-                              {member.headsUp && (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-plum-9 px-2 py-1 text-sm text-white">
-                                  <BellIcon aria-hidden="true" />
-                                  Heads-up
-                                </span>
-                              )}
-                              <span className="text-xs text-sage-11">
-                                {member.source === 'inherited'
-                                  ? 'Inherited from parent topic'
-                                  : member.source === 'explicit'
-                                    ? 'Explicit answer'
-                                    : 'Unanswered'}
-                              </span>
-                            </div>
-                            {member.note && (
-                              <p className="mt-2 whitespace-pre-wrap text-sm">
-                                <strong>Private topic note: </strong>
-                                {member.note}
-                              </p>
-                            )}
-                            {member.parentNote && (
-                              <p className="mt-2 whitespace-pre-wrap text-sm">
-                                <strong>Private parent-topic note: </strong>
-                                {member.parentNote}
-                              </p>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
+                  <Button
+                    type="button"
+                    size="sm"
+                    aria-label={`Full details: ${topic.name}`}
+                    aria-expanded={openTopics.includes(topic.id)}
+                    aria-controls={
+                      openTopics.includes(topic.id) ? `private-topic-${topic.id}` : undefined
+                    }
+                    onClick={() =>
+                      setOpenTopics((current) =>
+                        current.includes(topic.id)
+                          ? current.filter((id) => id !== topic.id)
+                          : [...current, topic.id],
+                      )
+                    }
+                  >
+                    Full details
+                    {openTopics.includes(topic.id) ? (
+                      <ChevronUpIcon aria-hidden="true" className="ml-2" />
+                    ) : (
+                      <ChevronDownIcon aria-hidden="true" className="ml-2" />
                     )}
-                  />
+                  </Button>
                 )
+              : undefined
+          }
+          renderTopicDetails={
+            privateVisible
+              ? (topic) =>
+                  openTopics.includes(topic.id) ? (
+                    <div
+                      id={`private-topic-${topic.id}`}
+                      className="print:hidden rounded-lg border border-violet-7 bg-violet-2 p-3"
+                    >
+                      <PrivateContent
+                        onFailure={onFailure}
+                        load={topicLoaders.get(topic.id)!}
+                        render={(members) => (
+                          <ul className="divide-y divide-violet-6">
+                            {members.map((member) => (
+                              <li key={member.discordUserId} className="py-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <strong>{member.displayName}</strong>
+                                  <ConsentAnswerBadge answer={member.answer} />
+                                  {member.headsUp && (
+                                    <span className="inline-flex items-center gap-1 rounded-md bg-plum-9 px-2 py-1 text-sm text-white">
+                                      <BellIcon aria-hidden="true" />
+                                      Heads-up
+                                    </span>
+                                  )}
+                                  <span className="text-xs text-sage-11">
+                                    {member.source === 'inherited'
+                                      ? 'Inherited from parent topic'
+                                      : member.source === 'explicit'
+                                        ? 'Explicit answer'
+                                        : 'Unanswered'}
+                                  </span>
+                                </div>
+                                {member.note && (
+                                  <p className="mt-2 whitespace-pre-wrap text-sm">
+                                    <strong>Private topic note: </strong>
+                                    {member.note}
+                                  </p>
+                                )}
+                                {member.parentNote && (
+                                  <p className="mt-2 whitespace-pre-wrap text-sm">
+                                    <strong>Private parent-topic note: </strong>
+                                    {member.parentNote}
+                                  </p>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      />
+                    </div>
+                  ) : null
               : undefined
           }
         />
@@ -232,7 +289,7 @@ export default function ConsentOverview({
           <PrivatePanel
             label="Contribution status"
             onFailure={onFailure}
-            load={() => getGameConsentStatus(guildId, gameId)}
+            load={loadStatus}
             render={(status) =>
               !status.hasTopics ? (
                 <p>Official consent topics are not configured yet.</p>
@@ -257,7 +314,7 @@ export default function ConsentOverview({
           <PrivatePanel
             label="Overall private player notes"
             onFailure={onFailure}
-            load={() => getGameConsentOverallNotes(guildId, gameId)}
+            load={loadOverallNotes}
             render={(members) => (
               <ul className="divide-y divide-violet-6">
                 {members.map((member) => (

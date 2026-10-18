@@ -42,10 +42,12 @@ export function ConsentAnswerBadge({ answer }: { answer: AggregatedTopic['answer
 export default function ConsentAggregate({
   topics,
   renderTopicDetails,
+  renderTopicControl,
   privateNoteTopicIds,
 }: {
   topics: ConsentOverviewTopic[];
   renderTopicDetails?: (topic: ConsentOverviewTopic) => ReactNode;
+  renderTopicControl?: (topic: ConsentOverviewTopic) => ReactNode;
   privateNoteTopicIds?: ReadonlySet<string>;
 }) {
   const needsCare = topics.filter((topic) => topic.needsCare || privateNoteTopicIds?.has(topic.id));
@@ -56,14 +58,25 @@ export default function ConsentAggregate({
       {items.map((topic) => {
         return (
           <li key={topic.id} className="flex flex-col gap-2 py-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div
+              className={
+                renderTopicControl
+                  ? 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center'
+                  : 'flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'
+              }
+            >
               <div>
                 {topic.parentTopicId && (
                   <p className="text-xs text-sage-11">{names.get(topic.parentTopicId)}</p>
                 )}
                 <h3 className="font-medium">{topic.name}</h3>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-sm">
+              {renderTopicControl && (
+                <div className="print:hidden justify-self-start sm:justify-self-center">
+                  {renderTopicControl(topic)}
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2 text-sm sm:justify-self-end">
                 <ConsentAnswerBadge answer={topic.answer} />
                 {topic.headsUp && (
                   <span className="inline-flex items-center gap-1 rounded-md bg-plum-9 px-2 py-1 text-white">

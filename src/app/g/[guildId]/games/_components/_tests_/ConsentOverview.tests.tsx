@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 const mocks = vi.hoisted(() => ({
   topic: vi.fn(),
@@ -81,7 +81,7 @@ describe('private detail mode', () => {
     expect(mocks.topic).not.toHaveBeenCalled();
     expect(mocks.status).not.toHaveBeenCalled();
     expect(mocks.overall).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: 'Player details: Topic' }));
+    await user.click(screen.getByRole('button', { name: 'Full details: Topic' }));
     expect(await screen.findByText('Private topic text', { exact: false })).toBeInTheDocument();
     expect(screen.getByText('Inherited from parent topic')).toBeInTheDocument();
     expect(mocks.topic).toHaveBeenCalledWith('guild-1', 'game-1', 'topic-1');
@@ -95,9 +95,41 @@ describe('private detail mode', () => {
     expect(screen.queryByText('Complete')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Unlock private details' }));
     expect(screen.queryByText('Private topic text', { exact: false })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Player details: Topic' }));
+    await user.click(screen.getByRole('button', { name: 'Full details: Topic' }));
     await waitFor(() => expect(mocks.topic).toHaveBeenCalledTimes(2));
   });
+  it('toggles the purple topic panel from the row without refetching other open panels', async () => {
+    const user = userEvent.setup();
+    render(
+      <ConsentOverview
+        {...props}
+        topics={[props.topics[0], { ...props.topics[0], id: 'topic-2', name: 'Other topic' }]}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Unlock private details' }));
+    const control = screen.getByRole('button', { name: 'Full details: Topic' });
+    const row = within(control.closest('li')!);
+    expect(
+      row.getByRole('heading', { name: 'Topic' }).compareDocumentPosition(control) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      control.compareDocumentPosition(row.getByText('Veiled')) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(control).toHaveAttribute('aria-expanded', 'false');
+    expect(document.getElementById('private-topic-topic-1')).toBeNull();
+    await user.click(control);
+    await screen.findByText('Private topic text', { exact: false });
+    expect(control).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById('private-topic-topic-1')).not.toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Full details: Other topic' }));
+    await waitFor(() => expect(mocks.topic).toHaveBeenCalledTimes(2));
+    await user.click(control);
+    expect(control).toHaveAttribute('aria-expanded', 'false');
+    expect(document.getElementById('private-topic-topic-1')).toBeNull();
+    expect(mocks.topic).toHaveBeenCalledTimes(2);
+  });
+
   it('ignores private responses that arrive after relocking', async () => {
     const user = userEvent.setup();
     let resolve: (value: typeof topicData) => void = () => {};
@@ -108,7 +140,7 @@ describe('private detail mode', () => {
     );
     render(<ConsentOverview {...props} />);
     await user.click(screen.getByRole('button', { name: 'Unlock private details' }));
-    await user.click(screen.getByRole('button', { name: 'Player details: Topic' }));
+    await user.click(screen.getByRole('button', { name: 'Full details: Topic' }));
     await user.click(screen.getByRole('button', { name: 'Hide all private details' }));
     await act(async () => resolve(topicData));
     expect(screen.queryByText('Private topic text', { exact: false })).not.toBeInTheDocument();
@@ -135,7 +167,7 @@ describe('private detail mode', () => {
     mocks.status.mockResolvedValueOnce({ type: 'failure', error: 'No longer a coordinator' });
     render(<ConsentOverview {...props} />);
     await user.click(screen.getByRole('button', { name: 'Unlock private details' }));
-    await user.click(screen.getByRole('button', { name: 'Player details: Topic' }));
+    await user.click(screen.getByRole('button', { name: 'Full details: Topic' }));
     await screen.findByText('Private topic text', { exact: false });
     await user.click(screen.getByRole('button', { name: 'Contribution status' }));
     expect(await screen.findByText(/Private details could not be loaded/)).toBeInTheDocument();
