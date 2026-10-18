@@ -58,24 +58,18 @@ export default function ConsentAggregate({
       {items.map((topic) => {
         return (
           <li key={topic.id} className="flex flex-col gap-2 py-3">
-            <div
-              className={
-                renderTopicControl
-                  ? 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center'
-                  : 'flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'
-              }
-            >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 {topic.parentTopicId && (
                   <p className="text-xs text-sage-11">{names.get(topic.parentTopicId)}</p>
                 )}
-                <h3 className="font-medium">{topic.name}</h3>
-              </div>
-              {renderTopicControl && (
-                <div className="print:hidden justify-self-start sm:justify-self-center">
-                  {renderTopicControl(topic)}
+                <div className="flex flex-wrap items-center gap-3">
+                  <h3 className="font-medium">{topic.name}</h3>
+                  {renderTopicControl && (
+                    <div className="print:hidden">{renderTopicControl(topic)}</div>
+                  )}
                 </div>
-              )}
+              </div>
               <div className="flex flex-wrap items-center gap-2 text-sm sm:justify-self-end">
                 <ConsentAnswerBadge answer={topic.answer} />
                 {topic.headsUp && (
