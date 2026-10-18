@@ -5,6 +5,7 @@ import {
   HeartFilledIcon,
   QuestionMarkCircledIcon,
 } from '@radix-ui/react-icons';
+import type { ReactNode } from 'react';
 import type { AggregatedTopic } from '@/lib/consent/aggregate';
 import Paper from '@/components/Paper';
 
@@ -27,42 +28,55 @@ const styles = {
   },
 };
 
-export default function ConsentAggregate({ topics }: { topics: AggregatedTopic[] }) {
+export function ConsentAnswerBadge({ answer }: { answer: AggregatedTopic['answer'] }) {
+  const { label, icon: Icon, color } = styles[answer ?? 'unknown'];
+  return (
+    <span className={`inline-flex items-center gap-2 rounded-md px-2 py-1 ${color}`}>
+      <Icon aria-hidden="true" className="size-4" />
+      {label}
+    </span>
+  );
+}
+
+export default function ConsentAggregate({
+  topics,
+  renderTopicDetails,
+}: {
+  topics: AggregatedTopic[];
+  renderTopicDetails?: (topic: AggregatedTopic) => ReactNode;
+}) {
   const needsCare = topics.filter((topic) => topic.needsCare);
   const allGood = topics.filter((topic) => !topic.needsCare);
   const names = new Map(topics.map((topic) => [topic.id, topic.name]));
   const rows = (items: AggregatedTopic[]) => (
     <ul className="divide-y divide-sage-6">
       {items.map((topic) => {
-        const { label, icon: Icon, color } = styles[topic.answer ?? 'unknown'];
         return (
-          <li
-            key={topic.id}
-            className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div>
-              {topic.parentTopicId && (
-                <p className="text-xs text-sage-11">{names.get(topic.parentTopicId)}</p>
-              )}
-              <h3 className="font-medium">{topic.name}</h3>
+          <li key={topic.id} className="flex flex-col gap-2 py-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                {topic.parentTopicId && (
+                  <p className="text-xs text-sage-11">{names.get(topic.parentTopicId)}</p>
+                )}
+                <h3 className="font-medium">{topic.name}</h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <ConsentAnswerBadge answer={topic.answer} />
+                {topic.headsUp && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-plum-9 px-2 py-1 text-white">
+                    <BellIcon aria-hidden="true" className="size-4" />
+                    Heads-up
+                  </span>
+                )}
+                {topic.missingAnswers > 0 && (
+                  <span className="text-sage-11">
+                    Missing {topic.missingAnswers}{' '}
+                    {topic.missingAnswers === 1 ? 'answer' : 'answers'}
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className={`inline-flex items-center gap-2 rounded-md px-2 py-1 ${color}`}>
-                <Icon aria-hidden="true" className="size-4" />
-                {label}
-              </span>
-              {topic.headsUp && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-plum-9 px-2 py-1 text-white">
-                  <BellIcon aria-hidden="true" className="size-4" />
-                  Heads-up
-                </span>
-              )}
-              {topic.missingAnswers > 0 && (
-                <span className="text-sage-11">
-                  Missing {topic.missingAnswers} {topic.missingAnswers === 1 ? 'answer' : 'answers'}
-                </span>
-              )}
-            </div>
+            {renderTopicDetails?.(topic)}
           </li>
         );
       })}
