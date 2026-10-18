@@ -90,7 +90,11 @@ export const getGameConsentAggregate = asResult(
         topics,
         members.map((m) => m.discordUserId),
         responses,
-      ),
+      ).map((topic) => ({
+        ...topic,
+        hasMissingAnswers: topic.missingAnswers > 0,
+        missingAnswers: membership.coordinator ? topic.missingAnswers : null,
+      })),
     };
   },
   'Could not load game content boundaries.',

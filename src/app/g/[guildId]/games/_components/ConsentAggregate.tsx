@@ -4,8 +4,10 @@ import {
   EyeClosedIcon,
   HeartFilledIcon,
   QuestionMarkCircledIcon,
+  Pencil2Icon,
 } from '@radix-ui/react-icons';
-import type { AggregatedTopic } from '@/lib/consent/aggregate';
+import type { ReactNode } from 'react';
+import type { AggregatedTopic, ConsentOverviewTopic } from '@/lib/consent/aggregate';
 import Paper from '@/components/Paper';
 
 const styles = {
@@ -27,42 +29,71 @@ const styles = {
   },
 };
 
-export default function ConsentAggregate({ topics }: { topics: AggregatedTopic[] }) {
-  const needsCare = topics.filter((topic) => topic.needsCare);
-  const allGood = topics.filter((topic) => !topic.needsCare);
+export function ConsentAnswerBadge({ answer }: { answer: AggregatedTopic['answer'] }) {
+  const { label, icon: Icon, color } = styles[answer ?? 'unknown'];
+  return (
+    <span className={`inline-flex items-center gap-2 rounded-md px-2 py-1 ${color}`}>
+      <Icon aria-hidden="true" className="size-4" />
+      {label}
+    </span>
+  );
+}
+
+export default function ConsentAggregate({
+  topics,
+  renderTopicDetails,
+  renderTopicControl,
+  privateNoteTopicIds,
+}: {
+  topics: ConsentOverviewTopic[];
+  renderTopicDetails?: (topic: ConsentOverviewTopic) => ReactNode;
+  renderTopicControl?: (topic: ConsentOverviewTopic) => ReactNode;
+  privateNoteTopicIds?: ReadonlySet<string>;
+}) {
+  const needsCare = topics.filter((topic) => topic.needsCare || privateNoteTopicIds?.has(topic.id));
+  const allGood = topics.filter((topic) => !topic.needsCare && !privateNoteTopicIds?.has(topic.id));
   const names = new Map(topics.map((topic) => [topic.id, topic.name]));
-  const rows = (items: AggregatedTopic[]) => (
+  const rows = (items: ConsentOverviewTopic[]) => (
     <ul className="divide-y divide-sage-6">
       {items.map((topic) => {
-        const { label, icon: Icon, color } = styles[topic.answer ?? 'unknown'];
         return (
-          <li
-            key={topic.id}
-            className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div>
-              {topic.parentTopicId && (
-                <p className="text-xs text-sage-11">{names.get(topic.parentTopicId)}</p>
-              )}
-              <h3 className="font-medium">{topic.name}</h3>
+          <li key={topic.id} className="flex flex-col gap-2 py-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                {topic.parentTopicId && (
+                  <p className="text-xs text-sage-11">{names.get(topic.parentTopicId)}</p>
+                )}
+                <div className="flex flex-wrap items-center gap-3">
+                  <h3 className="font-medium">{topic.name}</h3>
+                  {renderTopicControl && (
+                    <div className="print:hidden">{renderTopicControl(topic)}</div>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 text-sm sm:justify-self-end">
+                <ConsentAnswerBadge answer={topic.answer} />
+                {topic.headsUp && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-plum-9 px-2 py-1 text-white">
+                    <BellIcon aria-hidden="true" className="size-4" />
+                    Heads-up
+                  </span>
+                )}
+                {(topic.hasMissingAnswers ?? (topic.missingAnswers ?? 0) > 0) && (
+                  <span className="text-sage-11">
+                    {topic.missingAnswers === null
+                      ? 'Not everyone has answered'
+                      : `Missing ${topic.missingAnswers} ${topic.missingAnswers === 1 ? 'answer' : 'answers'}`}
+                  </span>
+                )}
+                {privateNoteTopicIds?.has(topic.id) && (
+                  <span className="print:hidden inline-flex items-center gap-1 rounded-md bg-violet-9 px-2 py-1 text-white">
+                    <Pencil2Icon aria-hidden="true" className="size-4" />
+                    Private notes
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className={`inline-flex items-center gap-2 rounded-md px-2 py-1 ${color}`}>
-                <Icon aria-hidden="true" className="size-4" />
-                {label}
-              </span>
-              {topic.headsUp && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-plum-9 px-2 py-1 text-white">
-                  <BellIcon aria-hidden="true" className="size-4" />
-                  Heads-up
-                </span>
-              )}
-              {topic.missingAnswers > 0 && (
-                <span className="text-sage-11">
-                  Missing {topic.missingAnswers} {topic.missingAnswers === 1 ? 'answer' : 'answers'}
-                </span>
-              )}
-            </div>
+            {renderTopicDetails?.(topic)}
           </li>
         );
       })}
@@ -73,7 +104,10 @@ export default function ConsentAggregate({ topics }: { topics: AggregatedTopic[]
       <h2 className="text-xl font-bold">Needs care</h2>
       <p className="text-sm text-sage-11">
         Hard lines, veils, heads-up choices and missing answers. Missing answers are unknown, not
-        agreement.
+        agreement.{' '}
+        {privateNoteTopicIds?.size
+          ? 'Topics with private notes are also included while unlocked.'
+          : ''}
       </p>
       {needsCare.length ? rows(needsCare) : <p>No topics currently need special care.</p>}
       {allGood.length > 0 && (

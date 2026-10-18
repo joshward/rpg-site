@@ -71,7 +71,8 @@ describe('aggregate server boundary', () => {
             parentTopicId: null,
             answer: 'veil',
             headsUp: true,
-            missingAnswers: 0,
+            missingAnswers: null,
+            hasMissingAnswers: false,
             needsCare: true,
           },
         ],
@@ -108,6 +109,23 @@ describe('aggregate server boundary', () => {
       data: { canViewContributions: true },
     });
   });
+  it('reports only missing-answer presence to members, but keeps exact counts for coordinators', async () => {
+    mocks.members = [
+      { discordUserId: 'caller' },
+      { discordUserId: 'other' },
+      { discordUserId: 'third' },
+    ];
+    expect(await getGameConsentAggregate('guild-1', 'game-1')).toMatchObject({
+      type: 'success',
+      data: { topics: [{ missingAnswers: null, hasMissingAnswers: true }] },
+    });
+    mocks.membership = [{ coordinator: true }];
+    expect(await getGameConsentAggregate('guild-1', 'game-1')).toMatchObject({
+      type: 'success',
+      data: { topics: [{ missingAnswers: 2, hasMissingAnswers: true }] },
+    });
+  });
+
   it('denies nonmembers/removed members even when they are guild admins', async () => {
     mocks.membership = [];
     mocks.access.mockResolvedValue({
