@@ -289,6 +289,16 @@ export const getGame = asResult(
     return {
       ...gameData,
       members,
+      canViewConsentAggregate:
+        !!context &&
+        !context.isImpersonating &&
+        !access.isImpersonating &&
+        canAccessGameConsent(access.guildData?.consentEnabled === true, gameData.consentMode) &&
+        members.some(
+          (member) =>
+            member.discordUserId === access.discordAccount.userId &&
+            (gameData.consentMode === 'requested' || member.isConsentCoordinator),
+        ),
       canViewConsentStatus:
         !!context &&
         !context.isImpersonating &&

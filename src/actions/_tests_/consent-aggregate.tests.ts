@@ -63,6 +63,7 @@ describe('aggregate server boundary', () => {
       data: {
         gameName: 'Game',
         mode: 'requested',
+        canViewContributions: false,
         topics: [
           {
             id: 'topic-1',
@@ -76,7 +77,7 @@ describe('aggregate server boundary', () => {
         ],
       },
     });
-    expect(JSON.stringify(result)).not.toMatch(/caller|discordUserId|note|coordinator/);
+    expect(JSON.stringify(result)).not.toMatch(/caller|discordUserId|note/);
     expect(mocks.select.mock.calls.map(([columns]) => Object.keys(columns)).at(-1)).toEqual([
       'discordUserId',
       'topicId',
@@ -102,7 +103,10 @@ describe('aggregate server boundary', () => {
     });
     expect((await getGameConsentAggregate('guild-1', 'game-1')).type).toBe('failure');
     mocks.membership = [{ coordinator: true }];
-    expect((await getGameConsentAggregate('guild-1', 'game-1')).type).toBe('success');
+    expect(await getGameConsentAggregate('guild-1', 'game-1')).toMatchObject({
+      type: 'success',
+      data: { canViewContributions: true },
+    });
   });
   it('denies nonmembers/removed members even when they are guild admins', async () => {
     mocks.membership = [];

@@ -75,15 +75,16 @@ export default async function EditGamePage({
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">Edit Game: {gameResult.data.name}</h1>
-      {guildInfoResult.data.consentChecklistAvailable && gameResult.data.canViewConsentStatus && (
-        <Link
-          href={`/g/${guildId}/games/${gameId}/consent`}
-          className="inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
-        >
-          <ClipboardIcon aria-hidden="true" className="size-4" />
-          View consent status
-        </Link>
-      )}
+      {guildInfoResult.data.consentChecklistAvailable &&
+        gameResult.data.canViewConsentAggregate && (
+          <Link
+            href={`/g/${guildId}/games/${gameId}/consent`}
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
+          >
+            <ClipboardIcon aria-hidden="true" className="size-4" />
+            Consent overview
+          </Link>
+        )}
       <GameForm
         initialData={gameResult.data}
         eligibleMembers={membersResult.data}

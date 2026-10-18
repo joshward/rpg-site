@@ -85,6 +85,7 @@ export const getGameConsentAggregate = asResult(
     return {
       gameName: selected.name,
       mode: selected.mode,
+      canViewContributions: membership.coordinator,
       topics: aggregateConsentTopics(
         topics,
         members.map((m) => m.discordUserId),

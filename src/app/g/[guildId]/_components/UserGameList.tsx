@@ -274,22 +274,12 @@ function UserGameItem({
           </div>
           {game.canViewConsentAggregate && (
             <Link
-              href={`/g/${guildId}/games/${game.id}/consent/aggregate`}
-              className="mt-2 inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <ClipboardIcon aria-hidden="true" className="size-4" />
-              View content boundaries
-            </Link>
-          )}
-          {game.canViewConsentStatus && (
-            <Link
               href={`/g/${guildId}/games/${game.id}/consent`}
               className="mt-2 inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
               onClick={(event) => event.stopPropagation()}
             >
               <ClipboardIcon aria-hidden="true" className="size-4" />
-              View consent status
+              Consent overview
             </Link>
           )}
         </div>
