@@ -17,6 +17,8 @@ import {
 import { getGameConsentStatus } from '@/actions/consent-game-status';
 import { isFailure, type Result } from '@/actions/result';
 import type { ConsentOverviewTopic } from '@/lib/consent/aggregate';
+import { EMPTY_GROUP_NOTE, type ConsentGroupNote } from '@/lib/consent/group-notes';
+import GroupNoteField from './GroupNoteField';
 import ConsentAggregate, { ConsentAnswerBadge } from './ConsentAggregate';
 import Alert from '@/components/Alert';
 import Button from '@/components/Button';
@@ -81,17 +83,37 @@ export default function ConsentOverview({
   gameId,
   topics,
   canViewPrivateDetails,
+  overallGroupNote = EMPTY_GROUP_NOTE,
 }: {
   guildId: string;
   gameId: string;
   topics: ConsentOverviewTopic[];
   canViewPrivateDetails: boolean;
+  overallGroupNote?: ConsentGroupNote;
 }) {
   const [unlocked, setUnlocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [noteTopicIds, setNoteTopicIds] = useState<string[]>([]);
   const [checkingNotes, setCheckingNotes] = useState(false);
   const [openTopics, setOpenTopics] = useState<string[]>([]);
+  const [savedTopicNotes, setSavedTopicNotes] = useState<Record<string, ConsentGroupNote>>({});
+  const [savedOverallNote, setSavedOverallNote] = useState<ConsentGroupNote | null>(null);
+  const displayedTopics = useMemo(
+    () =>
+      topics.map((topic) => {
+        const original = topic.groupNote ?? EMPTY_GROUP_NOTE;
+        const saved = savedTopicNotes[topic.id];
+        return {
+          ...topic,
+          groupNote: saved && saved.revision > original.revision ? saved : original,
+        };
+      }),
+    [topics, savedTopicNotes],
+  );
+  const displayedOverallNote =
+    savedOverallNote && savedOverallNote.revision > overallGroupNote.revision
+      ? savedOverallNote
+      : overallGroupNote;
   const topicLoaders = useMemo(
     () =>
       new Map(
@@ -194,9 +216,38 @@ export default function ConsentOverview({
           )}
         </div>
       )}
+      {(displayedOverallNote.note || privateVisible) && (
+        <Paper>
+          <GroupNoteField
+            key={`overall:${privateVisible}`}
+            guildId={guildId}
+            gameId={gameId}
+            topicId={null}
+            label="Overall game group note"
+            value={displayedOverallNote}
+            canEdit={privateVisible}
+            onSaved={setSavedOverallNote}
+          />
+        </Paper>
+      )}
       {topics.length ? (
         <ConsentAggregate
-          topics={topics}
+          topics={displayedTopics}
+          renderGroupNote={(topic) => (
+            <GroupNoteField
+              key={`${topic.id}:${privateVisible}`}
+              guildId={guildId}
+              gameId={gameId}
+              topicId={topic.id}
+              label={`Group note: ${topic.name}`}
+              value={topic.groupNote ?? EMPTY_GROUP_NOTE}
+              canEdit={privateVisible}
+              onSaved={(note) =>
+                setSavedTopicNotes((current) => ({ ...current, [topic.id]: note }))
+              }
+            />
+          )}
+
           privateNoteTopicIds={privateVisible ? new Set(noteTopicIds) : undefined}
           renderTopicControl={
             privateVisible

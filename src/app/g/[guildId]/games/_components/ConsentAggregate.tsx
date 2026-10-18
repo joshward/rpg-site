@@ -43,15 +43,21 @@ export default function ConsentAggregate({
   topics,
   renderTopicDetails,
   renderTopicControl,
+  renderGroupNote,
   privateNoteTopicIds,
 }: {
   topics: ConsentOverviewTopic[];
   renderTopicDetails?: (topic: ConsentOverviewTopic) => ReactNode;
   renderTopicControl?: (topic: ConsentOverviewTopic) => ReactNode;
+  renderGroupNote?: (topic: ConsentOverviewTopic) => ReactNode;
   privateNoteTopicIds?: ReadonlySet<string>;
 }) {
-  const needsCare = topics.filter((topic) => topic.needsCare || privateNoteTopicIds?.has(topic.id));
-  const allGood = topics.filter((topic) => !topic.needsCare && !privateNoteTopicIds?.has(topic.id));
+  const needsCare = topics.filter(
+    (topic) => topic.needsCare || topic.groupNote?.note || privateNoteTopicIds?.has(topic.id),
+  );
+  const allGood = topics.filter(
+    (topic) => !topic.needsCare && !topic.groupNote?.note && !privateNoteTopicIds?.has(topic.id),
+  );
   const names = new Map(topics.map((topic) => [topic.id, topic.name]));
   const rows = (items: ConsentOverviewTopic[]) => (
     <ul className="divide-y divide-sage-6">
@@ -93,6 +99,14 @@ export default function ConsentAggregate({
                 )}
               </div>
             </div>
+            {renderGroupNote
+              ? renderGroupNote(topic)
+              : topic.groupNote?.note && (
+                  <p className="whitespace-pre-wrap border-l-2 border-violet-7 pl-3 text-sm">
+                    <strong>Group note: </strong>
+                    {topic.groupNote.note}
+                  </p>
+                )}
             {renderTopicDetails?.(topic)}
           </li>
         );
@@ -104,7 +118,7 @@ export default function ConsentAggregate({
       <h2 className="text-xl font-bold">Needs care</h2>
       <p className="text-sm text-sage-11">
         Hard lines, veils, heads-up choices and missing answers. Missing answers are unknown, not
-        agreement.{' '}
+        agreement. Topics with group notes are included here too.{' '}
         {privateNoteTopicIds?.size
           ? 'Topics with private notes are also included while unlocked.'
           : ''}

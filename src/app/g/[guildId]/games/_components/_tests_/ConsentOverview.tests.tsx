@@ -13,7 +13,12 @@ vi.mock('@/actions/consent-private-details', () => ({
   getGameConsentNoteTopics: mocks.noteTopics,
 }));
 vi.mock('@/actions/consent-game-status', () => ({ getGameConsentStatus: mocks.status }));
+vi.mock('@/actions/consent-group-notes', () => ({
+  getGameConsentGroupNote: vi.fn(),
+  saveGameConsentGroupNote: vi.fn(),
+}));
 import ConsentOverview from '../ConsentOverview';
+import { saveGameConsentGroupNote } from '@/actions/consent-group-notes';
 const props = {
   guildId: 'guild-1',
   gameId: 'game-1',
@@ -72,6 +77,65 @@ describe('private detail mode', () => {
     expect(mocks.overall).not.toHaveBeenCalled();
     expect(mocks.noteTopics).not.toHaveBeenCalled();
   });
+  it('keeps shared group notes visible while locking edit controls behind private mode', async () => {
+    const user = userEvent.setup();
+    render(
+      <ConsentOverview
+        {...props}
+        overallGroupNote={{ note: 'Shared overall note', revision: 1 }}
+        topics={[
+          {
+            ...props.topics[0],
+            answer: 'enthusiastic',
+            needsCare: false,
+            groupNote: { note: 'Shared topic note', revision: 2 },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText('Shared overall note')).toBeInTheDocument();
+    expect(screen.getByText('Shared topic note')).toBeInTheDocument();
+    expect(screen.queryByText('All good from everyone (1)')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Edit Group note: Topic' }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Unlock private details' }));
+    expect(screen.getByRole('button', { name: 'Edit Group note: Topic' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Hide all private details' }));
+    expect(screen.getByText('Shared topic note')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Edit Group note: Topic' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('publishes a saved group note into Needs care and keeps it visible after relocking', async () => {
+    const user = userEvent.setup();
+    vi.mocked(saveGameConsentGroupNote).mockResolvedValueOnce({
+      type: 'success',
+      data: { note: 'Group translation', revision: 1 },
+    });
+    render(
+      <ConsentOverview
+        {...props}
+        topics={[{ ...props.topics[0], answer: 'enthusiastic', needsCare: false }]}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Unlock private details' }));
+    await user.click(screen.getByText('All good from everyone (1)'));
+    await user.click(screen.getByRole('button', { name: 'Edit Group note: Topic' }));
+    expect(screen.getByRole('textbox', { name: 'Group note: Topic' })).toHaveValue('');
+    await user.type(
+      screen.getByRole('textbox', { name: 'Group note: Topic' }),
+      'Group translation',
+    );
+    await user.click(screen.getByRole('button', { name: 'Save group note' }));
+    expect(await screen.findByText('Group translation')).toBeInTheDocument();
+    expect(screen.queryByText('All good from everyone (1)')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Hide all private details' }));
+    expect(screen.getByText('Group translation')).toBeInTheDocument();
+    expect(mocks.topic).not.toHaveBeenCalled();
+  });
+
   it('loads each pane only after explicit unlock and expansion, then hides/discards all on lock', async () => {
     const user = userEvent.setup();
     render(<ConsentOverview {...props} />);

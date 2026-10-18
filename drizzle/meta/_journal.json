@@ -155,6 +155,13 @@
       "when": 1792257925434,
       "tag": "0021_add_game_consent_coordinators",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792361622819,
+      "tag": "0022_add_game_consent_group_notes",
+      "breakpoints": true
     }
   ]
 }
