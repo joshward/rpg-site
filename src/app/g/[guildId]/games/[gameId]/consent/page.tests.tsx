@@ -36,6 +36,34 @@ describe('aggregate page', () => {
     );
   });
 
+  it('places coordinator navigation after content boundaries', async () => {
+    mocks.aggregate.mockResolvedValueOnce({
+      type: 'success',
+      data: {
+        gameName: 'Game',
+        mode: 'requested',
+        canViewContributions: true,
+        topics: [
+          {
+            id: 'topic-1',
+            name: 'Topic',
+            parentTopicId: null,
+            answer: 'veil',
+            headsUp: false,
+            missingAnswers: 0,
+            needsCare: true,
+          },
+        ],
+      },
+    });
+    render(await GameConsentAggregatePage(props));
+    const topic = screen.getByRole('heading', { name: 'Topic' });
+    const navigation = screen.getByRole('link', { name: 'Contribution status' });
+    expect(
+      topic.compareDocumentPosition(navigation) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('does not show coordinator drill-down to ordinary Requested members', async () => {
     render(await GameConsentAggregatePage(props));
     expect(screen.queryByRole('link', { name: 'Contribution status' })).not.toBeInTheDocument();

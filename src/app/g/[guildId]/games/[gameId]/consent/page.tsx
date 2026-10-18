@@ -32,6 +32,11 @@ export default async function GameConsentAggregatePage({
           shown.
         </p>
       </div>
+      {result.data.topics.length ? (
+        <ConsentAggregate topics={result.data.topics} />
+      ) : (
+        <Paper>Official consent topics are not configured yet.</Paper>
+      )}
       {result.data.canViewContributions && (
         <nav aria-label="Consent details">
           <Link
@@ -42,11 +47,6 @@ export default async function GameConsentAggregatePage({
             Contribution status
           </Link>
         </nav>
-      )}
-      {result.data.topics.length ? (
-        <ConsentAggregate topics={result.data.topics} />
-      ) : (
-        <Paper>Official consent topics are not configured yet.</Paper>
       )}
     </div>
   );
