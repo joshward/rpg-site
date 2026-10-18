@@ -72,7 +72,7 @@ describe('edit game page consent dropdown', () => {
     vi.stubEnv('CONSENT_FEATURE_ENABLED', 'true');
     mocks.game.mockResolvedValueOnce({
       type: 'success',
-      data: { name: 'Game', consentMode: 'optional', members: [] },
+      data: { name: 'Game', consentMode: 'optional', members: [], canViewConsentStatus: true },
     });
     render(await EditGamePage(props));
     expect(screen.getByRole('link', { name: 'View consent status' })).toHaveAttribute(
