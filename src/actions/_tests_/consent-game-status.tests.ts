@@ -43,7 +43,7 @@ beforeEach(() => {
     discordAccount: { userId: 'ada' },
     guildData: { consentEnabled: true },
   });
-  mocks.assignments = [];
+  mocks.assignments = [{ id: 'membership-1' }];
   mocks.context.mockResolvedValue({ isImpersonating: false });
   mocks.gameRows = [{ id: 'game-1', name: 'Game', consentMode: 'optional' }];
   mocks.topicRows = topics;
@@ -82,7 +82,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('admin or explicitly assigned member game consent status', () => {
+describe('explicitly assigned coordinator game consent status', () => {
   it('returns only member names and status, never answers, heads-up choices or private notes', async () => {
     const result = await getGameConsentStatus('guild-1', 'game-1');
     expect(result).toEqual({
@@ -143,6 +143,7 @@ describe('admin or explicitly assigned member game consent status', () => {
       isImpersonating: false,
       guildData: { consentEnabled: true },
     });
+    mocks.assignments = [];
     expect((await getGameConsentStatus('guild-1', 'game-1')).type).toBe('failure');
     expect(mocks.responseWhere).not.toHaveBeenCalled();
     const assignmentQuery = new PgDialect({ casing: 'snake_case' }).sqlToQuery(
@@ -154,6 +155,13 @@ describe('admin or explicitly assigned member game consent status', () => {
     expect((await getGameConsentStatus('guild-1', 'game-1')).type).toBe('success');
     mocks.assignments = [];
     expect((await getGameConsentStatus('guild-1', 'game-1')).type).toBe('failure');
+  });
+
+  it('does not give an unassigned admin individual completion access', async () => {
+    mocks.assignments = [];
+    expect((await getGameConsentStatus('guild-1', 'game-1')).type).toBe('failure');
+    expect(mocks.select).toHaveBeenCalledTimes(2);
+    expect(mocks.responseWhere).not.toHaveBeenCalled();
   });
 
   it('denies a game outside the guild or in Off mode before reading responses', async () => {
@@ -171,7 +179,7 @@ describe('admin or explicitly assigned member game consent status', () => {
       type: 'success',
       data: { gameName: 'Game', mode: 'optional', hasTopics: true, members: [] },
     });
-    expect(mocks.select).toHaveBeenCalledTimes(3);
+    expect(mocks.select).toHaveBeenCalledTimes(4);
     expect(mocks.responseWhere).not.toHaveBeenCalled();
     expect(mocks.guildMembers).not.toHaveBeenCalled();
   });
@@ -183,7 +191,7 @@ describe('admin or explicitly assigned member game consent status', () => {
       type: 'success',
       data: { gameName: 'Game', mode: 'requested', hasTopics: false, members: [] },
     });
-    expect(mocks.select).toHaveBeenCalledTimes(2);
+    expect(mocks.select).toHaveBeenCalledTimes(3);
     expect(mocks.guildMembers).not.toHaveBeenCalled();
   });
 });

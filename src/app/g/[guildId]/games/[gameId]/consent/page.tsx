@@ -1,80 +1,53 @@
 import { notFound } from 'next/navigation';
-import { getGuildInfo } from '@/actions/guilds';
-import { getGameConsentStatus } from '@/actions/consent-game-status';
+import { ClipboardIcon } from '@radix-ui/react-icons';
+import { getGameConsentAggregate } from '@/actions/consent-aggregate';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
-import Paper from '@/components/Paper';
 import Link from '@/components/Link';
+import Paper from '@/components/Paper';
+import ConsentAggregate from '../../_components/ConsentAggregate';
 
-export const metadata = getDefaultMetadata({ subtitles: ['Game Consent Status'] });
+export const metadata = getDefaultMetadata({ subtitles: ['Content Consent Overview'] });
 
-export default async function GameConsentStatusPage({
+export default async function GameConsentAggregatePage({
   params,
 }: {
   params: Promise<{ guildId: string; gameId: string }>;
 }) {
   const { guildId, gameId } = await params;
-  const info = await getGuildInfo(guildId);
-  if (isFailure(info) || !info.data.consentChecklistAvailable) {
-    notFound();
-  }
-
-  // This read rechecks admin access, impersonation, the server/guild gates,
-  // game ownership and game mode. The page check alone is not authorization.
-  const result = await getGameConsentStatus(guildId, gameId);
+  // The read enforces all membership/coordinator and feature gates. An admin
+  // who only manages the game cannot load this aggregate.
+  const result = await getGameConsentAggregate(guildId, gameId);
   if (isFailure(result)) notFound();
-  const { gameName, mode, hasTopics, members } = result.data;
-
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link
-          href={info.data.role === 'admin' ? `/g/${guildId}/games/${gameId}` : `/g/${guildId}`}
-          className="text-sm text-plum-11 hover:underline"
-        >
-          Back
-        </Link>
-        <h1 className="text-2xl font-bold mt-2">Consent status: {gameName}</h1>
-        <p className="text-sm text-sage-11 mt-1">
-          {mode === 'optional' ? 'Optional' : 'Requested'} · Guild checklist completion only. This
-          does not indicate game-specific consent. Answers, heads-up choices and private notes are
-          not shown.
+        <Link href={`/g/${guildId}`}>Back to your games</Link>
+        <h1 className="mt-2 text-2xl font-bold">
+          Content Consent Overview: {result.data.gameName}
+        </h1>
+        <p className="mt-1 text-sm text-sage-11">
+          Combined guild checklist answers for current game members. Use these boundaries to guide
+          play and keep communicating at the table. No individual answers or private notes are
+          shown.
         </p>
       </div>
-      <Paper>
-        {!hasTopics ? (
-          <p>Official consent topics are not configured yet.</p>
-        ) : members.length === 0 ? (
-          <p>No members are assigned to this game yet.</p>
-        ) : (
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-sage-6 text-sage-11">
-                <th scope="col" className="py-2 pr-4">
-                  Member
-                </th>
-                <th scope="col" className="py-2">
-                  Checklist
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((member) => (
-                <tr key={member.discordUserId} className="border-b border-sage-5 last:border-0">
-                  <td className="py-3 pr-4">{member.displayName}</td>
-                  <td className="py-3">
-                    {member.status === 'complete'
-                      ? 'Complete'
-                      : member.status === 'in-progress'
-                        ? 'In progress'
-                        : 'Not started'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Paper>
+      {result.data.topics.length ? (
+        <ConsentAggregate topics={result.data.topics} />
+      ) : (
+        <Paper>Official consent topics are not configured yet.</Paper>
+      )}
+      {result.data.canViewContributions && (
+        <nav aria-label="Consent details">
+          <Link
+            href={`/g/${guildId}/games/${gameId}/consent/contributions`}
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
+          >
+            <ClipboardIcon aria-hidden="true" className="size-4" />
+            Contribution status
+          </Link>
+        </nav>
+      )}
     </div>
   );
 }

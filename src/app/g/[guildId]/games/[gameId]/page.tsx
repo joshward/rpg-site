@@ -8,7 +8,6 @@ import { getEligibleGameMembers, getGame } from '@/actions/games';
 import { getGuildChannelsAction, getGuildInfo } from '@/actions/guilds';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
-import { canAccessGameConsent } from '@/lib/consent/feature-gate';
 import { GuildRouteProps, getGuildName } from '../../helpers';
 import GameForm from '../_components/GameForm';
 
@@ -77,13 +76,13 @@ export default async function EditGamePage({
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-bold">Edit Game: {gameResult.data.name}</h1>
       {guildInfoResult.data.consentChecklistAvailable &&
-        canAccessGameConsent(true, gameResult.data.consentMode) && (
+        gameResult.data.canViewConsentAggregate && (
           <Link
             href={`/g/${guildId}/games/${gameId}/consent`}
             className="inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
           >
             <ClipboardIcon aria-hidden="true" className="size-4" />
-            View consent status
+            Content Consent Overview
           </Link>
         )}
       <GameForm

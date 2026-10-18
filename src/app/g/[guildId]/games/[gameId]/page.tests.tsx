@@ -72,10 +72,10 @@ describe('edit game page consent dropdown', () => {
     vi.stubEnv('CONSENT_FEATURE_ENABLED', 'true');
     mocks.game.mockResolvedValueOnce({
       type: 'success',
-      data: { name: 'Game', consentMode: 'optional', members: [] },
+      data: { name: 'Game', consentMode: 'optional', members: [], canViewConsentAggregate: true },
     });
     render(await EditGamePage(props));
-    expect(screen.getByRole('link', { name: 'View consent status' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Content Consent Overview' })).toHaveAttribute(
       'href',
       '/g/guild-1/games/game-1/consent',
     );
@@ -84,7 +84,9 @@ describe('edit game page consent dropdown', () => {
   it('does not link to status for an Off game even when guild consent is enabled', async () => {
     vi.stubEnv('CONSENT_FEATURE_ENABLED', 'true');
     render(await EditGamePage(props));
-    expect(screen.queryByRole('link', { name: 'View consent status' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Content Consent Overview' }),
+    ).not.toBeInTheDocument();
   });
 
   it('denies non-admin access before fetching a game', async () => {

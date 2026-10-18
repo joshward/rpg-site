@@ -41,19 +41,18 @@ export const getGameConsentStatus = asResult(
       throw new ActionError('Game consent status is not available.');
     }
 
-    if (access.role !== 'admin') {
-      const [assignment] = await db
-        .select({ id: gameMember.id })
-        .from(gameMember)
-        .where(
-          and(
-            eq(gameMember.gameId, selectedGame.id),
-            eq(gameMember.discordUserId, access.discordAccount.userId),
-            eq(gameMember.isConsentCoordinator, true),
-          ),
-        );
-      if (!assignment) throw new ActionError('Game consent status is not available.');
-    }
+    // Admin privileges manage settings only; individual completion is coordinator-only.
+    const [assignment] = await db
+      .select({ id: gameMember.id })
+      .from(gameMember)
+      .where(
+        and(
+          eq(gameMember.gameId, selectedGame.id),
+          eq(gameMember.discordUserId, access.discordAccount.userId),
+          eq(gameMember.isConsentCoordinator, true),
+        ),
+      );
+    if (!assignment) throw new ActionError('Game consent status is not available.');
 
     const topics = await db
       .select({ id: consentTopic.id, parentTopicId: consentTopic.parentTopicId })

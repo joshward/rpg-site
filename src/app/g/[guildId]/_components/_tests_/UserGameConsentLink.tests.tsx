@@ -12,16 +12,32 @@ const game = {
   members: [],
 };
 
-describe('coordinator status discovery', () => {
-  it('shows a link only when the server authorizes the current member', () => {
+describe('consent overview discovery', () => {
+  it('shows one overview link for members and coordinators, never separate status links', () => {
     const { rerender } = render(
-      <UserGameList guildId="guild-1" games={[{ ...game, canViewConsentStatus: true }]} />,
+      <UserGameList
+        guildId="guild-1"
+        games={[{ ...game, canViewConsentAggregate: true, canViewConsentStatus: true }]}
+      />,
     );
-    expect(screen.getByRole('link', { name: 'View consent status' })).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: 'Content Consent Overview' })).toHaveLength(1);
+    expect(screen.getByRole('link', { name: 'Content Consent Overview' })).toHaveAttribute(
       'href',
       '/g/guild-1/games/game-1/consent',
     );
-    rerender(<UserGameList guildId="guild-1" games={[{ ...game, canViewConsentStatus: false }]} />);
     expect(screen.queryByRole('link', { name: 'View consent status' })).not.toBeInTheDocument();
+    rerender(
+      <UserGameList
+        guildId="guild-1"
+        games={[{ ...game, canViewConsentAggregate: true, canViewConsentStatus: false }]}
+      />,
+    );
+    expect(screen.getByRole('link', { name: 'Content Consent Overview' })).toBeInTheDocument();
+    rerender(
+      <UserGameList guildId="guild-1" games={[{ ...game, canViewConsentAggregate: false }]} />,
+    );
+    expect(
+      screen.queryByRole('link', { name: 'Content Consent Overview' }),
+    ).not.toBeInTheDocument();
   });
 });

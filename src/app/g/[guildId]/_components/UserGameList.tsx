@@ -29,6 +29,7 @@ interface Game {
   schedulingDetails?: string | null;
   isRequired: boolean;
   canViewConsentStatus?: boolean;
+  canViewConsentAggregate?: boolean;
   scheduledDates?: {
     year: number;
     month: number;
@@ -271,14 +272,14 @@ function UserGameItem({
               )}
             </div>
           </div>
-          {game.canViewConsentStatus && (
+          {game.canViewConsentAggregate && (
             <Link
               href={`/g/${guildId}/games/${game.id}/consent`}
               className="mt-2 inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
               onClick={(event) => event.stopPropagation()}
             >
               <ClipboardIcon aria-hidden="true" className="size-4" />
-              View consent status
+              Content Consent Overview
             </Link>
           )}
         </div>

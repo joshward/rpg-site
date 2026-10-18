@@ -237,6 +237,12 @@ export const getMyGames = asResult(
         !access.isImpersonating &&
         g.isConsentCoordinator &&
         canAccessGameConsent(access.guildData?.consentEnabled === true, g.consentMode),
+      canViewConsentAggregate:
+        !!context &&
+        !context.isImpersonating &&
+        !access.isImpersonating &&
+        (g.consentMode === 'requested' || g.isConsentCoordinator) &&
+        canAccessGameConsent(access.guildData?.consentEnabled === true, g.consentMode),
       scheduledDates: scheduled
         .filter((s) => s.gameId === g.id)
         .map((s) => ({
@@ -264,7 +270,7 @@ export const getMyGames = asResult(
 export const getGame = asResult(
   'getGame',
   async (guildId: string, gameId: string) => {
-    await ensureAdmin(guildId);
+    const access = await ensureAdmin(guildId);
 
     const gameData = (
       await db
@@ -279,9 +285,29 @@ export const getGame = asResult(
 
     const members = await db.select().from(gameMember).where(eq(gameMember.gameId, gameId));
 
+    const context = await getEffectiveUserContext(guildId);
     return {
       ...gameData,
       members,
+      canViewConsentAggregate:
+        !!context &&
+        !context.isImpersonating &&
+        !access.isImpersonating &&
+        canAccessGameConsent(access.guildData?.consentEnabled === true, gameData.consentMode) &&
+        members.some(
+          (member) =>
+            member.discordUserId === access.discordAccount.userId &&
+            (gameData.consentMode === 'requested' || member.isConsentCoordinator),
+        ),
+      canViewConsentStatus:
+        !!context &&
+        !context.isImpersonating &&
+        !access.isImpersonating &&
+        canAccessGameConsent(access.guildData?.consentEnabled === true, gameData.consentMode) &&
+        members.some(
+          (member) =>
+            member.discordUserId === access.discordAccount.userId && member.isConsentCoordinator,
+        ),
     };
   },
   'Something went wrong fetching the game.',
