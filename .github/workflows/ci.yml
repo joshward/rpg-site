@@ -8,6 +8,17 @@ permissions:
   contents: read
 
 jobs:
+  local-preview:
+    name: Windows Preview Safety
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Check preview approval and Emdash config (no secrets)
+        shell: powershell
+        run: .\scripts\local-preview.tests.ps1
+
   prettier:
     name: Prettier Check
     runs-on: ubuntu-latest

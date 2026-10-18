@@ -1,18 +1,37 @@
 ---
 name: local-preview
-description: Start or stop the Tavern Master local app for human smoke tests in a second terminal tab of the current Pane. Use for local dev previews, consent testing, and requests to run the app.
+description: Start or stop the Tavern Master local app for human smoke tests in the current Emdash task's Run terminal. Use for local dev previews, consent testing, and requests to run the app.
 ---
 
-# Tavern Master local preview (Windows Pane)
+# Tavern Master local preview (Windows Emdash)
 
 Read `AGENTS.md` first. This workflow never uses production credentials or resets a Neon branch.
 
-1. **Ask the human for approval before any `op` command**, for each new preview session. Do not infer approval from an earlier run. Ensure the PR/worktree has the desired code, no other app is listening on port 3000, and inspect new `drizzle/*.sql` and `drizzle/meta` changes before approving migrations.
-2. From the current worktree, check `runpane doctor --json` and `runpane agent-context --json`, then `runpane agent-context --command "panels create" --json`. If Pane is unreachable, stop and tell the human; do not fall back to a hidden background process. Confirm `PANE_SESSION_ID` identifies the current Pane. Follow the installed `pane` skill for Pane commands.
-3. Once approved, run this from a Windows Pane terminal (no `.env.local` copy needed):
-   `runpane panels create --pane "$env:PANE_SESSION_ID" --tool-command "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -Approved" --title "Local preview" --source agent --no-focus --yes --json`
-   Record the returned panel ID. Do not use `--wait-ready` for this long-running non-agent command: it may report a readiness failure even when the terminal and server started. If creation reports a failure, list the Pane's panels and inspect any existing Local preview tab before trying again. The new panel shares this Pane's worktree and keeps the server in the foreground. Do not launch a new Pane/worktree for the server.
-4. Use `runpane panels screen --panel <panel-id> --limit 60 --json` or `runpane panels wait --panel <panel-id> --for text --contains "Ready in" --json` to verify Next is ready. Check `http://localhost:3000` returns HTTP 200 before telling the human. Optionally show it using `runpane panels open --url http://localhost:3000 --source agent --yes --json`. Never paste a resolved URL, secret, connection string, or logs that might contain user data into chat.
-5. Leave the panel running for the smoke test. **Do not send Ctrl-C to the Pane tab on Windows:** `op`/npm batch wrappers can leave a `Terminate batch job (Y/N)?` prompt. When the human is done, from the agent tab (or another terminal in this worktree) run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -Stop`. This uses the ignored per-worktree PID/start-time record to stop only the preview process tree, without loading 1Password. Confirm port 3000 is no longer listening; the exited preview tab can be closed. Never delete the base repository's ignored `.env.local` or `.neon` context.
+## Start in the current Emdash task
 
-The launcher `scripts/local-preview.ps1` uses the base repository's ignored `.env.local` and `.neon` context, validates that the resolved `DATABASE_URL` hostname belongs to the non-default, non-protected Neon `local` child branch's `neondb` database and rejects query options other than the expected Neon TLS options, then sets local-only `SITE_URL` and `CONSENT_FEATURE_ENABLED=true`. Only after verification does it run `npm run db:migrate` and `npm run dev` **inside the single 1Password-populated process**. Outside that process, use the project's `!` scripts instead. The launcher requires `-Approved` for starting, fails closed on missing context or verification failures, and never prints secrets. `-Stop` needs no approval or secrets and only targets the recorded process tree for this worktree.
+1. **Coordinate with the human before any `op` command**, for each preview session. Never infer approval from an earlier run. Confirm the current worktree contains the desired code, inspect new `drizzle/*.sql` and `drizzle/meta` changes, and check port 3000 is free. Do not stop another task's server or pick another port silently.
+2. Use the project's checked-in `.emdash.json` **Run** script in this task. Ask the human to start **Run** and open its terminal drawer with **Ctrl+J**. If a personal Run override is set in Emdash Project Settings, clear it to inherit the shared command. The Run script invokes:
+   `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -ConfirmApproval`
+3. Ask the human to type **yes** at the confirmation prompt in the Run terminal, then approve 1Password if prompted. Any other response cancels before loading secrets or migrating. Even if Emdash auto-runs the script, it must wait for this explicit confirmation. No `.env.local` copy is needed.
+4. Wait for the launcher to report **Verified: Neon local child branch**, successful migrations, and Next **Ready in**. Ask the human to check the Run output; do not claim to have read the terminal when no terminal-reading tool is available. Independently check `http://localhost:3000` returns HTTP 200 before reporting success. Emdash can open the URL using its dev-server pill → **Open in Emdash Browser**, or **Ctrl+Shift+B**; the system browser also works.
+5. Leave the Run terminal available for the smoke test. Do not invoke `runpane`, create another task/worktree, use undocumented Emdash hooks/internal APIs, or launch a hidden background process. Emdash's `EMDASH_PORT` is a suggested app port range, **not a control API**; keep this app on 3000 for its configured local Discord OAuth URL. Never print Emdash hook tokens, secrets, connection strings or sensitive app logs.
+
+**Supported fallback:** If Run is not configured in the currently open task, ask the human to create an Emdash terminal with **Ctrl+Shift+T** and run the same command there. If tooling cannot open a terminal tab programmatically, say so rather than inventing an Emdash CLI. Do not send OS-wide keystrokes to automate UI focus. After explicit approval in chat, the agent may run `-Approved` **in an already available visible Emdash testing terminal**, but not in the agent's own occupied terminal or a detached process.
+
+## Stop
+
+From the agent tab or another terminal in this worktree, run:
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -Stop`
+
+No 1Password access is required for stopping. Do not use Ctrl-C: Windows `op`/npm wrappers can leave `Terminate batch job (Y/N)?`. The ignored per-worktree PID/start-time record targets only this preview tree. Confirm port 3000 is no longer listening. Emdash's teardown script runs the same stop command when tearing down the task; don't rely on closing a tab as cleanup. A known `taskkill` child-exit race is tracked in #173: if the server is already gone but a stale state file remains, rerun `-Stop` to clean the stale record. Never delete the base repository's ignored `.env.local` or `.neon`.
+
+## Safety and verification
+
+The launcher locates the base Git repository, uses its ignored `.env.local` and `.neon`, validates the resolved `DATABASE_URL` against the non-default, non-protected Neon **local** child branch's **neondb** database, and rejects query options except the expected Neon TLS options. It sets `SITE_URL=http://localhost:3000` and `CONSENT_FEATURE_ENABLED=true` locally only. Only then does it run `npm run db:migrate` and `npm run dev` in the same approved, 1Password-populated child process using package.json's pinned Volta versions. Outside that populated process, use the project's `!` scripts.
+
+The `.emdash.json` Run command intentionally does not pass `-Approved` or embed credentials. Its empty `preservePatterns` avoids requesting copies of local env/config files. Personal Emdash overrides may take precedence; inspect Project Settings if behavior differs. No setup script automatically installs dependencies or accesses secrets.
+
+Run approval/config regression checks without secrets:
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.tests.ps1`
+
+Emdash references: [Project Settings](https://emdash.com/docs/project-config), [Keyboard Shortcuts](https://emdash.com/docs/keyboard-shortcuts), [In-App Browser](https://emdash.com/docs/in-app-browser).

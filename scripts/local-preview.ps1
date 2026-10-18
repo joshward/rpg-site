@@ -1,7 +1,8 @@
-# Run from a Windows Pane terminal, after the human approves loading 1Password secrets.
+# Run in Emdash's Run terminal, after the human approves loading 1Password secrets.
 # Stop from another terminal with -Stop; Ctrl-C can strand Windows batch wrappers.
 param(
   [switch]$Approved,
+  [switch]$ConfirmApproval,
   [switch]$Resolved,
   [switch]$Stop,
   [string]$EnvFile
@@ -36,6 +37,19 @@ if ($Stop) {
   return
 }
 
+# Emdash may auto-run lifecycle scripts. Always obtain an explicit answer in its
+# visible Run terminal before loading secrets or running migrations.
+if ($ConfirmApproval) {
+  Write-Output 'Local preview loads 1Password references, verifies Neon local, applies local migrations, and enables consent locally.'
+  $answer = Read-Host 'Approve this preview session? Type yes to continue (anything else cancels)'
+  if ($answer -ne 'yes') {
+    Write-Output 'Local preview cancelled; no secrets loaded or migrations run.'
+    return
+  }
+  $Approved = $true
+}
+if (-not $Approved) { throw 'Ask the human to approve 1Password access, then rerun with -Approved or -ConfirmApproval.' }
+
 $commonGitDir = (& git -C $repo rev-parse --path-format=absolute --git-common-dir)
 if ($LASTEXITCODE -ne 0 -or -not $commonGitDir) { throw 'Could not locate the base repository.' }
 $baseRepo = Split-Path $commonGitDir.Trim() -Parent
@@ -55,7 +69,6 @@ $EnvFile = (Resolve-Path -LiteralPath $EnvFile).Path
 foreach ($command in @('op', 'neonctl', 'volta')) {
   if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { throw "Missing required CLI: $command" }
 }
-if (-not $Approved) { throw 'Ask the human to approve 1Password access, then rerun with -Approved.' }
 if (-not $Resolved -and (Get-PreviewProcess)) {
   throw 'A preview is already running for this worktree. Use -Stop first.'
 }
