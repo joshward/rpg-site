@@ -29,6 +29,10 @@ const styles = {
   },
 };
 
+const answerOrder = { line: 0, veil: 1, enthusiastic: 2, unknown: 3 };
+const byName = (a: ConsentOverviewTopic, b: ConsentOverviewTopic) =>
+  a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }) || a.id.localeCompare(b.id);
+
 export function ConsentAnswerBadge({ answer }: { answer: AggregatedTopic['answer'] }) {
   const { label, icon: Icon, color } = styles[answer ?? 'unknown'];
   return (
@@ -52,12 +56,23 @@ export default function ConsentAggregate({
   renderGroupNote?: (topic: ConsentOverviewTopic) => ReactNode;
   privateNoteTopicIds?: ReadonlySet<string>;
 }) {
-  const needsCare = topics.filter(
-    (topic) => topic.needsCare || topic.groupNote?.note || privateNoteTopicIds?.has(topic.id),
-  );
-  const allGood = topics.filter(
-    (topic) => !topic.needsCare && !topic.groupNote?.note && !privateNoteTopicIds?.has(topic.id),
-  );
+  const attentionOrder = (topic: ConsentOverviewTopic) =>
+    (privateNoteTopicIds?.has(topic.id) ? 0 : 2) + (topic.headsUp ? 0 : 1);
+  const needsCare = topics
+    .filter(
+      (topic) => topic.needsCare || topic.groupNote?.note || privateNoteTopicIds?.has(topic.id),
+    )
+    .sort(
+      (a, b) =>
+        answerOrder[a.answer ?? 'unknown'] - answerOrder[b.answer ?? 'unknown'] ||
+        attentionOrder(a) - attentionOrder(b) ||
+        byName(a, b),
+    );
+  const allGood = topics
+    .filter(
+      (topic) => !topic.needsCare && !topic.groupNote?.note && !privateNoteTopicIds?.has(topic.id),
+    )
+    .sort(byName);
   const names = new Map(topics.map((topic) => [topic.id, topic.name]));
   const rows = (items: ConsentOverviewTopic[]) => (
     <ul className="divide-y divide-sage-6">
