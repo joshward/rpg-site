@@ -1,7 +1,6 @@
 # Standalone Windows regression checks; no 1Password, Neon or database access.
 $ErrorActionPreference = 'Stop'
 $launcher = Join-Path $PSScriptRoot 'local-preview.ps1'
-$repo = Split-Path $PSScriptRoot -Parent
 
 function Assert-True($value, [string]$message) {
   if (-not $value) { throw $message }
@@ -44,9 +43,5 @@ Assert-True (@($parseErrors).Count -eq 0) 'Launcher must parse in Windows PowerS
   Assert-True $reached 'An explicit yes must advance to preflight.'
 }
 
-$config = Get-Content -LiteralPath (Join-Path $repo '.emdash.json') -Raw | ConvertFrom-Json
-Assert-True ($config.scripts.run -match '-ConfirmApproval' -and $config.scripts.run -notmatch '-Approved\b') 'Emdash Run must require interactive approval.'
-Assert-True ($config.scripts.teardown -match '-Stop\b') 'Emdash teardown must use the targeted stop command.'
-Assert-True (@($config.preservePatterns).Count -eq 0) 'Shared config must not request copies of local env files.'
-Assert-True (-not $config.scripts.setup) 'Shared config must not automatically run setup commands.'
-Write-Output 'Local preview approval and Emdash config checks passed (no secrets or DB access).'
+& (Join-Path $PSScriptRoot 'local-preview-orca.tests.ps1')
+Write-Output 'Local preview approval and Orca launch checks passed (no secrets or DB access).'
