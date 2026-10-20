@@ -41,24 +41,22 @@ try {
   $parseErrors = $null
   [System.Management.Automation.Language.Parser]::ParseFile($helper, [ref]$null, [ref]$parseErrors) | Out-Null
   Assert-Orca (@($parseErrors).Count -eq 0) 'Orca helper must parse in Windows PowerShell.'
-  foreach ($launch in @('interactive', 'approved', 'check-only')) {
+  foreach ($launch in @('requested', 'check-only')) {
     $script:testMode = 'success'; $script:cliCalls.Clear()
     $result = & {
-      if ($launch -eq 'approved') { . $helper -Approved }
-      elseif ($launch -eq 'check-only') { . $helper -CheckOnly }
+      if ($launch -eq 'check-only') { . $helper -CheckOnly }
       else { . $helper }
     } | ConvertFrom-Json
     Assert-Orca ($result.visible -and $result.commandAccepted -and -not $result.ready) 'Accepted input must not be reported as app readiness.'
     $send = @($script:cliCalls | Where-Object { $_[1] -eq 'send' })[0]
     $command = $send[([Array]::IndexOf($send, '--text') + 1)]
-    if ($launch -eq 'interactive') { Assert-Orca ($command -match '-ConfirmApproval' -and $command -notmatch '-Approved\b') 'Default launch must require human approval.' }
-    if ($launch -eq 'approved') { Assert-Orca ($command -match '-Approved\b') 'Chat-approved launch must pass the explicit flag.' }
+    if ($launch -eq 'requested') { Assert-Orca ($command -match '-Approved\b' -and $command -notmatch '-ConfirmApproval') 'A human-requested launch must not require a second typed confirmation.' }
     if ($launch -eq 'check-only') { Assert-Orca ($command -eq 'Write-Output ORCA_LOCAL_PREVIEW_TERMINAL_OK') 'Check-only must never start the app.' }
     Assert-Orca (@($script:cliCalls | Where-Object { $_[1] -eq 'create' }).Count -eq 1) 'Must create only one terminal.'
   }
   foreach ($failure in @('wrong-workspace', 'remote', 'background', 'send-rejected', 'cli-error')) {
     $script:testMode = $failure; $script:cliCalls.Clear(); $blocked = $false
-    try { & { . $helper -Approved } | Out-Null } catch { $blocked = $true }
+    try { & { . $helper } | Out-Null } catch { $blocked = $true }
     Assert-Orca $blocked "Must fail closed for $failure."
     $creates = @($script:cliCalls | Where-Object { $_[1] -eq 'create' }).Count
     $sends = @($script:cliCalls | Where-Object { $_[1] -eq 'send' }).Count

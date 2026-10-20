@@ -1,10 +1,8 @@
 # Create a visible testing terminal in the current local Windows Orca workspace.
-# -Approved is only for a fresh human approval in chat. Otherwise the terminal
-# prompts interactively. -CheckOnly prints a marker and never starts the app.
-param(
-  [switch]$Approved,
-  [switch]$CheckOnly
-)
+# Invoke only after a human requests/approves this preview session. That request
+# authorizes the launcher; 1Password still handles its own approval separately.
+# -CheckOnly prints a marker and never starts the app.
+param([switch]$CheckOnly)
 
 $ErrorActionPreference = 'Stop'
 if ($env:OS -ne 'Windows_NT') { throw 'This preview helper requires a local Windows Orca host.' }
@@ -44,7 +42,7 @@ if (-not $terminal.handle -or $terminal.worktreeId -ne $workspace.id -or $termin
   throw "Orca did not confirm a visible terminal in this workspace. Nothing was submitted. Inspect terminal $($terminal.handle); do not create duplicates."
 }
 $command = if ($CheckOnly) { 'Write-Output ORCA_LOCAL_PREVIEW_TERMINAL_OK' } else {
-  'powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 ' + $(if ($Approved) { '-Approved' } else { '-ConfirmApproval' })
+  'powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -Approved'
 }
 try {
   $null = Invoke-OrcaJson -Arguments @('terminal', 'read', '--terminal', $terminal.handle, '--screen', '--limit', '20', '--json')
