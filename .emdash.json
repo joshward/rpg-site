@@ -1,7 +1,0 @@
-{
-  "preservePatterns": [],
-  "scripts": {
-    "run": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -ConfirmApproval",
-    "teardown": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -Stop"
-  }
-}

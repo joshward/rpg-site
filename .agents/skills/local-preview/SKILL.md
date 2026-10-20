@@ -1,37 +1,44 @@
 ---
 name: local-preview
-description: Start or stop the Tavern Master local app for human smoke tests in the current Emdash task's Run terminal. Use for local dev previews, consent testing, and requests to run the app.
+description: Start or stop the Tavern Master local app for human smoke tests in a visible testing terminal inside the current Orca workspace. Use for local dev previews, consent testing, and requests to run the app.
 ---
 
-# Tavern Master local preview (Windows Emdash)
+# Tavern Master local preview (Windows Orca)
 
-Read `AGENTS.md` first. This workflow never uses production credentials or resets a Neon branch.
+Read `AGENTS.md` first. Never use production credentials, reset Neon, or run notification/cron scripts on cloned data.
 
-## Start in the current Emdash task
+## Establish the Orca control surface
 
-1. **Coordinate with the human before any `op` command**, for each preview session. Never infer approval from an earlier run. Confirm the current worktree contains the desired code, inspect new `drizzle/*.sql` and `drizzle/meta` changes, and check port 3000 is free. Do not stop another task's server or pick another port silently.
-2. Use the project's checked-in `.emdash.json` **Run** script in this task. Ask the human to start **Run** and open its terminal drawer with **Ctrl+J**. If a personal Run override is set in Emdash Project Settings, clear it to inherit the shared command. The Run script invokes:
-   `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -ConfirmApproval`
-3. Ask the human to type **yes** at the confirmation prompt in the Run terminal, then approve 1Password if prompted. Any other response cancels before loading secrets or migrating. Even if Emdash auto-runs the script, it must wait for this explicit confirmation. No `.env.local` copy is needed.
-4. Wait for the launcher to report **Verified: Neon local child branch**, successful migrations, and Next **Ready in**. Ask the human to check the Run output; do not claim to have read the terminal when no terminal-reading tool is available. Independently check `http://localhost:3000` returns HTTP 200 before reporting success. Emdash can open the URL using its dev-server pill → **Open in Emdash Browser**, or **Ctrl+Shift+B**; the system browser also works.
-5. Leave the Run terminal available for the smoke test. Do not invoke `runpane`, create another task/worktree, use undocumented Emdash hooks/internal APIs, or launch a hidden background process. Emdash's `EMDASH_PORT` is a suggested app port range, **not a control API**; keep this app on 3000 for its configured local Discord OAuth URL. Never print Emdash hook tokens, secrets, connection strings or sensitive app logs.
+Load the installed orchestration discovery skill to resolve the exact executable: use `ORCA_CLI_COMMAND` when set, otherwise `orca-dev` for `ORCA_DEV_REPO_ROOT`, otherwise `orca` on this Windows host. Keep using that executable; never fall through to another build on failure. Load its version-matched guide with `orca skills get orca-cli --json` (substitute the resolved executable when different), then check `status --json`, `worktree current --json`, and `terminal create --help`. This is ordinary terminal work: no orchestration Run/Task/Dispatch or extra worktree is needed.
 
-**Supported fallback:** If Run is not configured in the currently open task, ask the human to create an Emdash terminal with **Ctrl+Shift+T** and run the same command there. If tooling cannot open a terminal tab programmatically, say so rather than inventing an Emdash CLI. Do not send OS-wide keystrokes to automate UI focus. After explicit approval in chat, the agent may run `-Approved` **in an already available visible Emdash testing terminal**, but not in the agent's own occupied terminal or a detached process.
+## Start automatically in a visible workspace terminal
 
-## Stop
+1. Coordinate with the human before any `op` command **for this session**. Inspect new `drizzle/*.sql` and `drizzle/meta` changes. Confirm the desired worktree is clean/understood, port 3000 is free, and no preview is already running. Keep the app on 3000 for local Discord OAuth.
+2. After explicit human approval in chat, run:
+   `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview-orca.ps1 -Approved`
+   Without chat approval, omit `-Approved`: the spawned testing terminal prompts the human to type **yes** before accessing 1Password or migrating. The agent must never answer that approval prompt on the human's behalf.
+3. The helper validates a reachable **local** Orca runtime and that the current workspace matches this checkout. It creates a PowerShell terminal in that exact workspace, verifies its surface is **visible**, then reads and submits the preview command. It does not switch UI focus, invoke Emdash/Pane controls, create a new worktree, or start a detached process. The terminal runs `scripts/local-preview.ps1` with either the approved flag or interactive confirmation. No `.env.local` copy is needed.
+4. Record the helper's returned **terminal handle** and resolved **cli**. `commandAccepted` proves only submission, not readiness. Read the exact handle using `orca terminal read --terminal <handle> --screen --limit 80 --json` with the same executable. The rendered lines are in `result.terminal.tail` (an array). Check for local-DB verification, successful migration, and Next's **Ready in** marker; do not mistake an echoed command for executed output. Also check `http://localhost:3000` returns HTTP 200. Never paste raw logs that could contain private notes/user data, connection strings, or Orca hook tokens into chat.
+5. Leave the terminal running during the human smoke test. They no longer need to manually click Run or create the terminal. If create/send fails or readiness times out, inspect the returned handle/list before retrying; never spawn a duplicate just because a receipt is uncertain. If the runtime reports a stale handle, list the workspace terminals and use only the replacement handle. On runtime-access failure, report the exact failure rather than silently using another host or a background fallback.
 
-From the agent tab or another terminal in this worktree, run:
+The equivalent verified CLI sequence is `terminal create --worktree current --shell powershell.exe --title "Local preview" --json`, verify the returned workspace and visible surface, then `terminal read` and `terminal send --terminal <handle> --text "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -Approved" --enter --json`. Use the approved form only after fresh human permission. Prefer the helper so the scope/surface checks are not skipped.
+
+## Stop and clean up
+
+From the agent terminal run:
 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.ps1 -Stop`
 
-No 1Password access is required for stopping. Do not use Ctrl-C: Windows `op`/npm wrappers can leave `Terminate batch job (Y/N)?`. The ignored per-worktree PID/start-time record targets only this preview tree. Confirm port 3000 is no longer listening. Emdash's teardown script runs the same stop command when tearing down the task; don't rely on closing a tab as cleanup. A known `taskkill` child-exit race is tracked in #173: if the server is already gone but a stale state file remains, rerun `-Stop` to clean the stale record. Never delete the base repository's ignored `.env.local` or `.neon`.
+No 1Password access is needed. Confirm port 3000 is no longer listening and `.local-preview.json` is removed. If the known `taskkill` child-exit race (#173) leaves stale state while the server is already gone, rerun `-Stop` to clean it. Do not rely on Ctrl-C (Windows batch-job prompts) or closing a tab to stop the process tree.
 
-## Safety and verification
+After a confirmed stop, read the recorded testing terminal. If it is still your own unused shell, close **only that handle** with `orca terminal close --terminal <handle> --json`; never use `--all` or close the agent/user's other terminals. Retain it and report uncertainty if ownership/process state cannot be confirmed. Never remove the base repository's ignored `.env.local` or `.neon`.
 
-The launcher locates the base Git repository, uses its ignored `.env.local` and `.neon`, validates the resolved `DATABASE_URL` against the non-default, non-protected Neon **local** child branch's **neondb** database, and rejects query options except the expected Neon TLS options. It sets `SITE_URL=http://localhost:3000` and `CONSENT_FEATURE_ENABLED=true` locally only. Only then does it run `npm run db:migrate` and `npm run dev` in the same approved, 1Password-populated child process using package.json's pinned Volta versions. Outside that populated process, use the project's `!` scripts.
+## Safety and testing
 
-The `.emdash.json` Run command intentionally does not pass `-Approved` or embed credentials. Its empty `preservePatterns` avoids requesting copies of local env/config files. Personal Emdash overrides may take precedence; inspect Project Settings if behavior differs. No setup script automatically installs dependencies or accesses secrets.
+The app launcher still reuses the base repository's ignored `.env.local` and `.neon`, resolves secrets once, verifies `DATABASE_URL` against the non-default/non-protected Neon **local** child branch's **neondb**, rejects target-changing query options, and only then migrates and starts dev with pinned Volta versions. Consent and SITE_URL are overridden locally only. No auto-run hooks or checked-in credentials are used.
 
-Run approval/config regression checks without secrets:
+Run script regression checks without secrets:
 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.tests.ps1`
 
-Emdash references: [Project Settings](https://emdash.com/docs/project-config), [Keyboard Shortcuts](https://emdash.com/docs/keyboard-shortcuts), [In-App Browser](https://emdash.com/docs/in-app-browser).
+Test just Orca terminal creation/submission without `op`, DB access or app startup:
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview-orca.ps1 -CheckOnly`
+Read its returned handle for `ORCA_LOCAL_PREVIEW_TERMINAL_OK`, then close that known idle check terminal. The helper explicitly reports `ready: false`; a marker is not an app smoke test.
