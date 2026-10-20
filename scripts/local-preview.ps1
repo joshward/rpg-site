@@ -1,4 +1,4 @@
-# Run in Emdash's Run terminal, after the human approves loading 1Password secrets.
+# Run in a visible Orca testing terminal after the human requests/approves a preview.
 # Stop from another terminal with -Stop; Ctrl-C can strand Windows batch wrappers.
 param(
   [switch]$Approved,
@@ -37,8 +37,8 @@ if ($Stop) {
   return
 }
 
-# Emdash may auto-run lifecycle scripts. Always obtain an explicit answer in its
-# visible Run terminal before loading secrets or running migrations.
+# Optional interactive confirmation is retained for direct/manual launches.
+# The Orca helper passes -Approved when the human requests/approves a preview.
 if ($ConfirmApproval) {
   Write-Output 'Local preview loads 1Password references, verifies Neon local, applies local migrations, and enables consent locally.'
   $answer = Read-Host 'Approve this preview session? Type yes to continue (anything else cancels)'
