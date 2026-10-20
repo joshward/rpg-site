@@ -50,6 +50,105 @@ describe('care-first aggregate view', () => {
     expect(screen.queryByText(/Missing \\d/)).not.toBeInTheDocument();
   });
 
+  it('sorts Needs care by boundary severity before flags or names, with unanswered topics last', () => {
+    render(
+      <ConsentAggregate
+        privateNoteTopicIds={new Set(['veil', 'good', 'unknown'])}
+        topics={[
+          { ...topic, id: 'good', name: 'Beta', needsCare: true, headsUp: true },
+          {
+            ...topic,
+            id: 'unknown',
+            name: 'Aardvark',
+            answer: null,
+            needsCare: true,
+            headsUp: true,
+          },
+          { ...topic, id: 'veil', name: 'Alpha', answer: 'veil', needsCare: true, headsUp: true },
+          { ...topic, id: 'line', name: 'Zulu', answer: 'line', needsCare: true },
+        ]}
+      />,
+    );
+    expect(
+      screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent),
+    ).toEqual(['Zulu', 'Alpha', 'Beta', 'Aardvark']);
+  });
+
+  it.each(['line', 'veil', 'enthusiastic'] as const)(
+    'sorts %s topics by both flags, private notes, heads-up, neither, then name',
+    (answer) => {
+      const cases = [
+        { name: 'Alpha both', privateNote: true, headsUp: true },
+        { name: 'Zulu both', privateNote: true, headsUp: true },
+        { name: 'Alpha notes', privateNote: true, headsUp: false },
+        { name: 'Zulu notes', privateNote: true, headsUp: false },
+        { name: 'Alpha heads', privateNote: false, headsUp: true },
+        { name: 'Zulu heads', privateNote: false, headsUp: true },
+        { name: 'Alpha neither', privateNote: false, headsUp: false },
+        { name: 'Zulu neither', privateNote: false, headsUp: false },
+      ];
+      const topics = cases
+        .map((entry) => ({
+          ...topic,
+          id: entry.name,
+          name: entry.name,
+          answer,
+          headsUp: entry.headsUp,
+          needsCare: true,
+        }))
+        .reverse();
+      const originalOrder = topics.map((entry) => entry.id);
+      render(
+        <ConsentAggregate
+          topics={topics}
+          privateNoteTopicIds={
+            new Set(cases.filter((entry) => entry.privateNote).map((entry) => entry.name))
+          }
+        />,
+      );
+      expect(
+        screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent),
+      ).toEqual(cases.map((entry) => entry.name));
+      expect(topics.map((entry) => entry.id)).toEqual(originalOrder);
+    },
+  );
+
+  it('does not retain private-note ordering when private metadata is removed', () => {
+    const topics = [
+      { ...topic, id: 'z', name: 'Zulu', answer: 'veil' as const, needsCare: true },
+      { ...topic, id: 'a', name: 'Alpha', answer: 'veil' as const, needsCare: true },
+    ];
+    const { rerender } = render(
+      <ConsentAggregate topics={topics} privateNoteTopicIds={new Set(['z'])} />,
+    );
+    expect(
+      screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent),
+    ).toEqual(['Zulu', 'Alpha']);
+    rerender(<ConsentAggregate topics={topics} />);
+    expect(
+      screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent),
+    ).toEqual(['Alpha', 'Zulu']);
+  });
+
+  it('sorts the collapsed All good list alphabetically', () => {
+    render(
+      <ConsentAggregate
+        topics={[
+          { ...topic, id: 'z', name: 'Zulu' },
+          { ...topic, id: 'b', name: 'beta' },
+          { ...topic, id: 'a', name: 'Alpha' },
+        ]}
+      />,
+    );
+    const details = screen.getByText('All good from everyone (3)').closest('details')!;
+    expect(details).not.toHaveAttribute('open');
+    expect(
+      within(details)
+        .getAllByRole('heading', { level: 3, hidden: true })
+        .map((heading) => heading.textContent),
+    ).toEqual(['Alpha', 'beta', 'Zulu']);
+  });
+
   it('does not present unknown topics as All good', () => {
     render(
       <ConsentAggregate

@@ -18,7 +18,13 @@ beforeEach(() => {
   });
   mocks.aggregate.mockResolvedValue({
     type: 'success',
-    data: { gameName: 'Game', mode: 'requested', topics: [], canViewContributions: false },
+    data: {
+      gameName: 'Game',
+      mode: 'requested',
+      topics: [],
+      canViewContributions: false,
+      overallGroupNote: { note: 'Shared group note', revision: 1 },
+    },
   });
 });
 describe('overview initial server render', () => {
@@ -36,6 +42,7 @@ describe('overview initial server render', () => {
       gameId: 'game-1',
       topics: [],
       canViewPrivateDetails: false,
+      overallGroupNote: { note: 'Shared group note', revision: 1 },
     });
   });
   it('lets a coordinator unlock on the client, without server-preloading private data', async () => {

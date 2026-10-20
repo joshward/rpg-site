@@ -5,6 +5,8 @@ import { db } from '@/db/db';
 import { game, gameMember } from '@/db/schema/games';
 import { consentTopic } from '@/db/schema/consent-topics';
 import { consentResponse } from '@/db/schema/consent-responses';
+import { gameConsentGroupNote, gameConsentTopicGroupNote } from '@/db/schema/consent-group-notes';
+import { EMPTY_GROUP_NOTE } from '@/lib/consent/group-notes';
 import { ensureAccess, getEffectiveUserContext } from './auth-helpers';
 import { ActionError, asResult } from './action-helpers';
 import { canAccessGameConsent, canAccessGuildConsent } from '@/lib/consent/feature-gate';
@@ -82,8 +84,37 @@ export const getGameConsentAggregate = asResult(
               ),
             )
         : [];
+    const [overallGroupNote] = await db
+      .select({ note: gameConsentGroupNote.note, revision: gameConsentGroupNote.revision })
+      .from(gameConsentGroupNote)
+      .where(
+        and(eq(gameConsentGroupNote.guildId, guildId), eq(gameConsentGroupNote.gameId, gameId)),
+      );
+    const topicGroupNotes = topics.length
+      ? await db
+          .select({
+            topicId: gameConsentTopicGroupNote.topicId,
+            note: gameConsentTopicGroupNote.note,
+            revision: gameConsentTopicGroupNote.revision,
+          })
+          .from(gameConsentTopicGroupNote)
+          .where(
+            and(
+              eq(gameConsentTopicGroupNote.guildId, guildId),
+              eq(gameConsentTopicGroupNote.gameId, gameId),
+              inArray(
+                gameConsentTopicGroupNote.topicId,
+                topics.map((topic) => topic.id),
+              ),
+            ),
+          )
+      : [];
+    const groupNotesByTopic = new Map(
+      topicGroupNotes.map(({ topicId, note, revision }) => [topicId, { note, revision }]),
+    );
     return {
       gameName: selected.name,
+      overallGroupNote: overallGroupNote ?? EMPTY_GROUP_NOTE,
       mode: selected.mode,
       canViewContributions: membership.coordinator,
       topics: aggregateConsentTopics(
@@ -92,6 +123,7 @@ export const getGameConsentAggregate = asResult(
         responses,
       ).map((topic) => ({
         ...topic,
+        groupNote: groupNotesByTopic.get(topic.id) ?? EMPTY_GROUP_NOTE,
         hasMissingAnswers: topic.missingAnswers > 0,
         missingAnswers: membership.coordinator ? topic.missingAnswers : null,
       })),

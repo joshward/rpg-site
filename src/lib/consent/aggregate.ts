@@ -1,4 +1,5 @@
 import type { ConsentAnswer } from '@/db/schema/consent-responses';
+import type { ConsentGroupNote } from './group-notes';
 
 export type AggregateTopic = { id: string; parentTopicId: string | null; name: string };
 export type AggregateResponse = {
@@ -17,6 +18,7 @@ export type AggregatedTopic = AggregateTopic & {
 export type ConsentOverviewTopic = Omit<AggregatedTopic, 'missingAnswers'> & {
   missingAnswers: number | null;
   hasMissingAnswers?: boolean;
+  groupNote?: ConsentGroupNote;
 };
 const priority = { enthusiastic: 1, veil: 2, line: 3 };
 

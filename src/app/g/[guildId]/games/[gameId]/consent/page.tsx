@@ -44,6 +44,7 @@ export default async function GameConsentAggregatePage({
         gameId={gameId}
         topics={result.data.topics}
         canViewPrivateDetails={result.data.canViewContributions}
+        overallGroupNote={result.data.overallGroupNote}
       />
     </div>
   );

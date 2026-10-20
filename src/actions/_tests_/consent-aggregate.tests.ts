@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   game: [] as unknown[],
   membership: [] as unknown[],
   members: [] as unknown[],
+  overallNotes: [] as unknown[],
+  topicNotes: [] as unknown[],
 }));
 vi.mock('@/actions/auth-helpers', () => ({
   ensureAccess: mocks.access,
@@ -34,6 +36,8 @@ beforeEach(() => {
   mocks.game = [{ id: 'game-1', name: 'Game', mode: 'requested' }];
   mocks.membership = [{ coordinator: false }];
   mocks.members = [{ discordUserId: 'caller' }];
+  mocks.overallNotes = [];
+  mocks.topicNotes = [];
   mocks.select.mockImplementation((columns) => ({
     from: () => ({
       where: (condition: unknown) => {
@@ -42,6 +46,8 @@ beforeEach(() => {
         if ('coordinator' in columns) return Promise.resolve(mocks.membership);
         if ('parentTopicId' in columns)
           return { orderBy: async () => [{ id: 'topic-1', name: 'Topic', parentTopicId: null }] };
+        if ('revision' in columns)
+          return Promise.resolve('topicId' in columns ? mocks.topicNotes : mocks.overallNotes);
         if ('answer' in columns)
           return Promise.resolve([
             { discordUserId: 'caller', topicId: 'topic-1', answer: 'veil', headsUp: true },
@@ -64,6 +70,7 @@ describe('aggregate server boundary', () => {
         gameName: 'Game',
         mode: 'requested',
         canViewContributions: false,
+        overallGroupNote: { note: '', revision: 0 },
         topics: [
           {
             id: 'topic-1',
@@ -74,25 +81,40 @@ describe('aggregate server boundary', () => {
             missingAnswers: null,
             hasMissingAnswers: false,
             needsCare: true,
+            groupNote: { note: '', revision: 0 },
           },
         ],
       },
     });
-    expect(JSON.stringify(result)).not.toMatch(/caller|discordUserId|note/);
-    expect(mocks.select.mock.calls.map(([columns]) => Object.keys(columns)).at(-1)).toEqual([
-      'discordUserId',
-      'topicId',
-      'answer',
-      'headsUp',
-    ]);
+    expect(JSON.stringify(result)).not.toMatch(/caller|discordUserId|privateNote/);
+    expect(
+      Object.keys(mocks.select.mock.calls.find(([columns]) => 'answer' in columns)![0]),
+    ).toEqual(['discordUserId', 'topicId', 'answer', 'headsUp']);
     const conditions = mocks.conditions.mock.calls.map(([keys, condition]) => ({
       keys,
       query: new PgDialect().sqlToQuery(condition),
     }));
     expect(conditions[0].query.params).toEqual(['guild-1', 'game-1']);
     expect(conditions[1].query.params).toEqual(['game-1', 'caller']);
-    expect(conditions.at(-1)?.query.params).toEqual(['guild-1', 'caller', 'topic-1']);
+    expect(conditions.find(({ keys }) => keys.includes('answer'))?.query.params).toEqual([
+      'guild-1',
+      'caller',
+      'topic-1',
+    ]);
+    expect(conditions.at(-1)?.query.params).toEqual(['guild-1', 'game-1', 'topic-1']);
   });
+  it('returns only coordinator-written group notes in the authorized shared overview', async () => {
+    mocks.overallNotes = [{ note: 'Group-facing overall note', revision: 2 }];
+    mocks.topicNotes = [{ topicId: 'topic-1', note: 'Group-facing topic note', revision: 3 }];
+    expect(await getGameConsentAggregate('guild-1', 'game-1')).toMatchObject({
+      type: 'success',
+      data: {
+        overallGroupNote: { note: 'Group-facing overall note', revision: 2 },
+        topics: [{ groupNote: { note: 'Group-facing topic note', revision: 3 } }],
+      },
+    });
+  });
+
   it('requires a coordinator for Optional, not just membership or admin role', async () => {
     mocks.game = [{ id: 'game-1', name: 'Game', mode: 'optional' }];
     expect((await getGameConsentAggregate('guild-1', 'game-1')).type).toBe('failure');

@@ -44,6 +44,7 @@ export const game = pgTable(
       .notNull(),
   },
   (table) => [
+    unique('games_guild_id_id_unique').on(table.guildId, table.id),
     check(
       'games_consent_mode_check',
       sql`${table.consentMode} IN ('off', 'optional', 'requested')`,

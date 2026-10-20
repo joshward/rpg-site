@@ -29,6 +29,10 @@ const styles = {
   },
 };
 
+const answerOrder = { line: 0, veil: 1, enthusiastic: 2, unknown: 3 };
+const byName = (a: ConsentOverviewTopic, b: ConsentOverviewTopic) =>
+  a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }) || a.id.localeCompare(b.id);
+
 export function ConsentAnswerBadge({ answer }: { answer: AggregatedTopic['answer'] }) {
   const { label, icon: Icon, color } = styles[answer ?? 'unknown'];
   return (
@@ -43,22 +47,39 @@ export default function ConsentAggregate({
   topics,
   renderTopicDetails,
   renderTopicControl,
+  renderGroupNote,
   privateNoteTopicIds,
 }: {
   topics: ConsentOverviewTopic[];
   renderTopicDetails?: (topic: ConsentOverviewTopic) => ReactNode;
   renderTopicControl?: (topic: ConsentOverviewTopic) => ReactNode;
+  renderGroupNote?: (topic: ConsentOverviewTopic) => ReactNode;
   privateNoteTopicIds?: ReadonlySet<string>;
 }) {
-  const needsCare = topics.filter((topic) => topic.needsCare || privateNoteTopicIds?.has(topic.id));
-  const allGood = topics.filter((topic) => !topic.needsCare && !privateNoteTopicIds?.has(topic.id));
+  const attentionOrder = (topic: ConsentOverviewTopic) =>
+    (privateNoteTopicIds?.has(topic.id) ? 0 : 2) + (topic.headsUp ? 0 : 1);
+  const needsCare = topics
+    .filter(
+      (topic) => topic.needsCare || topic.groupNote?.note || privateNoteTopicIds?.has(topic.id),
+    )
+    .sort(
+      (a, b) =>
+        answerOrder[a.answer ?? 'unknown'] - answerOrder[b.answer ?? 'unknown'] ||
+        attentionOrder(a) - attentionOrder(b) ||
+        byName(a, b),
+    );
+  const allGood = topics
+    .filter(
+      (topic) => !topic.needsCare && !topic.groupNote?.note && !privateNoteTopicIds?.has(topic.id),
+    )
+    .sort(byName);
   const names = new Map(topics.map((topic) => [topic.id, topic.name]));
   const rows = (items: ConsentOverviewTopic[]) => (
     <ul className="divide-y divide-sage-6">
       {items.map((topic) => {
         return (
           <li key={topic.id} className="flex flex-col gap-2 py-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 {topic.parentTopicId && (
                   <p className="text-xs text-sage-11">{names.get(topic.parentTopicId)}</p>
@@ -70,27 +91,42 @@ export default function ConsentAggregate({
                   )}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-sm sm:justify-self-end">
-                <ConsentAnswerBadge answer={topic.answer} />
-                {topic.headsUp && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-plum-9 px-2 py-1 text-white">
-                    <BellIcon aria-hidden="true" className="size-4" />
-                    Heads-up
-                  </span>
-                )}
-                {(topic.hasMissingAnswers ?? (topic.missingAnswers ?? 0) > 0) && (
-                  <span className="text-sage-11">
-                    {topic.missingAnswers === null
-                      ? 'Not everyone has answered'
-                      : `Missing ${topic.missingAnswers} ${topic.missingAnswers === 1 ? 'answer' : 'answers'}`}
-                  </span>
-                )}
-                {privateNoteTopicIds?.has(topic.id) && (
-                  <span className="print:hidden inline-flex items-center gap-1 rounded-md bg-violet-9 px-2 py-1 text-white">
-                    <Pencil2Icon aria-hidden="true" className="size-4" />
-                    Private notes
-                  </span>
-                )}
+              <div className="min-w-0 sm:max-w-[65%] sm:flex-1">
+                <div className="flex flex-wrap items-center gap-2 text-sm sm:justify-end">
+                  <ConsentAnswerBadge answer={topic.answer} />
+                  {topic.headsUp && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-plum-9 px-2 py-1 text-white">
+                      <BellIcon aria-hidden="true" className="size-4" />
+                      Heads-up
+                    </span>
+                  )}
+                  {(topic.hasMissingAnswers ?? (topic.missingAnswers ?? 0) > 0) && (
+                    <span className="text-sage-11">
+                      {topic.missingAnswers === null
+                        ? 'Not everyone has answered'
+                        : `Missing ${topic.missingAnswers} ${topic.missingAnswers === 1 ? 'answer' : 'answers'}`}
+                    </span>
+                  )}
+                  {privateNoteTopicIds?.has(topic.id) && (
+                    <span className="print:hidden inline-flex items-center gap-1 rounded-md bg-violet-9 px-2 py-1 text-white">
+                      <Pencil2Icon aria-hidden="true" className="size-4" />
+                      Private notes
+                    </span>
+                  )}
+                </div>
+                <div className="sm:text-right">
+                  {renderGroupNote
+                    ? renderGroupNote(topic)
+                    : topic.groupNote?.note && (
+                        <p className="mt-2 whitespace-pre-wrap break-words text-sm">
+                          <Pencil2Icon
+                            aria-hidden="true"
+                            className="mr-1 inline size-4 text-violet-11"
+                          />
+                          {topic.groupNote.note}
+                        </p>
+                      )}
+                </div>
               </div>
             </div>
             {renderTopicDetails?.(topic)}
@@ -104,7 +140,7 @@ export default function ConsentAggregate({
       <h2 className="text-xl font-bold">Needs care</h2>
       <p className="text-sm text-sage-11">
         Hard lines, veils, heads-up choices and missing answers. Missing answers are unknown, not
-        agreement.{' '}
+        agreement. Topics with group notes are included here too.{' '}
         {privateNoteTopicIds?.size
           ? 'Topics with private notes are also included while unlocked.'
           : ''}

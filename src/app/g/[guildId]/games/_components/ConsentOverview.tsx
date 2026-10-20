@@ -17,6 +17,8 @@ import {
 import { getGameConsentStatus } from '@/actions/consent-game-status';
 import { isFailure, type Result } from '@/actions/result';
 import type { ConsentOverviewTopic } from '@/lib/consent/aggregate';
+import { EMPTY_GROUP_NOTE, type ConsentGroupNote } from '@/lib/consent/group-notes';
+import GroupNoteField from './GroupNoteField';
 import ConsentAggregate, { ConsentAnswerBadge } from './ConsentAggregate';
 import Alert from '@/components/Alert';
 import Button from '@/components/Button';
@@ -81,17 +83,37 @@ export default function ConsentOverview({
   gameId,
   topics,
   canViewPrivateDetails,
+  overallGroupNote = EMPTY_GROUP_NOTE,
 }: {
   guildId: string;
   gameId: string;
   topics: ConsentOverviewTopic[];
   canViewPrivateDetails: boolean;
+  overallGroupNote?: ConsentGroupNote;
 }) {
   const [unlocked, setUnlocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [noteTopicIds, setNoteTopicIds] = useState<string[]>([]);
   const [checkingNotes, setCheckingNotes] = useState(false);
   const [openTopics, setOpenTopics] = useState<string[]>([]);
+  const [savedTopicNotes, setSavedTopicNotes] = useState<Record<string, ConsentGroupNote>>({});
+  const [savedOverallNote, setSavedOverallNote] = useState<ConsentGroupNote | null>(null);
+  const displayedTopics = useMemo(
+    () =>
+      topics.map((topic) => {
+        const original = topic.groupNote ?? EMPTY_GROUP_NOTE;
+        const saved = savedTopicNotes[topic.id];
+        return {
+          ...topic,
+          groupNote: saved && saved.revision > original.revision ? saved : original,
+        };
+      }),
+    [topics, savedTopicNotes],
+  );
+  const displayedOverallNote =
+    savedOverallNote && savedOverallNote.revision > overallGroupNote.revision
+      ? savedOverallNote
+      : overallGroupNote;
   const topicLoaders = useMemo(
     () =>
       new Map(
@@ -194,9 +216,85 @@ export default function ConsentOverview({
           )}
         </div>
       )}
+      {privateVisible && (
+        <PrivatePanel
+          label="Contribution status"
+          onFailure={onFailure}
+          load={loadStatus}
+          render={(status) =>
+            !status.hasTopics ? (
+              <p>Official consent topics are not configured yet.</p>
+            ) : (
+              <ul>
+                {status.members.map((member) => (
+                  <li key={member.discordUserId} className="flex justify-between gap-4 py-2">
+                    <span>{member.displayName}</span>
+                    <span>
+                      {member.status === 'complete'
+                        ? 'Complete'
+                        : member.status === 'in-progress'
+                          ? 'In progress'
+                          : 'Not started'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+        />
+      )}
+      {(displayedOverallNote.note || privateVisible) && (
+        <Paper>
+          <h2 className="text-xl font-bold">Overall group notes</h2>
+          <GroupNoteField
+            key={`overall:${privateVisible}`}
+            guildId={guildId}
+            gameId={gameId}
+            topicId={null}
+            label="Overall game group note"
+            value={displayedOverallNote}
+            canEdit={privateVisible}
+            onSaved={setSavedOverallNote}
+          />
+          {privateVisible && (
+            <PrivatePanel
+              label="Overall private player notes"
+              onFailure={onFailure}
+              load={loadOverallNotes}
+              render={(members) => (
+                <ul className="divide-y divide-violet-6">
+                  {members.map((member) => (
+                    <li key={member.discordUserId} className="py-2">
+                      <strong>{member.displayName}</strong>
+                      <p className="whitespace-pre-wrap text-sm">
+                        {member.note ?? 'No overall note.'}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            />
+          )}
+        </Paper>
+      )}
       {topics.length ? (
         <ConsentAggregate
-          topics={topics}
+          topics={displayedTopics}
+          renderGroupNote={(topic) => (
+            <GroupNoteField
+              key={`${topic.id}:${privateVisible}`}
+              guildId={guildId}
+              gameId={gameId}
+              topicId={topic.id}
+              label={`Group note: ${topic.name}`}
+              value={topic.groupNote ?? EMPTY_GROUP_NOTE}
+              canEdit={privateVisible}
+              onSaved={(note) =>
+                setSavedTopicNotes((current) => ({ ...current, [topic.id]: note }))
+              }
+            />
+          )}
+
           privateNoteTopicIds={privateVisible ? new Set(noteTopicIds) : undefined}
           renderTopicControl={
             privateVisible
@@ -283,52 +381,6 @@ export default function ConsentOverview({
         />
       ) : (
         <Paper>Official consent topics are not configured yet.</Paper>
-      )}
-      {privateVisible && (
-        <div className="print:hidden flex flex-col gap-4">
-          <PrivatePanel
-            label="Contribution status"
-            onFailure={onFailure}
-            load={loadStatus}
-            render={(status) =>
-              !status.hasTopics ? (
-                <p>Official consent topics are not configured yet.</p>
-              ) : (
-                <ul>
-                  {status.members.map((member) => (
-                    <li key={member.discordUserId} className="flex justify-between gap-4 py-2">
-                      <span>{member.displayName}</span>
-                      <span>
-                        {member.status === 'complete'
-                          ? 'Complete'
-                          : member.status === 'in-progress'
-                            ? 'In progress'
-                            : 'Not started'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )
-            }
-          />
-          <PrivatePanel
-            label="Overall private player notes"
-            onFailure={onFailure}
-            load={loadOverallNotes}
-            render={(members) => (
-              <ul className="divide-y divide-violet-6">
-                {members.map((member) => (
-                  <li key={member.discordUserId} className="py-2">
-                    <strong>{member.displayName}</strong>
-                    <p className="whitespace-pre-wrap text-sm">
-                      {member.note ?? 'No overall note.'}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          />
-        </div>
       )}
     </>
   );
