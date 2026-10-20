@@ -55,23 +55,41 @@ export default function GroupNoteField({
     }
   }
 
+  function startEditing() {
+    setDraft(value.note);
+    setBaseline(value.note);
+    setRevision(value.revision);
+    setEditing(true);
+    setError(null);
+    setSaved(false);
+  }
+
   if (!value.note && !canEdit) return null;
   return (
     <div className="mt-2 flex flex-col gap-2">
       {value.note && (
-        <div className="border-l-2 border-violet-7 pl-3">
-          <strong className="inline-flex items-center gap-1 text-sm text-violet-11">
-            <Pencil2Icon aria-hidden="true" />
-            {label}
-          </strong>
-          <p className="whitespace-pre-wrap text-sm">{value.note}</p>
-        </div>
+        <p className="whitespace-pre-wrap break-words text-sm">
+          <Pencil2Icon aria-hidden="true" className="mr-1 inline size-4 text-violet-11" />
+          {value.note}
+          {canEdit && !editing && (
+            <Button
+              type="button"
+              size="sm"
+              className="print:hidden ml-1 inline-flex min-h-0 min-w-0 rounded-md p-1 align-middle"
+              onClick={startEditing}
+              aria-label={`Edit ${label}`}
+              title={`Edit ${label}`}
+            >
+              <Pencil2Icon aria-hidden="true" className="size-4" />
+            </Button>
+          )}
+        </p>
       )}
       {canEdit &&
         (editing ? (
           <form
             onSubmit={submit}
-            className="print:hidden flex flex-col gap-3 rounded-lg border border-violet-7 bg-violet-2 p-3"
+            className="print:hidden flex flex-col gap-3 rounded-lg text-left border border-violet-7 bg-violet-2 p-3"
           >
             <FormTextarea
               label={label}
@@ -133,22 +151,18 @@ export default function GroupNoteField({
           </form>
         ) : (
           <div className="print:hidden">
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                setDraft(value.note);
-                setBaseline(value.note);
-                setRevision(value.revision);
-                setEditing(true);
-                setError(null);
-                setSaved(false);
-              }}
-              aria-label={`Edit ${label}`}
-            >
-              <Pencil2Icon aria-hidden="true" className="mr-2" />
-              {value.note ? 'Edit group note' : 'Add group note'}
-            </Button>
+            {!value.note && (
+              <Button
+                type="button"
+                size="sm"
+                className="inline-flex"
+                onClick={startEditing}
+                aria-label={`Add ${label}`}
+              >
+                <Pencil2Icon aria-hidden="true" />
+                Add group note
+              </Button>
+            )}
             {saved && <output className="ml-2 text-sm text-jade-11">Group note saved.</output>}
           </div>
         ))}

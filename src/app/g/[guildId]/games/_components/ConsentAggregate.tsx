@@ -64,7 +64,7 @@ export default function ConsentAggregate({
       {items.map((topic) => {
         return (
           <li key={topic.id} className="flex flex-col gap-2 py-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 {topic.parentTopicId && (
                   <p className="text-xs text-sage-11">{names.get(topic.parentTopicId)}</p>
@@ -76,37 +76,44 @@ export default function ConsentAggregate({
                   )}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-sm sm:justify-self-end">
-                <ConsentAnswerBadge answer={topic.answer} />
-                {topic.headsUp && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-plum-9 px-2 py-1 text-white">
-                    <BellIcon aria-hidden="true" className="size-4" />
-                    Heads-up
-                  </span>
-                )}
-                {(topic.hasMissingAnswers ?? (topic.missingAnswers ?? 0) > 0) && (
-                  <span className="text-sage-11">
-                    {topic.missingAnswers === null
-                      ? 'Not everyone has answered'
-                      : `Missing ${topic.missingAnswers} ${topic.missingAnswers === 1 ? 'answer' : 'answers'}`}
-                  </span>
-                )}
-                {privateNoteTopicIds?.has(topic.id) && (
-                  <span className="print:hidden inline-flex items-center gap-1 rounded-md bg-violet-9 px-2 py-1 text-white">
-                    <Pencil2Icon aria-hidden="true" className="size-4" />
-                    Private notes
-                  </span>
-                )}
+              <div className="min-w-0 sm:max-w-[65%] sm:flex-1">
+                <div className="flex flex-wrap items-center gap-2 text-sm sm:justify-end">
+                  <ConsentAnswerBadge answer={topic.answer} />
+                  {topic.headsUp && (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-plum-9 px-2 py-1 text-white">
+                      <BellIcon aria-hidden="true" className="size-4" />
+                      Heads-up
+                    </span>
+                  )}
+                  {(topic.hasMissingAnswers ?? (topic.missingAnswers ?? 0) > 0) && (
+                    <span className="text-sage-11">
+                      {topic.missingAnswers === null
+                        ? 'Not everyone has answered'
+                        : `Missing ${topic.missingAnswers} ${topic.missingAnswers === 1 ? 'answer' : 'answers'}`}
+                    </span>
+                  )}
+                  {privateNoteTopicIds?.has(topic.id) && (
+                    <span className="print:hidden inline-flex items-center gap-1 rounded-md bg-violet-9 px-2 py-1 text-white">
+                      <Pencil2Icon aria-hidden="true" className="size-4" />
+                      Private notes
+                    </span>
+                  )}
+                </div>
+                <div className="sm:text-right">
+                  {renderGroupNote
+                    ? renderGroupNote(topic)
+                    : topic.groupNote?.note && (
+                        <p className="mt-2 whitespace-pre-wrap break-words text-sm">
+                          <Pencil2Icon
+                            aria-hidden="true"
+                            className="mr-1 inline size-4 text-violet-11"
+                          />
+                          {topic.groupNote.note}
+                        </p>
+                      )}
+                </div>
               </div>
             </div>
-            {renderGroupNote
-              ? renderGroupNote(topic)
-              : topic.groupNote?.note && (
-                  <p className="whitespace-pre-wrap border-l-2 border-violet-7 pl-3 text-sm">
-                    <strong>Group note: </strong>
-                    {topic.groupNote.note}
-                  </p>
-                )}
             {renderTopicDetails?.(topic)}
           </li>
         );

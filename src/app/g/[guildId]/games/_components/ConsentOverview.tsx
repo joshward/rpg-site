@@ -216,8 +216,36 @@ export default function ConsentOverview({
           )}
         </div>
       )}
+      {privateVisible && (
+        <PrivatePanel
+          label="Contribution status"
+          onFailure={onFailure}
+          load={loadStatus}
+          render={(status) =>
+            !status.hasTopics ? (
+              <p>Official consent topics are not configured yet.</p>
+            ) : (
+              <ul>
+                {status.members.map((member) => (
+                  <li key={member.discordUserId} className="flex justify-between gap-4 py-2">
+                    <span>{member.displayName}</span>
+                    <span>
+                      {member.status === 'complete'
+                        ? 'Complete'
+                        : member.status === 'in-progress'
+                          ? 'In progress'
+                          : 'Not started'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+        />
+      )}
       {(displayedOverallNote.note || privateVisible) && (
         <Paper>
+          <h2 className="text-xl font-bold">Overall group notes</h2>
           <GroupNoteField
             key={`overall:${privateVisible}`}
             guildId={guildId}
@@ -228,6 +256,25 @@ export default function ConsentOverview({
             canEdit={privateVisible}
             onSaved={setSavedOverallNote}
           />
+          {privateVisible && (
+            <PrivatePanel
+              label="Overall private player notes"
+              onFailure={onFailure}
+              load={loadOverallNotes}
+              render={(members) => (
+                <ul className="divide-y divide-violet-6">
+                  {members.map((member) => (
+                    <li key={member.discordUserId} className="py-2">
+                      <strong>{member.displayName}</strong>
+                      <p className="whitespace-pre-wrap text-sm">
+                        {member.note ?? 'No overall note.'}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            />
+          )}
         </Paper>
       )}
       {topics.length ? (
@@ -334,52 +381,6 @@ export default function ConsentOverview({
         />
       ) : (
         <Paper>Official consent topics are not configured yet.</Paper>
-      )}
-      {privateVisible && (
-        <div className="print:hidden flex flex-col gap-4">
-          <PrivatePanel
-            label="Contribution status"
-            onFailure={onFailure}
-            load={loadStatus}
-            render={(status) =>
-              !status.hasTopics ? (
-                <p>Official consent topics are not configured yet.</p>
-              ) : (
-                <ul>
-                  {status.members.map((member) => (
-                    <li key={member.discordUserId} className="flex justify-between gap-4 py-2">
-                      <span>{member.displayName}</span>
-                      <span>
-                        {member.status === 'complete'
-                          ? 'Complete'
-                          : member.status === 'in-progress'
-                            ? 'In progress'
-                            : 'Not started'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )
-            }
-          />
-          <PrivatePanel
-            label="Overall private player notes"
-            onFailure={onFailure}
-            load={loadOverallNotes}
-            render={(members) => (
-              <ul className="divide-y divide-violet-6">
-                {members.map((member) => (
-                  <li key={member.discordUserId} className="py-2">
-                    <strong>{member.displayName}</strong>
-                    <p className="whitespace-pre-wrap text-sm">
-                      {member.note ?? 'No overall note.'}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          />
-        </div>
       )}
     </>
   );

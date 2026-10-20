@@ -122,7 +122,7 @@ describe('private detail mode', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Unlock private details' }));
     await user.click(screen.getByText('All good from everyone (1)'));
-    await user.click(screen.getByRole('button', { name: 'Edit Group note: Topic' }));
+    await user.click(screen.getByRole('button', { name: 'Add Group note: Topic' }));
     expect(screen.getByRole('textbox', { name: 'Group note: Topic' })).toHaveValue('');
     await user.type(
       screen.getByRole('textbox', { name: 'Group note: Topic' }),
@@ -134,6 +134,47 @@ describe('private detail mode', () => {
     await user.click(screen.getByRole('button', { name: 'Hide all private details' }));
     expect(screen.getByText('Group translation')).toBeInTheDocument();
     expect(mocks.topic).not.toHaveBeenCalled();
+  });
+
+  it('places contribution status first and groups the overall editor with private player notes', async () => {
+    const user = userEvent.setup();
+    render(
+      <ConsentOverview {...props} overallGroupNote={{ note: 'Shared overall', revision: 1 }} />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Unlock private details' }));
+    const heading = screen.getByRole('heading', { name: 'Overall group notes' });
+    const overall = within(heading.parentElement!);
+    expect(
+      screen.getByRole('button', { name: 'Contribution status' }).compareDocumentPosition(heading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      heading.compareDocumentPosition(screen.getByRole('heading', { name: 'Needs care' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(mocks.overall).not.toHaveBeenCalled();
+    await user.click(overall.getByRole('button', { name: 'Overall private player notes' }));
+    expect(await overall.findByText('Private overall text')).toBeInTheDocument();
+    await user.click(overall.getByRole('button', { name: 'Edit Overall game group note' }));
+    await user.type(overall.getByRole('textbox'), ' unsaved draft');
+    await user.click(screen.getByRole('button', { name: 'Hide all private details' }));
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByText('Private overall text')).not.toBeInTheDocument();
+    expect(screen.getByText('Shared overall')).toBeInTheDocument();
+  });
+
+  it('places topic group notes below status labels in the same right-hand column', () => {
+    render(
+      <ConsentOverview
+        {...props}
+        topics={[{ ...props.topics[0], groupNote: { note: 'Shared topic', revision: 1 } }]}
+      />,
+    );
+    const badge = screen.getByText('Veiled');
+    const statusColumn = badge.parentElement!.parentElement!;
+    const note = within(statusColumn).getByText('Shared topic');
+    expect(badge.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(statusColumn).queryByRole('heading', { name: 'Topic' })).not.toBeInTheDocument();
   });
 
   it('loads each pane only after explicit unlock and expansion, then hides/discards all on lock', async () => {

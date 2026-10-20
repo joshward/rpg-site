@@ -41,6 +41,21 @@ describe('shared group note editing', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(mocks.save).not.toHaveBeenCalled();
   });
+  it('uses an inline icon-only edit button after existing note text', () => {
+    render(<GroupNoteField {...props} value={{ note: 'Shared note', revision: 1 }} />);
+    const note = screen.getByText('Shared note');
+    const edit = screen.getByRole('button', { name: 'Edit Group note: Topic' });
+    expect(note).toContainElement(edit);
+    expect(edit).toHaveTextContent('');
+    expect(edit.querySelector('svg')).not.toBeNull();
+    expect(screen.queryByText('Group note: Topic')).not.toBeInTheDocument();
+  });
+  it('offers Add group note only for an empty editable note', async () => {
+    const user = userEvent.setup();
+    render(<GroupNoteField {...props} value={{ note: '', revision: 0 }} />);
+    await user.click(screen.getByRole('button', { name: 'Add Group note: Topic' }));
+    expect(screen.getByRole('textbox', { name: 'Group note: Topic' })).toHaveValue('');
+  });
   it('edits only group-facing text with the original revision and saves immediately', async () => {
     const user = userEvent.setup();
     render(<Harness />);
