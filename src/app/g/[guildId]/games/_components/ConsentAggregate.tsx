@@ -49,12 +49,14 @@ export default function ConsentAggregate({
   renderTopicControl,
   renderGroupNote,
   privateNoteTopicIds,
+  expandAllGood = false,
 }: {
   topics: ConsentOverviewTopic[];
   renderTopicDetails?: (topic: ConsentOverviewTopic) => ReactNode;
   renderTopicControl?: (topic: ConsentOverviewTopic) => ReactNode;
   renderGroupNote?: (topic: ConsentOverviewTopic) => ReactNode;
   privateNoteTopicIds?: ReadonlySet<string>;
+  expandAllGood?: boolean;
 }) {
   const attentionOrder = (topic: ConsentOverviewTopic) =>
     (privateNoteTopicIds?.has(topic.id) ? 0 : 2) + (topic.headsUp ? 0 : 1);
@@ -146,14 +148,20 @@ export default function ConsentAggregate({
           : ''}
       </p>
       {needsCare.length ? rows(needsCare) : <p>No topics currently need special care.</p>}
-      {allGood.length > 0 && (
-        <details className="mt-4 border-t border-sage-6 pt-3">
-          <summary className="cursor-pointer font-medium text-jade-11">
-            All good from everyone ({allGood.length})
-          </summary>
-          {rows(allGood)}
-        </details>
-      )}
+      {allGood.length > 0 &&
+        (expandAllGood ? (
+          <section className="mt-4 border-t border-sage-6 pt-3">
+            <h2 className="font-medium text-jade-11">All good from everyone ({allGood.length})</h2>
+            {rows(allGood)}
+          </section>
+        ) : (
+          <details className="mt-4 border-t border-sage-6 pt-3">
+            <summary className="cursor-pointer font-medium text-jade-11">
+              All good from everyone ({allGood.length})
+            </summary>
+            {rows(allGood)}
+          </details>
+        ))}
     </Paper>
   );
 }
