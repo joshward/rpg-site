@@ -58,6 +58,16 @@
     orphans: 3;
     widows: 3;
   }
+
+  .document pre {
+    white-space: pre-wrap;
+    overflow: visible;
+    overflow-wrap: anywhere;
+  }
+
+  .document a {
+    overflow-wrap: anywhere;
+  }
 }
 
 @page consent-overview {

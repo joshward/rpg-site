@@ -45,7 +45,8 @@ describe('shared group note editing', () => {
     render(<GroupNoteField {...props} value={{ note: 'Shared note', revision: 1 }} />);
     const note = screen.getByText('Shared note');
     const edit = screen.getByRole('button', { name: 'Edit Group note: Topic' });
-    expect(note).toContainElement(edit);
+    expect(note.parentElement!.parentElement).toContainElement(edit);
+    expect(note.compareDocumentPosition(edit) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(edit).toHaveTextContent('');
     expect(edit.querySelector('svg')).not.toBeNull();
     expect(screen.queryByText('Group note: Topic')).not.toBeInTheDocument();
@@ -70,6 +71,25 @@ describe('shared group note editing', () => {
     );
     expect(await screen.findByText('New group note')).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+  it('previews Markdown without saving and writes the raw draft with its revision', async () => {
+    const user = userEvent.setup();
+    const note = '**Shared boundary**\n\n- Check in first';
+    mocks.save.mockResolvedValueOnce({ type: 'success', data: { note, revision: 4 } });
+    render(<Harness />);
+    await user.click(screen.getByRole('button', { name: 'Edit Group note: Topic' }));
+    const input = screen.getByRole('textbox');
+    await user.clear(input);
+    await user.type(input, note);
+    await user.click(screen.getByRole('switch', { name: 'Preview Group note: Topic' }));
+    expect(mocks.save).not.toHaveBeenCalled();
+    expect(screen.getByText('Shared boundary').tagName).toBe('STRONG');
+    await user.click(screen.getByRole('button', { name: 'Save group note' }));
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenCalledWith('guild-1', 'game-1', 'topic-1', note, 3),
+    );
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.getByText('Shared boundary').tagName).toBe('STRONG');
   });
   it('keeps a stale draft and requires an explicit discard/reload instead of overwriting', async () => {
     const user = userEvent.setup();

@@ -157,7 +157,10 @@ describe('private detail mode', () => {
     expect(await overall.findByText('Private overall text')).toBeInTheDocument();
     await user.click(overall.getByRole('button', { name: 'Edit Overall game group note' }));
     await user.type(overall.getByRole('textbox'), ' unsaved draft');
+    await user.click(overall.getByRole('switch', { name: 'Preview Overall game group note' }));
+    expect(overall.getByRole('region')).toHaveTextContent('unsaved draft');
     await user.click(screen.getByRole('button', { name: 'Hide all private details' }));
+    expect(screen.queryByRole('region')).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByText('Private overall text')).not.toBeInTheDocument();
     expect(screen.getByText('Shared overall')).toBeInTheDocument();

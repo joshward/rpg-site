@@ -5,12 +5,12 @@ import { useParams, useRouter } from 'next/navigation';
 import { useForm } from '@tanstack/react-form';
 import * as v from 'valibot';
 import { FormInput } from '@/components/FormInput';
-import { FormTextarea } from '@/components/FormTextarea';
+import MarkdownEditor from '@/components/MarkdownEditor';
+import Switch from '@/components/Switch';
 import { FormComboBox } from '@/components/FormComboBox';
 import { ComboboxOption } from '@/components/Combobox';
 import Paper from '@/components/Paper';
 import Button from '@/components/Button';
-import MarkdownPreview from '@/components/MarkdownPreview';
 import { usePlausible } from 'next-plausible';
 import { createGame, updateGame, deleteGame } from '@/actions/games';
 import { checkBotPermissionsAction } from '@/actions/guilds';
@@ -102,7 +102,6 @@ export default function GameForm({
   const notification = useNotification();
   const plausible = usePlausible<PlausibleEvents>();
   const [selectedMember, setSelectedMember] = React.useState<ComboboxOption | null>(null);
-  const [previewMode, setPreviewMode] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
   const handleDelete = async () => {
@@ -390,41 +389,18 @@ export default function GameForm({
           </form.Field>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-sage-11">Description (Markdown)</label>
-            <button
-              type="button"
-              onClick={() => setPreviewMode(!previewMode)}
-              className="text-xs font-medium text-plum-11 hover:text-plum-12 transition-colors"
-            >
-              {previewMode ? 'Edit Mode' : 'Preview Mode'}
-            </button>
-          </div>
-
-          <form.Field name="description">
-            {(field) => (
-              <div className="min-h-[150px]">
-                {previewMode ? (
-                  <div className="p-4 rounded-xl border border-sage-6 bg-sage-2 min-h-[150px]">
-                    {field.state.value ? (
-                      <MarkdownPreview content={field.state.value} />
-                    ) : (
-                      <p className="text-sage-9 italic">No description provided.</p>
-                    )}
-                  </div>
-                ) : (
-                  <FormTextarea
-                    placeholder="Describe your campaign..."
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                  />
-                )}
-              </div>
-            )}
-          </form.Field>
-        </div>
+        <form.Field name="description">
+          {(field) => (
+            <MarkdownEditor
+              label="Description (Markdown)"
+              placeholder="Describe your campaign..."
+              value={field.state.value}
+              onValueChange={field.handleChange}
+              onBlur={field.handleBlur}
+              allowImages
+            />
+          )}
+        </form.Field>
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
@@ -496,24 +472,21 @@ export default function GameForm({
                                 {m.isRequired ? 'Core Participant' : 'Optional Participant'}
                               </button>
                               {showConsentMode && (
-                                <label className="flex items-center gap-2 mt-2 text-xs text-sage-11">
-                                  <input
-                                    type="checkbox"
-                                    aria-label={`Consent coordinator: ${m.displayName}`}
-                                    checked={m.isConsentCoordinator === true}
-                                    onChange={(event) => {
-                                      const assigned = event.target.checked;
-                                      field.handleChange(
-                                        field.state.value.map((member) =>
-                                          member.discordUserId === m.discordUserId
-                                            ? { ...member, isConsentCoordinator: assigned }
-                                            : member,
-                                        ),
-                                      );
-                                    }}
-                                  />
-                                  Consent coordinator
-                                </label>
+                                <Switch
+                                  className="mt-2 text-xs text-sage-11"
+                                  label="Consent coordinator"
+                                  aria-label={`Consent coordinator: ${m.displayName}`}
+                                  checked={m.isConsentCoordinator === true}
+                                  onCheckedChange={(assigned) => {
+                                    field.handleChange(
+                                      field.state.value.map((member) =>
+                                        member.discordUserId === m.discordUserId
+                                          ? { ...member, isConsentCoordinator: assigned }
+                                          : member,
+                                      ),
+                                    );
+                                  }}
+                                />
                               )}
                             </div>
                           </div>

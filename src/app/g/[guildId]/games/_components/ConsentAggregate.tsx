@@ -9,6 +9,7 @@ import {
 import type { ReactNode } from 'react';
 import type { AggregatedTopic, ConsentOverviewTopic } from '@/lib/consent/aggregate';
 import Paper from '@/components/Paper';
+import GroupNoteContent from './GroupNoteContent';
 
 const styles = {
   line: { label: 'Hard line', icon: CrossCircledIcon, color: 'bg-ruby-9 text-white' },
@@ -120,13 +121,7 @@ export default function ConsentAggregate({
                   {renderGroupNote
                     ? renderGroupNote(topic)
                     : topic.groupNote?.note && (
-                        <p className="mt-2 whitespace-pre-wrap break-words text-sm">
-                          <Pencil2Icon
-                            aria-hidden="true"
-                            className="mr-1 inline size-4 text-violet-11"
-                          />
-                          {topic.groupNote.note}
-                        </p>
+                        <GroupNoteContent className="mt-2" note={topic.groupNote.note} />
                       )}
                 </div>
               </div>

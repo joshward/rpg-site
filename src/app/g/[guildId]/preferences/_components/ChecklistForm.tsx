@@ -392,7 +392,7 @@ export default function ChecklistForm({
       >
         <summary className="cursor-pointer font-medium text-sage-12">Checklist guidance</summary>
         <div className="mt-2">
-          <MarkdownPreview content={guidance} />
+          <MarkdownPreview content={guidance} allowImages={false} />
         </div>
       </details>
       <p className="text-sm text-sage-11">

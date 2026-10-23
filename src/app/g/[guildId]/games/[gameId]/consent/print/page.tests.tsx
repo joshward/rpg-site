@@ -168,6 +168,30 @@ describe('authorized shared print view', () => {
     print.mockRestore();
     expect(metadata.robots).toEqual({ index: false, follow: false });
   });
+  it('renders shared Markdown consistently for overall and topic notes without loading images', async () => {
+    mocks.aggregate.mockResolvedValueOnce({
+      type: 'success',
+      data: {
+        gameName: 'Game',
+        overallGroupNote: { note: '**Overall boundary**', revision: 1 },
+        topics: [
+          {
+            ...topic,
+            groupNote: {
+              note: '**Topic boundary**\n\n![Alt only](https://example.invalid/tracker.png)',
+              revision: 1,
+            },
+          },
+        ],
+      },
+    });
+    render(await GameConsentPrintPage(props));
+    expect(screen.getByText('Overall boundary').tagName).toBe('STRONG');
+    expect(screen.getByText('Topic boundary').tagName).toBe('STRONG');
+    expect(screen.getByText('Alt only')).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(mocks.privateRead).not.toHaveBeenCalled();
+  });
   it('renders group notes as text, not executable markup', async () => {
     mocks.aggregate.mockResolvedValueOnce({
       type: 'success',

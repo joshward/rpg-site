@@ -7,7 +7,8 @@ import { isFailure } from '@/actions/result';
 import type { ConsentGroupNote } from '@/lib/consent/group-notes';
 import Button from '@/components/Button';
 import Alert from '@/components/Alert';
-import { FormTextarea } from '@/components/FormTextarea';
+import MarkdownEditor from '@/components/MarkdownEditor';
+import GroupNoteContent from './GroupNoteContent';
 
 export default function GroupNoteField({
   guildId,
@@ -68,9 +69,7 @@ export default function GroupNoteField({
   return (
     <div className="mt-2 flex flex-col gap-2">
       {value.note && (
-        <p className="whitespace-pre-wrap break-words text-sm">
-          <Pencil2Icon aria-hidden="true" className="mr-1 inline size-4 text-violet-11" />
-          {value.note}
+        <GroupNoteContent note={value.note}>
           {canEdit && !editing && (
             <Button
               type="button"
@@ -83,7 +82,7 @@ export default function GroupNoteField({
               <Pencil2Icon aria-hidden="true" className="size-4" />
             </Button>
           )}
-        </p>
+        </GroupNoteContent>
       )}
       {canEdit &&
         (editing ? (
@@ -91,11 +90,13 @@ export default function GroupNoteField({
             onSubmit={submit}
             className="print:hidden flex flex-col gap-3 rounded-lg text-left border border-violet-7 bg-violet-2 p-3"
           >
-            <FormTextarea
+            <MarkdownEditor
               label={label}
               value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              textareaProps={{ maxLength: 10000, rows: 4 }}
+              onValueChange={setDraft}
+              disabled={pending}
+              maxLength={10000}
+              rows={4}
               description="This is shared group-facing text, not a private player note. All members of Requested games can read it. Translate private context deliberately; nothing is copied automatically. Locking private mode discards unsaved edits."
             />
             {error && <Alert type="error">{error}</Alert>}
