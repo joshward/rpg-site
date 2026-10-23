@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { Pencil2Icon } from '@radix-ui/react-icons';
+import { Pencil2Icon, FileTextIcon } from '@radix-ui/react-icons';
 import { getGameConsentAggregate } from '@/actions/consent-aggregate';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
@@ -30,13 +30,26 @@ export default async function GameConsentAggregatePage({
           play and keep communicating at the table. Individual answers and private notes are hidden
           by default.
         </p>
-        <Link
-          href={`/g/${guildId}/preferences#content-checklist`}
-          className="print:hidden mt-3 inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
-        >
-          <Pencil2Icon aria-hidden="true" className="size-4" />
-          Review or change my checklist
-        </Link>
+        <div className="print:hidden mt-3 flex flex-wrap gap-3">
+          <Link
+            href={`/g/${guildId}/preferences#content-checklist`}
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 bg-violet-3 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
+          >
+            <Pencil2Icon aria-hidden="true" className="size-4" />
+            Review or change my checklist
+          </Link>
+          <Link
+            href={`/g/${guildId}/games/${gameId}/consent/print`}
+            target="_blank"
+            rel="noopener noreferrer"
+            prefetch={false}
+            className="inline-flex w-fit items-center gap-2 rounded-xl border border-violet-7 px-3 py-2 text-sm font-medium hover:bg-violet-4 hover:no-underline"
+          >
+            <FileTextIcon aria-hidden="true" className="size-4" />
+            Print / save PDF
+            <span className="sr-only"> (opens in a new tab)</span>
+          </Link>
+        </div>
       </div>
       <ConsentOverview
         key={`${guildId}:${gameId}:${result.data.canViewContributions}`}

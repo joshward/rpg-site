@@ -37,6 +37,18 @@ describe('overview initial server render', () => {
       'href',
       '/g/guild-1/preferences#content-checklist',
     );
+    expect(screen.getByRole('link', { name: /Print \/ save PDF/ })).toHaveAttribute(
+      'href',
+      '/g/guild-1/games/game-1/consent/print',
+    );
+    expect(screen.getByRole('link', { name: /Print \/ save PDF/ })).toHaveAttribute(
+      'target',
+      '_blank',
+    );
+    expect(screen.getByRole('link', { name: /Print \/ save PDF/ })).toHaveAttribute(
+      'rel',
+      'noopener noreferrer',
+    );
     expect(mocks.overview).toHaveBeenCalledWith({
       guildId: 'guild-1',
       gameId: 'game-1',

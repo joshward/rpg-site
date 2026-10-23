@@ -1,0 +1,65 @@
+/* Scoped to the dedicated document, even if Next retains this stylesheet after
+   navigation. No live overview/private pane is used as a printing surface. */
+@media print {
+  :global(body):has(.document) {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Print only the article: exclude app/user/guild chrome, portals and controls.
+     Retain its ancestors for normal pagination rather than fixed positioning. */
+  :global(body):has(.document) *:not(:has(.document)):not(.document):not(.document *) {
+    display: none !important;
+  }
+
+  :global(body):has(.document) *:has(.document) {
+    display: block !important;
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    width: auto !important;
+    box-shadow: none !important;
+  }
+
+  .document {
+    display: block;
+    page: consent-overview;
+    font-size: 11pt;
+  }
+
+  /* Legible in dark mode and with print backgrounds disabled. Labels and icons
+     carry meaning without depending on color. */
+  .document,
+  .document * {
+    background: transparent !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .document > * + * {
+    margin-top: 1rem;
+  }
+
+  .document li {
+    break-inside: avoid;
+  }
+
+  .document h1,
+  .document h2,
+  .document h3 {
+    break-after: avoid;
+  }
+
+  .document p {
+    orphans: 3;
+    widows: 3;
+  }
+}
+
+@page consent-overview {
+  margin: 15mm;
+}
