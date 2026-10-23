@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/db/db';
 import { consentTopic } from '@/db/schema/consent-topics';
 import { consentResponse } from '@/db/schema/consent-responses';
-import { ensureAdmin } from '@/actions/auth-helpers';
+import { ensureAdmin, getEffectiveUserContext } from '@/actions/auth-helpers';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { isConsentFeatureEnabled } from '@/lib/consent/feature-gate';
 
@@ -18,6 +18,10 @@ export type OfficialConsentTopic = {
 async function ensureTopicAdmin(guildId: string) {
   if (!isConsentFeatureEnabled()) throw new ActionError('Consent checklists are not available.');
   const access = await ensureAdmin(guildId);
+  const context = await getEffectiveUserContext(guildId);
+  if (!context || context.isImpersonating || access.isImpersonating) {
+    throw new ActionError('Consent topic administration is not available while impersonating.');
+  }
   if (!access.guildData?.consentEnabled) {
     throw new ActionError('Enable consent checklists for this guild before editing topics.');
   }
