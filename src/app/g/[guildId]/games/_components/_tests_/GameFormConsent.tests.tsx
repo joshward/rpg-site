@@ -73,9 +73,6 @@ vi.mock('@/components/FormInput', () => ({
     </label>
   ),
 }));
-vi.mock('@/components/FormTextarea', () => ({
-  FormTextarea: () => <textarea aria-label="description" />,
-}));
 vi.mock('@/components/Combobox', () => ({ default: () => <div /> }));
 vi.mock('@/components/ConfirmDialog', () => ({ default: () => null }));
 
@@ -117,6 +114,29 @@ describe('game form consent dropdown', () => {
           name: 'New campaign',
           consentMode: 'optional',
         }),
+      ),
+    );
+  });
+
+  it('previews the reusable description editor without submitting and saves its raw Markdown', async () => {
+    const user = userEvent.setup();
+    render(
+      <GameForm
+        initialData={{ ...game, description: '**Campaign**' }}
+        eligibleMembers={[]}
+        channels={[]}
+      />,
+    );
+    await user.type(screen.getByRole('textbox', { name: 'Description (Markdown)' }), ' notes');
+    await user.click(screen.getByRole('switch', { name: 'Preview Description (Markdown)' }));
+    expect(screen.getByText('Campaign', { selector: 'strong' })).toBeInTheDocument();
+    expect(mocks.update).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Update Game' }));
+    await waitFor(() =>
+      expect(mocks.update).toHaveBeenCalledWith(
+        'guild-1',
+        'game-1',
+        expect.objectContaining({ description: '**Campaign** notes' }),
       ),
     );
   });
@@ -179,7 +199,7 @@ describe('game form consent dropdown', () => {
     );
   });
 
-  it('saves member coordinator checkboxes only with Update Game', async () => {
+  it('saves member coordinator switches only with Update Game', async () => {
     const user = userEvent.setup();
     render(
       <GameForm
@@ -194,7 +214,7 @@ describe('game form consent dropdown', () => {
         showConsentMode
       />,
     );
-    await user.click(screen.getByRole('checkbox', { name: 'Consent coordinator: Player' }));
+    await user.click(screen.getByRole('switch', { name: 'Consent coordinator: Player' }));
     expect(mocks.update).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Update Game' }));
     await waitFor(() =>
@@ -222,7 +242,7 @@ describe('game form consent dropdown', () => {
         channels={[]}
       />,
     );
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('switch', { name: /Consent coordinator/ })).not.toBeInTheDocument();
     await user.type(screen.getByRole('textbox', { name: 'Game Name' }), ' Updated');
     await user.click(screen.getByRole('button', { name: 'Update Game' }));
     await waitFor(() => expect(mocks.update).toHaveBeenCalled());

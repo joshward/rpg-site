@@ -31,7 +31,7 @@ beforeEach(() => {
 describe('guild consent settings UI', () => {
   it('hides guidance while disabled and populates the default when enabled', async () => {
     render(<ConsentSettings initialEnabled={false} initialGuidance={null} />);
-    const toggle = screen.getByRole('checkbox', { name: /enable consent checklists/i });
+    const toggle = screen.getByRole('switch', { name: /enable consent checklists/i });
     expect(toggle).not.toBeChecked();
     expect(screen.queryByRole('textbox', { name: /checklist guidance/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/guidance preview/i)).not.toBeInTheDocument();
@@ -54,21 +54,31 @@ describe('guild consent settings UI', () => {
     expect(mocks.refresh).toHaveBeenCalled();
   });
 
+  it('previews guidance locally and only saves its Markdown source on submit', async () => {
+    const user = userEvent.setup();
+    render(<ConsentSettings initialEnabled initialGuidance="# Our guidance" />);
+    await user.click(screen.getByRole('switch', { name: 'Preview Checklist guidance (Markdown)' }));
+    expect(screen.getByRole('heading', { name: 'Our guidance' })).toBeInTheDocument();
+    expect(mocks.save).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: /save enablement & guidance/i }));
+    await waitFor(() => expect(mocks.save).toHaveBeenCalledWith('guild-1', true, '# Our guidance'));
+  });
+
   it('does not show topics if enabling the guild fails', async () => {
     mocks.save.mockResolvedValueOnce({ type: 'failure', error: 'Could not enable' });
     render(<ConsentSettings initialEnabled={false} initialGuidance={null} />);
     const user = userEvent.setup();
-    await user.click(screen.getByRole('checkbox', { name: /enable consent checklists/i }));
+    await user.click(screen.getByRole('switch', { name: /enable consent checklists/i }));
     await user.click(screen.getByRole('button', { name: /save enablement & guidance/i }));
     expect(mocks.getTopics).not.toHaveBeenCalled();
     expect(screen.queryByRole('heading', { name: /official topics/i })).not.toBeInTheDocument();
   });
 
-  it('allows retrying topic loading without toggling the checkbox', async () => {
+  it('allows retrying topic loading without toggling the switch', async () => {
     mocks.getTopics.mockResolvedValueOnce({ type: 'failure', error: 'Could not load topics' });
     render(<ConsentSettings initialEnabled={false} initialGuidance={null} />);
     const user = userEvent.setup();
-    await user.click(screen.getByRole('checkbox', { name: /enable consent checklists/i }));
+    await user.click(screen.getByRole('switch', { name: /enable consent checklists/i }));
     await user.click(screen.getByRole('button', { name: /save enablement & guidance/i }));
     expect(await screen.findByText('Could not load topics')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /save enablement & guidance/i }));
@@ -94,7 +104,7 @@ describe('guild consent settings UI', () => {
   it('keeps an earlier override when disabled and enabled again', async () => {
     render(<ConsentSettings initialEnabled={false} initialGuidance="# Our guidance" />);
     const user = userEvent.setup();
-    const toggle = screen.getByRole('checkbox', { name: /enable consent checklists/i });
+    const toggle = screen.getByRole('switch', { name: /enable consent checklists/i });
     await user.click(toggle);
     expect(screen.getByRole('textbox', { name: /checklist guidance/i })).toHaveValue(
       '# Our guidance',

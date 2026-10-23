@@ -8,7 +8,8 @@ import Alert from '@/components/Alert';
 import Button from '@/components/Button';
 import ConsentTopicEditor from './ConsentTopicEditor';
 import { getOfficialConsentTopics, type OfficialConsentTopic } from '@/actions/consent-topics';
-import { FormTextarea } from '@/components/FormTextarea';
+import MarkdownEditor from '@/components/MarkdownEditor';
+import Switch from '@/components/Switch';
 import { useNotification } from '@/components/Notification';
 import Paper from '@/components/Paper';
 import { DEFAULT_CONSENT_GUIDANCE } from '@/lib/consent/guidance';
@@ -80,27 +81,27 @@ export default function ConsentSettings({
             Save enablement &amp; guidance
           </Button>
         </div>
-        <label className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={(event) => {
-              const nextEnabled = event.target.checked;
-              if (nextEnabled && !guidance.trim()) setGuidance(DEFAULT_CONSENT_GUIDANCE);
-              setEnabled(nextEnabled);
-            }}
-          />
-          Enable consent checklists for this guild
-        </label>
+        <Switch
+          label="Enable consent checklists for this guild"
+          description="Changes take effect when you save enablement & guidance."
+          checked={enabled}
+          disabled={saving}
+          onCheckedChange={(nextEnabled) => {
+            if (nextEnabled && !guidance.trim()) setGuidance(DEFAULT_CONSENT_GUIDANCE);
+            setEnabled(nextEnabled);
+          }}
+        />
         {enabled && (
           <>
             <div className="flex flex-col gap-2">
-              <FormTextarea
+              <MarkdownEditor
                 label="Checklist guidance (Markdown)"
                 description="The default guidance is filled in automatically. You can edit or restore it."
                 value={guidance}
-                onChange={(event) => setGuidance(event.target.value)}
-                textareaProps={{ className: 'h-36', maxLength: 10000 }}
+                onValueChange={setGuidance}
+                disabled={saving}
+                rows={6}
+                maxLength={10000}
               />
               {guidance !== DEFAULT_CONSENT_GUIDANCE && (
                 <Button

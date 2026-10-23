@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation';
-import { Pencil2Icon } from '@radix-ui/react-icons';
 import { getGameConsentAggregate } from '@/actions/consent-aggregate';
 import { isFailure } from '@/actions/result';
 import { getDefaultMetadata } from '@/lib/metadata';
 import Link from '@/components/Link';
 import ConsentAggregate from '../../../_components/ConsentAggregate';
+import GroupNoteContent from '../../../_components/GroupNoteContent';
 import PrintButton from './PrintButton';
 import styles from './print.module.css';
 
@@ -70,10 +70,7 @@ export default async function GameConsentPrintPage({
         {result.data.overallGroupNote.note && (
           <section>
             <h2 className="text-xl font-bold">Overall group notes</h2>
-            <p className="mt-2 whitespace-pre-wrap break-words text-sm">
-              <Pencil2Icon aria-hidden="true" className="mr-1 inline size-4 text-violet-11" />
-              {result.data.overallGroupNote.note}
-            </p>
+            <GroupNoteContent className="mt-2" note={result.data.overallGroupNote.note} />
           </section>
         )}
         {topics.length ? (
