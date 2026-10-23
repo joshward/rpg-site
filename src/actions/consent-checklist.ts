@@ -8,7 +8,7 @@ import {
   consentResponse,
   type ConsentAnswer,
 } from '@/db/schema/consent-responses';
-import { ensureAccess } from '@/actions/auth-helpers';
+import { ensureAccess, getEffectiveUserContext } from '@/actions/auth-helpers';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { canAccessGuildConsent, isConsentFeatureEnabled } from '@/lib/consent/feature-gate';
 import { missingConsentTopicIds } from '@/lib/consent/completeness';
@@ -24,7 +24,10 @@ export type ConsentResponseInput = {
 async function ensureMyChecklistAccess(guildId: string) {
   if (!isConsentFeatureEnabled()) throw new ActionError('Consent checklists are not available.');
   const access = await ensureAccess(guildId);
-  if (access.isImpersonating) {
+  // ensureAccess can fall back to the real admin in another guild. Validate the
+  // active context independently before reading or changing any checklist data.
+  const context = await getEffectiveUserContext(guildId);
+  if (!context || context.isImpersonating || access.isImpersonating) {
     throw new ActionError('Private consent checklists are not available while impersonating.');
   }
   if (!canAccessGuildConsent(access.guildData?.consentEnabled === true)) {

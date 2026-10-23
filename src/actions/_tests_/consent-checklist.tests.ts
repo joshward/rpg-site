@@ -3,6 +3,7 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 
 const mocks = vi.hoisted(() => ({
   ensureAccess: vi.fn(),
+  context: vi.fn(),
   select: vi.fn(),
   insert: vi.fn(),
   delete: vi.fn(),
@@ -10,7 +11,10 @@ const mocks = vi.hoisted(() => ({
   where: vi.fn(),
 }));
 
-vi.mock('@/actions/auth-helpers', () => ({ ensureAccess: mocks.ensureAccess }));
+vi.mock('@/actions/auth-helpers', () => ({
+  ensureAccess: mocks.ensureAccess,
+  getEffectiveUserContext: mocks.context,
+}));
 vi.mock('@/db/db', () => ({
   db: {
     select: mocks.select,
@@ -103,6 +107,7 @@ beforeEach(() => {
     discordAccount: { userId: 'caller-discord-id' },
     isImpersonating: false,
   });
+  mocks.context.mockResolvedValue({ isImpersonating: false });
   mocks.transaction.mockImplementation(async (callback) =>
     callback({ select: mocks.select, insert: mocks.insert, delete: mocks.delete }),
   );
@@ -176,6 +181,39 @@ describe('private guild checklist actions', () => {
     expect(mocks.select).not.toHaveBeenCalled();
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['cross-guild fallback', false, { isImpersonating: true }],
+    ['access helper impersonation', true, { isImpersonating: false }],
+    ['missing validated context', false, null],
+  ] as const)(
+    'blocks all checklist entry points for %s before consent data access',
+    async (_case, accessImpersonating, context) => {
+      mocks.ensureAccess.mockResolvedValue({
+        guildData: { consentEnabled: true },
+        discordAccount: { userId: 'real-admin-id' },
+        isImpersonating: accessImpersonating,
+      });
+      mocks.context.mockResolvedValue(context);
+      expect((await getMyConsentChecklist('guild-1')).type).toBe('failure');
+      expect(
+        (
+          await saveMyConsentResponse('guild-1', 'parent', {
+            answer: 'line',
+            headsUp: false,
+            note: 'Draft',
+          })
+        ).type,
+      ).toBe('failure');
+      expect((await saveMyConsentOverallNote('guild-1', 'Draft')).type).toBe('failure');
+      expect((await saveMyConsentChecklist('guild-1', [], 'Draft')).type).toBe('failure');
+      expect(mocks.context).toHaveBeenCalledWith('guild-1');
+      expect(mocks.select).not.toHaveBeenCalled();
+      expect(mocks.transaction).not.toHaveBeenCalled();
+      expect(mocks.insert).not.toHaveBeenCalled();
+      expect(mocks.delete).not.toHaveBeenCalled();
+    },
+  );
 
   it('loads only the caller’s checklist, including private notes and missing official topics', async () => {
     mockSelect({

@@ -3,6 +3,7 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 
 const mocks = vi.hoisted(() => ({
   ensureAdmin: vi.fn(),
+  context: vi.fn(),
   select: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
@@ -11,7 +12,10 @@ const mocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
 }));
 
-vi.mock('@/actions/auth-helpers', () => ({ ensureAdmin: mocks.ensureAdmin }));
+vi.mock('@/actions/auth-helpers', () => ({
+  ensureAdmin: mocks.ensureAdmin,
+  getEffectiveUserContext: mocks.context,
+}));
 vi.mock('@/db/db', () => ({
   db: {
     select: mocks.select,
@@ -33,7 +37,11 @@ import {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv('CONSENT_FEATURE_ENABLED', 'true');
-  mocks.ensureAdmin.mockResolvedValue({ guildData: { consentEnabled: true } });
+  mocks.ensureAdmin.mockResolvedValue({
+    guildData: { consentEnabled: true },
+    isImpersonating: false,
+  });
+  mocks.context.mockResolvedValue({ isImpersonating: false });
   mocks.transaction.mockImplementation(async (callback) =>
     callback({ update: mocks.update, delete: mocks.delete }),
   );
@@ -61,6 +69,37 @@ describe('official consent topics', () => {
     expect(mocks.select).not.toHaveBeenCalled();
     expect(mocks.insert).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['cross-guild admin fallback', false, { isImpersonating: true }],
+    ['admin helper impersonation', true, { isImpersonating: false }],
+    ['missing validated context', false, null],
+  ] as const)(
+    'blocks topic reads and all mutations for %s before consent data access',
+    async (_case, accessImpersonating, context) => {
+      mocks.ensureAdmin.mockResolvedValue({
+        guildData: { consentEnabled: true },
+        isImpersonating: accessImpersonating,
+      });
+      mocks.context.mockResolvedValue(context);
+      expect((await getOfficialConsentTopics('guild-1')).type).toBe('failure');
+      expect((await addOfficialConsentTopic('guild-1', 'Topic', null)).type).toBe('failure');
+      expect((await renameOfficialConsentTopic('guild-1', 'topic-1', 'Renamed', 'keep')).type).toBe(
+        'failure',
+      );
+      expect(
+        (await renameOfficialConsentTopic('guild-1', 'topic-1', 'Renamed', 'clear')).type,
+      ).toBe('failure');
+      expect((await deleteOfficialConsentTopic('guild-1', 'topic-1')).type).toBe('failure');
+      expect(mocks.context).toHaveBeenCalledWith('guild-1');
+      expect(mocks.select).not.toHaveBeenCalled();
+      expect(mocks.transaction).not.toHaveBeenCalled();
+      expect(mocks.insert).not.toHaveBeenCalled();
+      expect(mocks.update).not.toHaveBeenCalled();
+      expect(mocks.delete).not.toHaveBeenCalled();
+      expect(mocks.revalidatePath).not.toHaveBeenCalled();
+    },
+  );
 
   it('validates topic names before writing', async () => {
     expect((await addOfficialConsentTopic('guild-1', '  ', null)).type).toBe('failure');

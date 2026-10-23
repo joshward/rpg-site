@@ -5,14 +5,19 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/db/db';
 import { guild } from '@/db/schema/guild';
 import { consentTopic } from '@/db/schema/consent-topics';
-import { ensureAdmin } from '@/actions/auth-helpers';
+import { ensureAdmin, getEffectiveUserContext } from '@/actions/auth-helpers';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { isConsentFeatureEnabled } from '@/lib/consent/feature-gate';
 import { makeStarterConsentTopicRows } from '@/lib/consent/starter-topics';
 
-function requireConsentAdminFeature() {
+async function ensureConsentAdmin(guildId: string) {
   if (!isConsentFeatureEnabled()) {
     throw new ActionError('Consent checklists are not available.');
+  }
+  const access = await ensureAdmin(guildId);
+  const context = await getEffectiveUserContext(guildId);
+  if (!context || context.isImpersonating || access.isImpersonating) {
+    throw new ActionError('Consent settings are not available while impersonating.');
   }
 }
 
@@ -20,8 +25,7 @@ function requireConsentAdminFeature() {
 export const getConsentAdminSettings = asResult(
   'getConsentAdminSettings',
   async (guildId: string) => {
-    requireConsentAdminFeature();
-    await ensureAdmin(guildId);
+    await ensureConsentAdmin(guildId);
 
     const [settings] = await db
       .select({ enabled: guild.consentEnabled, guidance: guild.consentGuidance })
@@ -38,8 +42,7 @@ export const getConsentAdminSettings = asResult(
 export const saveConsentAdminSettings = asResult(
   'saveConsentAdminSettings',
   async (guildId: string, enabled: boolean, guidance: string) => {
-    requireConsentAdminFeature();
-    await ensureAdmin(guildId);
+    await ensureConsentAdmin(guildId);
 
     if (typeof enabled !== 'boolean' || typeof guidance !== 'string' || guidance.length > 10000) {
       throw new ActionError('Invalid consent settings.');
