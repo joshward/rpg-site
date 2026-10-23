@@ -9,7 +9,7 @@ import { FormInput } from '@/components/FormInput';
 import { ComboboxOption } from '@/components/Combobox';
 import Paper from '@/components/Paper';
 import Button from '@/components/Button';
-import { FormTextarea } from '@/components/FormTextarea';
+import MarkdownEditor from '@/components/MarkdownEditor';
 import { saveGuildConfig, checkBotPermissionsAction } from '@/actions/guilds';
 import { isFailure, isSuccess } from '@/actions/result';
 import { useNotification } from '@/components/Notification';
@@ -225,17 +225,16 @@ export default function GuildAdminForm({
 
         <form.Field name="overviewText">
           {(field) => (
-            <FormTextarea
+            <MarkdownEditor
               label="Overview Text"
               description="Custom markdown text to display on the guild overview page. Replaces the default welcome message."
               placeholder="Welcome to our guild! Here is some information..."
               value={field.state.value}
-              onChange={(e) => field.handleChange(e.target.value)}
+              onValueChange={field.handleChange}
+              onBlur={field.handleBlur}
               error={field.state.meta.errors.join(', ')}
-              invalid={field.state.meta.errors.length > 0}
-              textareaProps={{
-                className: 'h-32',
-              }}
+              rows={5}
+              allowImages
             />
           )}
         </form.Field>
