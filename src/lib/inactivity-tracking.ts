@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, eq, min } from 'drizzle-orm';
+import { eq, min, sql } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { guild } from '@/db/schema/guild';
 import { scheduledSession } from '@/db/schema/games';
@@ -12,6 +12,9 @@ import type { GuildMemberModel } from '@/lib/discord/models';
 // Internal: callers authorize this guild via ensureAdmin or the cron secret.
 // A complete successful census is required before writing ANY eligibility data.
 export async function syncGuildInactivityTracking(guildId: string, allowedRoles: string[]) {
+  // Ordering must reflect when the census began, not when a slow API call
+  // happened to finish. Observation dates below still use the completion time.
+  const censusStartedAt = new Date();
   const members: GuildMemberModel[] = [];
   let after: string | undefined;
   while (true) {
@@ -51,7 +54,11 @@ export async function syncGuildInactivityTracking(guildId: string, allowedRoles:
       .select()
       .from(inactivityMemberTracking)
       .where(eq(inactivityMemberTracking.guildId, guildId));
-    if (existing.some((row) => row.lastObservedAt > observedAt)) {
+    if (
+      (existingState &&
+        (existingState.lastCensusStartedAt ?? existingState.initializedAt) >= censusStartedAt) ||
+      existing.some((row) => row.lastObservedAt > observedAt)
+    ) {
       throw new Error('A newer membership census already committed; retry');
     }
     let state = existingState;
@@ -64,6 +71,7 @@ export async function syncGuildInactivityTracking(guildId: string, allowedRoles:
       state = {
         guildId,
         initializedAt: observedAt,
+        lastCensusStartedAt: censusStartedAt,
         scheduleFallbackAt: at && at <= observedAt ? at : null,
       };
       await tx.insert(inactivityGuildTracking).values(state);
@@ -76,26 +84,29 @@ export async function syncGuildInactivityTracking(guildId: string, allowedRoles:
       existing,
       members: observations,
     });
-    for (const row of tracked) {
-      const previous = existing.find((r) => r.discordUserId === row.discordUserId);
-      if (previous) {
-        // Original addition and its provenance are immutable across restoration,
-        // rejoin, later schedules, preference saves, and subsequent sweeps.
-        await tx
-          .update(inactivityMemberTracking)
-          .set({
-            hasAccess: row.hasAccess,
-            lastObservedAt: row.lastObservedAt,
-            accessSince: row.accessSince,
-            discordJoinedAt: row.discordJoinedAt,
-          })
-          .where(
-            and(
-              eq(inactivityMemberTracking.guildId, guildId),
-              eq(inactivityMemberTracking.discordUserId, row.discordUserId),
-            ),
-          );
-      } else await tx.insert(inactivityMemberTracking).values(row);
+    // Bounded bulk writes keep the guild lock short even for large cohorts.
+    // Conflict updates deliberately omit original addition/provenance columns.
+    const batchSize = 250;
+    for (let offset = 0; offset < tracked.length; offset += batchSize) {
+      await tx
+        .insert(inactivityMemberTracking)
+        .values(tracked.slice(offset, offset + batchSize))
+        .onConflictDoUpdate({
+          target: [inactivityMemberTracking.guildId, inactivityMemberTracking.discordUserId],
+          set: {
+            hasAccess: sql`excluded.has_access`,
+            lastObservedAt: sql`excluded.last_observed_at`,
+            accessSince: sql`excluded.access_since`,
+            discordJoinedAt: sql`excluded.discord_joined_at`,
+          },
+        });
+    }
+    if (existingState) {
+      await tx
+        .update(inactivityGuildTracking)
+        .set({ lastCensusStartedAt: censusStartedAt })
+        .where(eq(inactivityGuildTracking.guildId, guildId));
+      state = { ...state, lastCensusStartedAt: censusStartedAt };
     }
     return { state, tracked };
   });

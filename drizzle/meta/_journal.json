@@ -183,6 +183,13 @@
       "when": 1794080126178,
       "tag": "0025_inactivity_enablement",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794170175831,
+      "tag": "0026_inactivity_provenance_and_census_ordering",
+      "breakpoints": true
     }
   ]
 }

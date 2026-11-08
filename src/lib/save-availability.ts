@@ -93,7 +93,7 @@ export async function saveAvailability({
     await tx.delete(availabilityDay).where(eq(availabilityDay.submissionId, submission.id));
     await tx
       .insert(availabilityDay)
-      .values(days.map((d) => ({ submissionId: submission.id, ...d })));
+      .values(days.map((d) => ({ submissionId: submission.id, day: d.day, status: d.status })));
     return { submissionId: submission.id };
   });
   revalidatePath(`/g/${guildId}/availability`);

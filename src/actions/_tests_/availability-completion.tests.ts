@@ -1,4 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
 
 const mocks = vi.hoisted(() => ({
   access: vi.fn(),
@@ -92,6 +93,46 @@ describe('durable full completion provenance', () => {
     });
     expect(updates[0]).toMatchObject({ completedAt: expect.any(Date), completionSource: 'player' });
   });
+  it.each(['player', 'admin', 'discord'])(
+    'strips injected day identifiers on the %s full-save path',
+    async (path) => {
+      const payload = days(29).map((day) => ({
+        ...day,
+        id: 'attacker-chosen-id',
+        submissionId: 'victim-submission-in-another-guild',
+        guildId: 'guild-b',
+        discordUserId: 'victim',
+      }));
+      if (path === 'player')
+        expect((await submitAvailability('guild-a', 2028, 2, payload)).type).toBe('success');
+      else if (path === 'admin')
+        expect(
+          (await adminSubmitMemberAvailability('guild-a', 2028, 2, 'target', payload)).type,
+        ).toBe('success');
+      else
+        await saveAvailability({
+          guildId: 'guild-a',
+          discordUserId: 'target',
+          year: 2028,
+          month: 2,
+          days: payload,
+          displayName: 'Player',
+          userId: null,
+        });
+      const savedDays = values[1] as unknown as Record<string, unknown>[];
+      expect(savedDays).toHaveLength(29);
+      expect(
+        savedDays.every(
+          (day, index) =>
+            day.submissionId === 'submission' &&
+            day.day === index + 1 &&
+            day.status === 'unavailable',
+        ),
+      ).toBe(true);
+      for (const day of savedDays)
+        expect(Object.keys(day).sort()).toEqual(['day', 'status', 'submissionId']);
+    },
+  );
   it('records full admin completion in the same transaction', async () => {
     expect((await adminSubmitMemberAvailability('guild-a', 2028, 2, 'target', days(29))).type).toBe(
       'success',
@@ -125,6 +166,15 @@ describe('durable full completion provenance', () => {
         (await adminUpdateMemberAvailability('guild-a', 2028, 2, 'target', 1, status)).type,
       ).toBe('success');
       expect(values[0]).toHaveProperty('completionSource', 'partial');
+      expect(values[0]).toHaveProperty('partialWriteVersion', 0);
+      const marker = new PgDialect({ casing: 'snake_case' }).sqlToQuery(
+        updates[0].partialWriteVersion as Parameters<PgDialect['sqlToQuery']>[0],
+      );
+      expect(marker.sql).toContain(
+        '"partial_write_version" = "availability_submissions"."write_version"',
+      );
+      expect(marker.sql).toContain('"write_version" + 1 else null end');
+      expect(mocks.update).not.toHaveBeenCalled();
       for (const record of [...values, ...updates])
         expect(record).not.toHaveProperty('completedAt');
       // Conflict/update paths must not overwrite full completion or unknown legacy provenance.

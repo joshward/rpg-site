@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { ensureAccess, ensureAdmin } from '@/actions/auth-helpers';
@@ -300,6 +300,7 @@ export const adminUpdateMemberAvailability = asResult(
           // Only a newly created incremental record gets this marker. The conflict
           // update deliberately preserves any established full/legacy provenance.
           completionSource: 'partial',
+          partialWriteVersion: 0,
         })
         .onConflictDoUpdate({
           target: [
@@ -311,6 +312,11 @@ export const adminUpdateMemberAvailability = asResult(
           set: {
             userId,
             updatedAt: new Date(),
+            // Only advance already-valid partial evidence. An intervening legacy
+            // save invalidates it permanently until an explicit full submission.
+            partialWriteVersion: sql`case when ${availabilitySubmission.completionSource} = 'partial'
+              and ${availabilitySubmission.partialWriteVersion} = ${availabilitySubmission.writeVersion}
+              then ${availabilitySubmission.writeVersion} + 1 else null end`,
           },
         })
         .returning();
@@ -336,11 +342,8 @@ export const adminUpdateMemberAvailability = asResult(
           });
       }
 
-      // 4. Update the submission's updatedAt timestamp
-      await tx
-        .update(availabilitySubmission)
-        .set({ updatedAt: new Date() })
-        .where(eq(availabilitySubmission.id, submission.id));
+      // The upsert already updates updatedAt and advances the write version.
+      // Do not issue a second row update that would invalidate this partial write.
     });
 
     revalidatePath(`/g/${guildId}/schedule`);

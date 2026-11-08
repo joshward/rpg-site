@@ -6,6 +6,7 @@ export const inactivityGuildTracking = pgTable('inactivity_guild_tracking', {
     .primaryKey()
     .references(() => guild.id, { onDelete: 'cascade' }),
   initializedAt: timestamp().notNull(),
+  lastCensusStartedAt: timestamp(),
   scheduleFallbackAt: timestamp(),
 });
 

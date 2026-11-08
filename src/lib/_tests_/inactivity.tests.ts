@@ -40,6 +40,8 @@ const completion = (month: number, source = 'player'): CompletionEvidence => ({
   month,
   completedAt: new Date('2026-02-01Z'),
   completionSource: source,
+  writeVersion: 0,
+  partialWriteVersion: null,
 });
 
 describe('unanswered submission cycles with automatic evidence', () => {
@@ -102,6 +104,7 @@ describe('unanswered submission cycles with automatic evidence', () => {
           ...completion(4),
           completedAt: null,
           completionSource: 'partial',
+          partialWriteVersion: 0,
         },
       ],
     });
@@ -129,6 +132,40 @@ describe('unanswered submission cycles with automatic evidence', () => {
     const result = evaluateInactivity({ ...base, now: new Date('2026-12-27Z') });
     expect(result.atCutoff).toBe(true);
     expect(result.months.map((m) => m.month)).toEqual(['2026-11', '2026-12', '2027-01']);
+  });
+  it('invalidates partial provenance after an old-version save, even when timestamps are unchanged', () => {
+    const partial = {
+      ...completion(4),
+      completedAt: null,
+      completionSource: 'partial',
+      partialWriteVersion: 0,
+    };
+    expect(evaluateInactivity({ ...base, submissions: [partial] }).wouldPause).toBe(true);
+    // The database trigger increments writeVersion for the legacy writer even
+    // though it knows nothing about the provenance columns.
+    const legacyFullSave = { ...partial, writeVersion: 1 };
+    const protectedResult = evaluateInactivity({ ...base, submissions: [legacyFullSave] });
+    expect(protectedResult.classification).toBe('active');
+    expect(protectedResult.months[1]).toMatchObject({ status: 'legacy_response', source: null });
+    expect(lastSubmittedMonth('a', 'human', [legacyFullSave])).toBe('2026-04');
+    // A later new-version partial edit must not recertify a row whose full
+    // legacy response could not be proven; SQL clears the invalid marker.
+    const laterPartial = { ...legacyFullSave, writeVersion: 2, partialWriteVersion: null };
+    expect(evaluateInactivity({ ...base, submissions: [laterPartial] }).classification).toBe(
+      'active',
+    );
+  });
+  it('treats pre-marker partial records conservatively and keeps full completion protected through legacy writes', () => {
+    expect(
+      evaluateInactivity({
+        ...base,
+        submissions: [{ ...completion(4), completionSource: 'partial', completedAt: null }],
+      }).classification,
+    ).toBe('active');
+    expect(
+      evaluateInactivity({ ...base, submissions: [{ ...completion(4), writeVersion: 20 }] })
+        .classification,
+    ).toBe('active');
   });
   it('missing tracking stays uncertain, not assumed inactive', () => {
     const result = evaluateInactivity({ ...base, tracking: undefined });
@@ -196,7 +233,12 @@ describe('last availability target month', () => {
       lastSubmittedMonth('a', 'human', [
         completion(3),
         { ...completion(4), completedAt: null, completionSource: null },
-        { ...completion(5), completedAt: null, completionSource: 'partial' },
+        {
+          ...completion(5),
+          completedAt: null,
+          completionSource: 'partial',
+          partialWriteVersion: 0,
+        },
         { ...completion(6), guildId: 'other' },
       ]),
     ).toBe('2026-04');

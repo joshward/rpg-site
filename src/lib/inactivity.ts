@@ -100,6 +100,16 @@ export interface CompletionEvidence {
   month: number;
   completedAt: Date | null;
   completionSource: string | null;
+  writeVersion: number;
+  partialWriteVersion: number | null;
+}
+
+export function isKnownPartial(submission: CompletionEvidence) {
+  return (
+    submission.completionSource === 'partial' &&
+    Number.isInteger(submission.partialWriteVersion) &&
+    submission.partialWriteVersion === submission.writeVersion
+  );
 }
 
 export function lastSubmittedMonth(
@@ -113,7 +123,7 @@ export function lastSubmittedMonth(
         s.guildId === guildId &&
         s.discordUserId === discordUserId &&
         ((s.completedAt && ['player', 'admin'].includes(s.completionSource ?? '')) ||
-          s.completionSource !== 'partial'),
+          !isKnownPartial(s)),
     )
     .map((s) => s.year * 12 + s.month - 1);
   return months.length ? monthLabel(Math.max(...months)) : null;
@@ -172,14 +182,14 @@ export function evaluateInactivity({
         status = 'complete';
       // Only explicit partial provenance can rule out legacy completion. In
       // particular, an older deployed app can still write rows during rollout.
-      else if (submission && submission.completionSource !== 'partial') status = 'legacy_response';
+      else if (submission && !isKnownPartial(submission)) status = 'legacy_response';
       else if (firstCountable !== null && index < firstCountable) status = 'grace';
       else if (currentMembership && index >= accessStart) status = 'missing';
       else status = 'unknown';
       return {
         month: monthLabel(index),
         status,
-        source: submission?.completionSource ?? null,
+        source: status === 'legacy_response' ? null : (submission?.completionSource ?? null),
         completedAt: submission?.completedAt?.toISOString() ?? null,
       };
     },
