@@ -43,5 +43,21 @@ Assert-True (@($parseErrors).Count -eq 0) 'Launcher must parse in Windows PowerS
   Assert-True $reached 'An explicit yes must advance to preflight.'
 }
 
+# The runtime switch must preserve the verified-local ordering and fail closed.
+$source = Get-Content -LiteralPath $launcher -Raw
+Assert-True ($source.Contains("@('op', 'neonctl', 'mise')")) 'mise must be a required CLI.'
+Assert-True (-not $source.Contains('volta')) 'The launcher must not require or fall back to Volta.'
+$migrate = $source.IndexOf('& mise exec -- npm run db:migrate')
+$dev = $source.IndexOf('& mise exec -- npm run dev')
+$verified = $source.IndexOf("Write-Output 'Verified: Neon local child branch")
+Assert-True ($verified -ge 0 -and $migrate -gt $verified -and $dev -gt $migrate) 'Migration and dev must use mise only after local database verification.'
+Assert-True ($source.Contains("throw 'Local migration failed; dev server was not started.'")) 'A failed migration must still prevent dev startup.'
+$repoRoot = Split-Path $PSScriptRoot -Parent
+$toolConfig = Get-Content -LiteralPath (Join-Path $repoRoot 'mise.toml') -Raw
+$package = Get-Content -LiteralPath (Join-Path $repoRoot 'package.json') -Raw | ConvertFrom-Json
+Assert-True ($toolConfig -match '(?m)^node = "24\.21\.0"\r?$') 'mise must pin the supported Node version.'
+$npmPin = [regex]::Match($toolConfig, '(?m)^npm = "(\d+\.\d+\.\d+)"\r?$')
+Assert-True ($npmPin.Success -and $package.packageManager -eq "npm@$($npmPin.Groups[1].Value)") 'mise npm pin must agree with packageManager.'
+
 & (Join-Path $PSScriptRoot 'local-preview-orca.tests.ps1')
 Write-Output 'Local preview approval and Orca launch checks passed (no secrets or DB access).'

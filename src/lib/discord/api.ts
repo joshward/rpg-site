@@ -298,13 +298,14 @@ export async function getGuildMember(
 }
 
 export async function getGuildMembers(
-  params: { guildId: string },
+  params: { guildId: string; after?: string },
   options: Options = {},
 ): Promise<GuildMembersResponseModel> {
   const result = await $fetch('/guilds/:guildId/members', {
     params,
     query: {
       limit: 1000,
+      after: params.after,
     },
     ...handleOptions(options),
   });

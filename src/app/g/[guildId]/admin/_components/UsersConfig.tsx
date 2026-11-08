@@ -4,7 +4,11 @@ import * as React from 'react';
 import { useParams } from 'next/navigation';
 import Paper from '@/components/Paper';
 import Alert from '@/components/Alert';
-import { getAdminMemberPreferences, setAdminMemberPreference } from '@/actions/preferences';
+import {
+  getAdminMemberPreferences,
+  setAdminMemberPreference,
+  type AdminMemberInactivity,
+} from '@/actions/preferences';
 import { startImpersonation } from '@/actions/auth-actions';
 import { isFailure } from '@/actions/result';
 import {
@@ -21,6 +25,7 @@ import { SESSIONS_PER_MONTH_OPTIONS } from '@/lib/preferences';
 import { useNotification } from '@/components/Notification';
 import { useRouter } from 'next/navigation';
 import type { PlausibleEvents } from '@/lib/plausible-events';
+import PlayerActivityStatus from './PlayerActivityStatus';
 
 interface MemberPreference {
   discordUserId: string;
@@ -30,12 +35,21 @@ interface MemberPreference {
   hasLoggedIn: boolean;
   lastLoginAt: string | null;
   sessionsPerMonth: number | null;
+  inactivity?: AdminMemberInactivity | null;
 }
 
-export default function UsersConfig() {
+export default function UsersConfig({
+  inactivityEnabled = false,
+  inactivityThreshold = 3,
+  accessRolesKey = '',
+}: {
+  inactivityEnabled?: boolean;
+  inactivityThreshold?: number;
+  accessRolesKey?: string;
+}) {
   const { guildId } = useParams<{ guildId: string }>();
   const [isExpanded, setIsExpanded] = React.useState(false);
-  const [hasFetched, setHasFetched] = React.useState(false);
+  const requestId = React.useRef(0);
   const [loading, setLoading] = React.useState(false);
   const [members, setMembers] = React.useState<MemberPreference[]>([]);
   const [error, setError] = React.useState<string | null>(null);
@@ -45,23 +59,27 @@ export default function UsersConfig() {
   const [impersonatingId, setImpersonatingId] = React.useState<string | null>(null);
 
   const fetchMembers = React.useCallback(async () => {
+    const id = ++requestId.current;
     setLoading(true);
     setError(null);
-    const result = await getAdminMemberPreferences(guildId);
-    if (isFailure(result)) {
-      setError(result.error);
-    } else {
-      setMembers(result.data);
-      setHasFetched(true);
+    try {
+      const result = await getAdminMemberPreferences(guildId);
+      if (id !== requestId.current) return;
+      if (isFailure(result)) setError(result.error);
+      else setMembers(result.data);
+    } catch {
+      if (id === requestId.current) setError('Unable to load guild members.');
+    } finally {
+      if (id === requestId.current) setLoading(false);
     }
-    setLoading(false);
   }, [guildId]);
 
   React.useEffect(() => {
-    if (isExpanded && !hasFetched && !loading) {
-      fetchMembers();
-    }
-  }, [isExpanded, hasFetched, loading, fetchMembers]);
+    if (isExpanded) void fetchMembers();
+    return () => {
+      requestId.current++;
+    };
+  }, [isExpanded, fetchMembers, inactivityEnabled, inactivityThreshold, accessRolesKey]);
 
   const handleToggle = () => setIsExpanded((prev) => !prev);
 
@@ -85,12 +103,13 @@ export default function UsersConfig() {
         title: 'Success',
         description: 'Member preference updated.',
       });
-      // Update local state
+      // Update local preference and reload the enabled activity snapshot after saving.
       setMembers((prev) =>
         prev.map((m) =>
           m.discordUserId === discordUserId ? { ...m, sessionsPerMonth: option.id as number } : m,
         ),
       );
+      if (inactivityEnabled) await fetchMembers();
     }
   };
 
@@ -215,6 +234,12 @@ export default function UsersConfig() {
                           }
                           placeholder="Unset"
                         />
+                        {inactivityEnabled && member.inactivity && (
+                          <PlayerActivityStatus
+                            activity={member.inactivity}
+                            displayName={member.displayName}
+                          />
+                        )}
                       </td>
                       <td className="py-3 px-2 text-right">
                         <div className="flex items-center justify-end gap-2">

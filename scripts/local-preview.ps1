@@ -66,7 +66,7 @@ if (-not (Test-Path -LiteralPath $EnvFile -PathType Leaf)) {
   throw 'Missing local 1Password reference file (.env.local).'
 }
 $EnvFile = (Resolve-Path -LiteralPath $EnvFile).Path
-foreach ($command in @('op', 'neonctl', 'volta')) {
+foreach ($command in @('op', 'neonctl', 'mise')) {
   if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { throw "Missing required CLI: $command" }
 }
 if (-not $Resolved -and (Get-PreviewProcess)) {
@@ -126,11 +126,12 @@ Write-Output 'Verified: Neon local child branch and resolved development databas
 
 $env:SITE_URL = 'http://localhost:3000'
 $env:CONSENT_FEATURE_ENABLED = 'true' # Local-only; never enable the production gate.
-$pins = Get-Content -LiteralPath (Join-Path $repo 'package.json') -Raw | ConvertFrom-Json
-if (-not $pins.volta.node -or -not $pins.volta.npm) { throw 'Missing Volta versions in package.json.' }
+if (-not (Test-Path -LiteralPath (Join-Path $repo 'mise.toml') -PathType Leaf)) {
+  throw 'Missing mise.toml tool versions.'
+}
 Set-Location $repo
-& volta run --node $pins.volta.node --npm $pins.volta.npm npm run db:migrate
+& mise exec -- npm run db:migrate
 if ($LASTEXITCODE -ne 0) { throw 'Local migration failed; dev server was not started.' }
 Write-Output 'Starting local preview at http://localhost:3000 (use -Stop from another terminal to stop).'
-& volta run --node $pins.volta.node --npm $pins.volta.npm npm run dev
+& mise exec -- npm run dev
 exit $LASTEXITCODE

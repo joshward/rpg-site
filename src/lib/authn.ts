@@ -24,7 +24,14 @@ export async function resolveRoleForGuild(
   allowedGuildRoles: string[],
 ): Promise<Role> {
   const guildRoles = await fetchGuildRolesLookup(guildId);
+  return resolveRoleWithGuildRoles(roles, allowedGuildRoles, guildRoles);
+}
 
+export function resolveRoleWithGuildRoles(
+  roles: string[],
+  allowedGuildRoles: string[],
+  guildRoles: Record<string, RoleModel>,
+): Role {
   let isAllowed = false;
 
   for (const role of roles) {

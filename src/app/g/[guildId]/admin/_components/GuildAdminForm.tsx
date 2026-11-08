@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useForm } from '@tanstack/react-form';
 import * as v from 'valibot';
 import { FormComboBox } from '@/components/FormComboBox';
@@ -13,6 +13,8 @@ import MarkdownEditor from '@/components/MarkdownEditor';
 import { saveGuildConfig, checkBotPermissionsAction } from '@/actions/guilds';
 import { isFailure, isSuccess } from '@/actions/result';
 import { useNotification } from '@/components/Notification';
+import Switch from '@/components/Switch';
+import { validThreshold } from '@/lib/inactivity';
 
 interface GuildAdminFormProps {
   roles: ComboboxOption[];
@@ -24,6 +26,8 @@ interface GuildAdminFormProps {
   initialGlobalNotificationChannelId?: string;
   initialOverviewText?: string;
   initialDefaultSchedulingDetails?: string;
+  initialInactivityEnabled?: boolean;
+  initialInactivityThreshold?: number;
 }
 
 export default function GuildAdminForm({
@@ -36,9 +40,12 @@ export default function GuildAdminForm({
   initialGlobalNotificationChannelId,
   initialOverviewText,
   initialDefaultSchedulingDetails,
+  initialInactivityEnabled = false,
+  initialInactivityThreshold = 3,
 }: GuildAdminFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
   const notification = useNotification();
+  const router = useRouter();
 
   const form = useForm({
     defaultValues: {
@@ -51,6 +58,8 @@ export default function GuildAdminForm({
         channels.find((c) => c.id === initialGlobalNotificationChannelId) ?? null,
       overviewText: initialOverviewText ?? '',
       defaultSchedulingDetails: initialDefaultSchedulingDetails ?? '',
+      inactivityEnabled: initialInactivityEnabled,
+      inactivityThreshold: initialInactivityThreshold,
     },
     onSubmit: async ({ value }) => {
       const result = await saveGuildConfig(
@@ -65,6 +74,7 @@ export default function GuildAdminForm({
         value.globalNotificationChannel?.label as string | undefined,
         value.overviewText,
         value.defaultSchedulingDetails,
+        { enabled: value.inactivityEnabled, threshold: value.inactivityThreshold },
       );
 
       if (isFailure(result)) {
@@ -79,6 +89,7 @@ export default function GuildAdminForm({
           title: 'Success',
           description: 'Guild settings saved successfully.',
         });
+        router.refresh();
       }
     },
   });
@@ -222,6 +233,44 @@ export default function GuildAdminForm({
             />
           )}
         </form.Field>
+
+        <form.Field name="inactivityEnabled">
+          {(field) => (
+            <Switch
+              label="Enable inactive player management"
+              checked={field.state.value}
+              onCheckedChange={(enabled) => {
+                field.handleChange(enabled);
+                if (!enabled && !validThreshold(form.getFieldValue('inactivityThreshold'))) {
+                  form.setFieldValue('inactivityThreshold', initialInactivityThreshold);
+                }
+              }}
+            />
+          )}
+        </form.Field>
+        <form.Subscribe selector={(state) => state.values.inactivityEnabled}>
+          {(enabled) => (
+            <form.Field
+              name="inactivityThreshold"
+              validators={{
+                onChange: ({ value }) =>
+                  validThreshold(value) ? undefined : 'Choose 2–12 unanswered submission cycles.',
+              }}
+            >
+              {(field) => (
+                <FormInput
+                  label="Unanswered submission cycles"
+                  inputProps={{ type: 'number', min: 2, max: 12, step: 1 }}
+                  disabled={!enabled}
+                  value={field.state.value}
+                  onChange={(event) => field.handleChange(Number(event.target.value))}
+                  error={field.state.meta.errors.join(', ')}
+                  invalid={field.state.meta.errors.length > 0}
+                />
+              )}
+            </form.Field>
+          )}
+        </form.Subscribe>
 
         <form.Field name="overviewText">
           {(field) => (

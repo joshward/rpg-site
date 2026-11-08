@@ -19,6 +19,7 @@ import {
 import { TimeSpan } from 'timespan-ts';
 import { revalidatePath } from 'next/cache';
 import { canAccessGuildConsent } from '@/lib/consent/feature-gate';
+import { validThreshold } from '@/lib/inactivity';
 
 const fetchUsersGuildsCached = cache(fetchUsersGuilds);
 const getGuildRolesCached = cache((guildId: string) =>
@@ -136,6 +137,8 @@ export const getGuildInfo = asResult(
       globalNotificationChannelName: guildData?.globalNotificationChannelName ?? undefined,
       overviewText: guildData?.overviewText ?? undefined,
       defaultSchedulingDetails: guildData?.defaultSchedulingDetails ?? undefined,
+      inactivityEnabled: guildData?.inactivityEnabled === true,
+      inactivityThreshold: guildData?.inactivityThreshold ?? 3,
       isImpersonating: context.isImpersonating,
       consentChecklistAvailable:
         role !== 'none' &&
@@ -304,8 +307,26 @@ export const saveGuildConfig = asResult(
     globalNotificationChannelName?: string,
     overviewText?: string,
     defaultSchedulingDetails?: string,
+    inactivity?: { enabled: boolean; threshold: number },
   ) => {
     await ensureAdmin(guildId);
+    if (
+      inactivity !== undefined &&
+      (!inactivity ||
+        typeof inactivity.enabled !== 'boolean' ||
+        !validThreshold(inactivity.threshold))
+    ) {
+      throw new ActionError(
+        'Choose whether inactivity is enabled and 2–12 unanswered submission cycles.',
+      );
+    }
+    const inactivitySettings =
+      inactivity === undefined
+        ? {}
+        : {
+            inactivityEnabled: inactivity.enabled,
+            inactivityThreshold: inactivity.threshold,
+          };
 
     await db
       .insert(guild)
@@ -321,6 +342,7 @@ export const saveGuildConfig = asResult(
         globalNotificationChannelName,
         overviewText,
         defaultSchedulingDetails,
+        ...inactivitySettings,
       })
       .onConflictDoUpdate({
         target: guild.id,
@@ -335,6 +357,7 @@ export const saveGuildConfig = asResult(
           globalNotificationChannelName,
           overviewText,
           defaultSchedulingDetails,
+          ...inactivitySettings,
         },
       });
 

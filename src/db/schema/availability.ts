@@ -15,6 +15,8 @@ export const availabilitySubmission = pgTable(
     userId: text().references(() => user.id, { onDelete: 'cascade' }),
     year: integer().notNull(),
     month: integer().notNull(),
+    completedAt: timestamp(),
+    completionSource: text({ enum: ['player', 'admin', 'partial'] }),
     createdAt: timestamp().defaultNow().notNull(),
     updatedAt: timestamp()
       .defaultNow()

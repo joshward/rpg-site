@@ -11,6 +11,23 @@ import { notifyAdmin, generateStandardSimpleMessage } from '@/lib/notifications'
 import { memberPreference } from '@/db/schema/member-preferences';
 import { NO_LIMIT } from '@/lib/preferences';
 import { getGuildMember, getGuildMembers } from '@/lib/discord/api';
+import { getInactivityPreview } from '@/actions/inactivity';
+import type { evaluateInactivity } from '@/lib/inactivity';
+
+export interface AdminMemberInactivity {
+  lastScheduleMonth: string | null;
+  classification: string;
+  details: {
+    evaluatedAt: string;
+    threshold: number;
+    cutoff: string;
+    firstCountableMonth: string | null;
+    firstEligibleAt: string | null;
+    additionSource: string | null;
+    months: ReturnType<typeof evaluateInactivity>['months'];
+    reasons: string[];
+  };
+}
 
 export async function saveMemberPreference({
   guildId,
@@ -164,8 +181,25 @@ export const getAdminMemberPreferences = asResult(
     const { guildData } = await ensureAdmin(guildId);
     const allowedRoles = guildData?.allowedRoles ?? [];
 
-    // Fetch members from Discord
-    const members = await getGuildMembers({ guildId });
+    const previewResult = guildData?.inactivityEnabled ? await getInactivityPreview(guildId) : null;
+    if (previewResult?.type === 'failure') throw new ActionError(previewResult.error);
+    const preview = previewResult?.type === 'success' ? previewResult.data : null;
+
+    // The enabled preview already has a complete, role-filtered census. Reuse it
+    // rather than making a second, potentially inconsistent Discord snapshot.
+    const members = preview
+      ? preview.members.map((m) => ({
+          user: {
+            id: m.discordUserId,
+            username: m.username,
+            global_name: m.displayName,
+            avatar: m.avatar,
+            bot: false,
+          },
+          roles: [] as string[],
+          nick: m.displayName,
+        }))
+      : await getGuildMembers({ guildId });
 
     // Fetch preferences from DB
     const dbPrefs = await db
@@ -203,13 +237,14 @@ export const getAdminMemberPreferences = asResult(
         }
 
         // Only include those with allowed roles or are admins
-        const role = await resolveRoleForGuild(m.roles, guildId, allowedRoles);
+        const role = preview ? 'member' : await resolveRoleForGuild(m.roles, guildId, allowedRoles);
         if (role === 'none') {
           return null;
         }
 
         const pref = dbPrefsMap.get(m.user.id);
         const lastLoginAt = loggedInUsersMap.get(m.user.id);
+        const activity = preview?.members.find((p) => p.discordUserId === m.user.id);
 
         return {
           discordUserId: m.user.id,
@@ -218,7 +253,24 @@ export const getAdminMemberPreferences = asResult(
           avatar: m.user.avatar,
           hasLoggedIn: loggedInUsersMap.has(m.user.id),
           lastLoginAt: lastLoginAt?.toISOString() ?? null,
-          sessionsPerMonth: pref?.sessionsPerMonth ?? null,
+          sessionsPerMonth: activity ? activity.sessionsPerMonth : (pref?.sessionsPerMonth ?? null),
+          inactivity:
+            activity && preview
+              ? ({
+                  lastScheduleMonth: activity.lastScheduleMonth,
+                  classification: activity.classification,
+                  details: {
+                    evaluatedAt: preview.evaluatedAt,
+                    threshold: preview.threshold,
+                    cutoff: activity.cutoff,
+                    firstCountableMonth: activity.firstCountableMonth,
+                    firstEligibleAt: activity.tracking?.firstEligibleAt ?? null,
+                    additionSource: activity.tracking?.additionSource ?? null,
+                    months: activity.months,
+                    reasons: activity.reasons,
+                  },
+                } satisfies AdminMemberInactivity)
+              : null,
         };
       }),
     );
