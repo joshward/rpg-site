@@ -2,6 +2,10 @@
 
 Status: policy/design for [#189](https://github.com/joshward/rpg-site/issues/189), under [#188](https://github.com/joshward/rpg-site/issues/188). Updated following human review. No runtime changes or authorization to enable automation. Review the #190 preview before #191 automation.
 
+## Subsequent #190 rollout revision
+
+During preview review the guild owner approved automatic Discord-role eligibility tracking, with the guild's first retained schedule creation as the fallback addition date for a fixed initial cohort. Later additions use first observed eligibility, without requiring app login or manual evidence entry. Ambiguous pre-tracking submissions conservatively protect rather than count as confirmed misses. Configured cycle thresholds, addition-month exemption, no preference-restoration reset and automation-Off remain unchanged. See [the updated preview policy](inactivity-preview.md) for the approved evidence sources, access/rejoin/gap handling and one-time cohort boundary; it supersedes the earlier strict historical/manual-review assumptions below.
+
 ## Agreed direction
 
 - Default experience: **two ordinary availability reminder cycles, then immediate zeroing with one explanatory DM attempt in the third cycle**, replacing the ordinary reminder for that player.

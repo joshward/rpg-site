@@ -42,6 +42,8 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
     globalNotificationChannelId,
     overviewText,
     defaultSchedulingDetails,
+    inactivityEnabled,
+    inactivityThreshold,
   } = guildInfoResult.data;
 
   if (role !== 'admin') {
@@ -91,6 +93,8 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
         initialGlobalNotificationChannelId={globalNotificationChannelId}
         initialOverviewText={overviewText}
         initialDefaultSchedulingDetails={defaultSchedulingDetails}
+        initialInactivityEnabled={inactivityEnabled}
+        initialInactivityThreshold={inactivityThreshold}
       />
       {consentResult &&
         (isFailure(consentResult) ? (
@@ -103,7 +107,11 @@ export default async function GuildAdminPage({ params }: GuildRouteProps) {
             topicsError={topicsResult && isFailure(topicsResult) ? topicsResult.error : undefined}
           />
         ))}
-      <UsersConfig />
+      <UsersConfig
+        inactivityEnabled={inactivityEnabled}
+        inactivityThreshold={inactivityThreshold}
+        accessRolesKey={JSON.stringify(allowedRoles)}
+      />
     </div>
   );
 }

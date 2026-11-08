@@ -34,7 +34,7 @@ After a confirmed stop, read the recorded testing terminal. If it is still your 
 
 ## Safety and testing
 
-The app launcher still reuses the base repository's ignored `.env.local` and `.neon`, resolves secrets once, verifies `DATABASE_URL` against the non-default/non-protected Neon **local** child branch's **neondb**, rejects target-changing query options, and only then migrates and starts dev with pinned Volta versions. Consent and SITE_URL are overridden locally only. No auto-run hooks or checked-in credentials are used.
+The app launcher still reuses the base repository's ignored `.env.local` and `.neon`, resolves secrets once, verifies `DATABASE_URL` against the non-default/non-protected Neon **local** child branch's **neondb**, rejects target-changing query options, and only then migrates and starts dev with the pinned Node/npm versions in `mise.toml` via `mise exec`. The host must have mise installed; review and trust this tools-only config with `mise trust mise.toml` before the first launch if mise requires it. Consent and SITE_URL are overridden locally only. No auto-run hooks or checked-in credentials are used.
 
 Run script regression checks without secrets:
 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/local-preview.tests.ps1`

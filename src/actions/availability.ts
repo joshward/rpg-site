@@ -1,13 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { ActionError, asResult } from '@/actions/action-helpers';
-import { isSuccess } from '@/actions/result';
 import { ensureAccess, ensureAdmin } from '@/actions/auth-helpers';
-import { isMonthScheduled } from '@/actions/games';
-import { notifyAdmin, generateStandardSimpleMessage } from '@/lib/notifications';
+import { saveAvailability } from '@/lib/save-availability';
 import { availabilitySubmission, availabilityDay } from '@/db/schema/availability';
 import { account } from '@/db/schema/auth';
 import {
@@ -66,123 +64,10 @@ export const getMyAvailability = asResult(
   'Something went wrong fetching your availability.',
 );
 
-export async function saveAvailability({
-  guildId,
-  discordUserId,
-  year,
-  month,
-  days,
-  displayName,
-  userId,
-  source,
-}: {
-  guildId: string;
-  discordUserId: string;
-  year: number;
-  month: number;
-  days: DayAvailability[];
-  displayName: string;
-  userId?: string | null;
-  source?: string;
-}) {
-  let finalUserId = userId;
-  if (finalUserId === undefined) {
-    const dbAccount = (
-      await db
-        .select()
-        .from(account)
-        .where(and(eq(account.providerId, 'discord'), eq(account.accountId, discordUserId)))
-    )[0];
-    finalUserId = dbAccount?.userId || null;
-  }
-
-  const existingSubmission = await db
-    .select({ id: availabilitySubmission.id })
-    .from(availabilitySubmission)
-    .where(
-      and(
-        eq(availabilitySubmission.guildId, guildId),
-        eq(availabilitySubmission.discordUserId, discordUserId),
-        eq(availabilitySubmission.year, year),
-        eq(availabilitySubmission.month, month),
-      ),
-    )
-    .limit(1);
-
-  const isFirstTime = existingSubmission.length === 0;
-
-  const monthScheduledResult = await isMonthScheduled(guildId, year, month);
-  const isScheduled = isSuccess(monthScheduledResult) && monthScheduledResult.data;
-
-  // Upsert submission + replace days in a transaction
-  const { submissionId } = await db.transaction(async (tx) => {
-    const [submission] = await tx
-      .insert(availabilitySubmission)
-      .values({
-        guildId,
-        discordUserId,
-        userId: finalUserId,
-        year,
-        month,
-      })
-      .onConflictDoUpdate({
-        target: [
-          availabilitySubmission.guildId,
-          availabilitySubmission.discordUserId,
-          availabilitySubmission.year,
-          availabilitySubmission.month,
-        ],
-        set: {
-          userId: finalUserId,
-          updatedAt: new Date(),
-        },
-      })
-      .returning({ id: availabilitySubmission.id });
-
-    // Replace day entries — delete old ones first
-    await tx.delete(availabilityDay).where(eq(availabilityDay.submissionId, submission.id));
-
-    // Insert new day entries
-    await tx.insert(availabilityDay).values(
-      days.map((d) => ({
-        submissionId: submission.id,
-        day: d.day,
-        status: d.status,
-      })),
-    );
-
-    return { submissionId: submission.id };
-  });
-
-  revalidatePath(`/g/${guildId}/availability`);
-  revalidatePath(`/g/${guildId}/schedule`);
-
-  if (isFirstTime || isScheduled) {
-    let title = 'Availability Saved';
-    let type: 'info' | 'warning' = 'info';
-
-    if (isScheduled && !isFirstTime) {
-      title = 'Availability Updated (Schedule Modified)';
-      type = 'warning';
-    }
-
-    const sourceSuffix = source ? ` ${source}` : '';
-    const message = generateStandardSimpleMessage(
-      guildId,
-      `📅 ${title}`,
-      `**${displayName}** submitted availability for **${month}/${year}**${sourceSuffix}`,
-      type,
-    );
-    await notifyAdmin(guildId, message);
-  }
-
-  return { submissionId };
-}
-
 export const submitAvailability = asResult(
   'submitAvailability',
   async (guildId: string, year: number, month: number, days: DayAvailability[]) => {
-    const { session, discordAccount } = await ensureAccess(guildId);
+    const { session, discordAccount, isImpersonating } = await ensureAccess(guildId);
 
     // Verify the submission is for an allowed month (current or next)
     const editableMonths = getEditableMonths();
@@ -231,6 +116,7 @@ export const submitAvailability = asResult(
       days,
       displayName: session.user.name || discordAccount.userId,
       userId: session.user.id,
+      completionSource: isImpersonating ? 'admin' : 'player',
     });
   },
   'Something went wrong submitting your availability.',
@@ -363,10 +249,10 @@ export const adminSubmitMemberAvailability = asResult(
         })),
       );
 
-      // Update the submission's updatedAt timestamp
+      // Full admin submissions establish completion; partial edits below never alter it.
       await tx
         .update(availabilitySubmission)
-        .set({ updatedAt: new Date() })
+        .set({ updatedAt: new Date(), completedAt: new Date(), completionSource: 'admin' })
         .where(eq(availabilitySubmission.id, submission.id));
 
       return { submissionId: submission.id };
@@ -411,6 +297,10 @@ export const adminUpdateMemberAvailability = asResult(
           userId,
           year,
           month,
+          // Only a newly created incremental record gets this marker. The conflict
+          // update deliberately preserves any established full/legacy provenance.
+          completionSource: 'partial',
+          partialWriteVersion: 0,
         })
         .onConflictDoUpdate({
           target: [
@@ -422,6 +312,11 @@ export const adminUpdateMemberAvailability = asResult(
           set: {
             userId,
             updatedAt: new Date(),
+            // Only advance already-valid partial evidence. An intervening legacy
+            // save invalidates it permanently until an explicit full submission.
+            partialWriteVersion: sql`case when ${availabilitySubmission.completionSource} = 'partial'
+              and ${availabilitySubmission.partialWriteVersion} = ${availabilitySubmission.writeVersion}
+              then ${availabilitySubmission.writeVersion} + 1 else null end`,
           },
         })
         .returning();
@@ -447,11 +342,8 @@ export const adminUpdateMemberAvailability = asResult(
           });
       }
 
-      // 4. Update the submission's updatedAt timestamp
-      await tx
-        .update(availabilitySubmission)
-        .set({ updatedAt: new Date() })
-        .where(eq(availabilitySubmission.id, submission.id));
+      // The upsert already updates updatedAt and advances the write version.
+      // Do not issue a second row update that would invalidate this partial write.
     });
 
     revalidatePath(`/g/${guildId}/schedule`);

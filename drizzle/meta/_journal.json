@@ -162,6 +162,34 @@
       "when": 1792361622819,
       "tag": "0022_add_game_consent_group_notes",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792880029314,
+      "tag": "0023_inactivity_preview",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794017655221,
+      "tag": "0024_inactivity_membership_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794080126178,
+      "tag": "0025_inactivity_enablement",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794170175831,
+      "tag": "0026_inactivity_provenance_and_census_ordering",
+      "breakpoints": true
     }
   ]
 }

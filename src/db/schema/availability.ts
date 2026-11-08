@@ -15,6 +15,11 @@ export const availabilitySubmission = pgTable(
     userId: text().references(() => user.id, { onDelete: 'cascade' }),
     year: integer().notNull(),
     month: integer().notNull(),
+    completedAt: timestamp(),
+    completionSource: text({ enum: ['player', 'admin', 'partial'] }),
+    // Advanced by a database trigger even when the previous app writes this row.
+    writeVersion: integer().default(0).notNull(),
+    partialWriteVersion: integer(),
     createdAt: timestamp().defaultNow().notNull(),
     updatedAt: timestamp()
       .defaultNow()

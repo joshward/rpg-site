@@ -7,10 +7,11 @@ export interface YearMonth {
 /**
  * Returns the current date, or the date override from the NOW_OVERRIDE env var.
  * Set NOW_OVERRIDE in .env.local to test with a different date (e.g. "2026-02-20").
+ * Prefix the value with "_" to disable it without deleting the saved test date.
  */
 export function getNow(): Date {
   const override = process.env.NOW_OVERRIDE;
-  if (override) {
+  if (override && !override.startsWith('_')) {
     // If it's just YYYY-MM-DD, treat as UTC midnight to ensure consistency across environments
     if (/^\d{4}-\d{2}-\d{2}$/.test(override)) {
       const [y, m, d] = override.split('-').map(Number);
@@ -28,7 +29,8 @@ export function getNow(): Date {
  * Returns true if the NOW_OVERRIDE env var is active.
  */
 export function isDateOverridden(): boolean {
-  return !!process.env.NOW_OVERRIDE;
+  const override = process.env.NOW_OVERRIDE;
+  return !!override && !override.startsWith('_');
 }
 
 /**

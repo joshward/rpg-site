@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, integer } from 'drizzle-orm/pg-core';
 
 export const guild = pgTable('guilds', {
   id: text().primaryKey(),
@@ -17,6 +17,8 @@ export const guild = pgTable('guilds', {
   globalNotificationChannelName: text(),
   overviewText: text(),
   defaultSchedulingDetails: text(),
+  inactivityEnabled: boolean().default(false).notNull(),
+  inactivityThreshold: integer().default(3).notNull(),
   consentEnabled: boolean().default(false).notNull(),
   consentGuidance: text(),
   consentTopicsSeededAt: timestamp(),

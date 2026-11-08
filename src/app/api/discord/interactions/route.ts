@@ -12,7 +12,7 @@ import { eq } from 'drizzle-orm';
 import { getGuildMember } from '@/lib/discord/api';
 import { resolveRoleForGuild } from '@/lib/authn';
 import { saveMemberPreference } from '@/actions/preferences';
-import { saveAvailability } from '@/actions/availability';
+import { saveAvailability } from '@/lib/save-availability';
 import { getEditableMonths, isSameMonth, getDaysInMonth } from '@/lib/availability';
 import { config } from '@/lib/config';
 import { joinUrl } from '@/lib/urls';

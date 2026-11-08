@@ -41,6 +41,7 @@ export const GuildMemberSchema = v.looseObject({
   user: UserSchema,
   roles: v.array(v.string()),
   nick: v.nullish(v.string()),
+  joined_at: v.nullish(v.string()),
 });
 export type GuildMemberModel = v.InferOutput<typeof GuildMemberSchema>;
 

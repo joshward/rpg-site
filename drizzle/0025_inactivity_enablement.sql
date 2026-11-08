@@ -1,0 +1,1 @@
+ALTER TABLE "guilds" ADD COLUMN "inactivity_enabled" boolean DEFAULT false NOT NULL;
