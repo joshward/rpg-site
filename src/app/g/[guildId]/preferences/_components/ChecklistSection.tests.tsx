@@ -30,6 +30,22 @@ describe('checklist hash target', () => {
     render(<ChecklistSection>Checklist</ChecklistSection>);
     expect(scroll).toHaveBeenCalledWith({ block: 'start' });
   });
+  it('cancels the pending animation frame and removes the hash listener on unmount', () => {
+    const requestFrame = vi.fn(() => 42);
+    vi.stubGlobal('requestAnimationFrame', requestFrame);
+    window.history.replaceState(null, '', '/preferences#content-checklist');
+    const { unmount } = render(<ChecklistSection>Checklist</ChecklistSection>);
+
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+    expect(scroll).not.toHaveBeenCalled();
+    unmount();
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(42);
+
+    act(() => {
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    });
+    expect(requestFrame).toHaveBeenCalledTimes(1);
+  });
   it('leaves ordinary preferences visits at their normal position', () => {
     render(<ChecklistSection>Checklist</ChecklistSection>);
     expect(scroll).not.toHaveBeenCalled();

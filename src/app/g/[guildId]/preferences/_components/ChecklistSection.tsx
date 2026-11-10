@@ -5,16 +5,16 @@ import { useEffect, useRef, type ReactNode } from 'react';
 /** Retry hash scrolling after the asynchronously loaded checklist has mounted. */
 export default function ChecklistSection({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLElement>(null);
+  const frame = useRef<number | undefined>(undefined);
   useEffect(() => {
-    let frame: number | undefined;
     const scrollToChecklist = () => {
       if (window.location.hash !== '#content-checklist') return;
-      frame = requestAnimationFrame(() => ref.current?.scrollIntoView({ block: 'start' }));
+      frame.current = requestAnimationFrame(() => ref.current?.scrollIntoView({ block: 'start' }));
     };
     scrollToChecklist();
     window.addEventListener('hashchange', scrollToChecklist);
     return () => {
-      if (frame !== undefined) cancelAnimationFrame(frame);
+      if (frame.current !== undefined) cancelAnimationFrame(frame.current);
       window.removeEventListener('hashchange', scrollToChecklist);
     };
   }, []);
