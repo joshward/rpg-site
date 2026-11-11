@@ -15,6 +15,7 @@ import { GuildRouteProps, getGuildName, getContactInfo } from './helpers';
 import UserGameList from './_components/UserGameList';
 import ConsentChecklistBanner from './_components/ConsentChecklistBanner';
 import UserSchedule from './_components/UserSchedule';
+import InactivityPauseExplanation from './_components/InactivityPauseExplanation';
 import MarkdownPreview from '@/components/MarkdownPreview';
 import { ReactNode } from 'react';
 
@@ -59,7 +60,12 @@ export default async function GuildPage({ params }: GuildRouteProps) {
     showAvailabilityAlert &&
     availabilityResult &&
     !isFailure(availabilityResult) &&
-    !availabilityResult.data
+    !availabilityResult.data &&
+    !(
+      !isFailure(prefResult) &&
+      prefResult.data.sessionsPerMonth === 0 &&
+      prefResult.data.inactivityPause
+    )
   ) {
     banners.push(
       <Alert key="availability" type="info">
@@ -73,7 +79,7 @@ export default async function GuildPage({ params }: GuildRouteProps) {
   }
 
   if (!isFailure(prefResult)) {
-    const { sessionsPerMonth } = prefResult.data;
+    const { sessionsPerMonth, inactivityPause } = prefResult.data;
 
     // 2. If unset, show the unset warning
     if (sessionsPerMonth === null) {
@@ -95,6 +101,9 @@ export default async function GuildPage({ params }: GuildRouteProps) {
       if (isOverScheduled) {
         banners.push(
           <Alert key="over-scheduled" type="warning">
+            {sessionsPerMonth === 0 && inactivityPause && (
+              <InactivityPauseExplanation guildId={guildId} pause={inactivityPause} />
+            )}
             <p>
               You are a core participant in games totalling more days ({totalSessions}) than your
               set preferences ({sessionsPerMonth}).
@@ -117,8 +126,15 @@ export default async function GuildPage({ params }: GuildRouteProps) {
         // 4. If set to 0 and NOT over-scheduled (which means 0 sessions), show the info banner
         banners.push(
           <Alert key="not-participating" type="info">
-            You are currently set as <strong>not participating</strong> (0 sessions per month). You
-            can change this in <Link href={`/g/${guildId}/preferences`}>My Preferences</Link>.
+            {inactivityPause ? (
+              <InactivityPauseExplanation guildId={guildId} pause={inactivityPause} />
+            ) : (
+              <>
+                You are currently set as <strong>not participating</strong> (0 sessions per month).
+                You can change this in{' '}
+                <Link href={`/g/${guildId}/preferences`}>My Preferences</Link>.
+              </>
+            )}
           </Alert>,
         );
       }

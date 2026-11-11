@@ -1,18 +1,44 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/db/db';
 import { account, user } from '@/db/schema/auth';
 import { resolveRoleForGuild } from '@/lib/authn';
 import { ActionError, asResult } from '@/actions/action-helpers';
 import { ensureAccess, ensureAdmin } from '@/actions/auth-helpers';
-import { notifyAdmin, generateStandardSimpleMessage } from '@/lib/notifications';
+import { saveMemberPreference } from '@/lib/save-member-preference';
 import { memberPreference } from '@/db/schema/member-preferences';
 import { NO_LIMIT } from '@/lib/preferences';
 import { getGuildMember, getGuildMembers } from '@/lib/discord/api';
 import { getInactivityPreview } from '@/actions/inactivity';
 import type { evaluateInactivity } from '@/lib/inactivity';
+import { inactivityPause } from '@/db/schema/inactivity-pauses';
+import {
+  checkedPauseMonths,
+  type PlayerInactivityPause,
+  type AdminInactivityPause,
+} from '@/lib/inactivity-explanation';
+
+// Internal: callers below authorize the player/admin before invoking this read.
+async function currentPause(
+  guildId: string,
+  discordUserId: string,
+  pref?: typeof memberPreference.$inferSelect,
+): Promise<PlayerInactivityPause | null> {
+  if (pref?.sessionsPerMonth !== 0 || !pref.inactivityPauseMonth) return null;
+  const [pause] = await db
+    .select({ pausedAt: inactivityPause.pausedAt })
+    .from(inactivityPause)
+    .where(
+      and(
+        eq(inactivityPause.guildId, guildId),
+        eq(inactivityPause.discordUserId, discordUserId),
+        eq(inactivityPause.targetMonth, pref.inactivityPauseMonth),
+      ),
+    );
+  return pause ? { pausedAt: pause.pausedAt.toISOString() } : null;
+}
 
 export interface AdminMemberInactivity {
   lastScheduleMonth: string | null;
@@ -27,76 +53,6 @@ export interface AdminMemberInactivity {
     months: ReturnType<typeof evaluateInactivity>['months'];
     reasons: string[];
   };
-}
-
-export async function saveMemberPreference({
-  guildId,
-  discordUserId,
-  sessionsPerMonth,
-  displayName,
-  userId,
-  notify = false,
-  source,
-}: {
-  guildId: string;
-  discordUserId: string;
-  sessionsPerMonth: number;
-  displayName: string;
-  userId?: string | null;
-  notify?: boolean;
-  source?: string;
-}) {
-  let finalUserId = userId;
-  if (finalUserId === undefined) {
-    const dbAccount = (
-      await db
-        .select()
-        .from(account)
-        .where(and(eq(account.providerId, 'discord'), eq(account.accountId, discordUserId)))
-    )[0];
-    finalUserId = dbAccount?.userId || null;
-  }
-
-  // 2. Check current preference to see if it changed
-  const existing = await db
-    .select({ sessionsPerMonth: memberPreference.sessionsPerMonth })
-    .from(memberPreference)
-    .where(
-      and(eq(memberPreference.guildId, guildId), eq(memberPreference.discordUserId, discordUserId)),
-    )
-    .limit(1);
-
-  const hasChanged = existing.length === 0 || existing[0].sessionsPerMonth !== sessionsPerMonth;
-
-  // 3. Update preference
-  await db
-    .insert(memberPreference)
-    .values({
-      guildId,
-      discordUserId,
-      userId: finalUserId,
-      sessionsPerMonth,
-    })
-    .onConflictDoUpdate({
-      target: [memberPreference.guildId, memberPreference.discordUserId],
-      set: {
-        sessionsPerMonth,
-        userId: finalUserId,
-      },
-    });
-
-  // 4. Notify admin if changed
-  if (notify && hasChanged) {
-    const displayValue = sessionsPerMonth === NO_LIMIT ? 'No Limit' : sessionsPerMonth;
-    const sourceSuffix = source ? ` ${source}` : '';
-    const message = generateStandardSimpleMessage(
-      guildId,
-      '🎮 Preferences Updated',
-      `**${displayName}** changed preferred games to **${displayValue}**${sourceSuffix}`,
-      'info',
-    );
-    await notifyAdmin(guildId, message);
-  }
 }
 
 export const getMyPreference = asResult(
@@ -116,10 +72,13 @@ export const getMyPreference = asResult(
 
     const pref = prefs[0];
     if (!pref) {
-      return { sessionsPerMonth: null };
+      return { sessionsPerMonth: null, inactivityPause: null };
     }
 
-    return { sessionsPerMonth: pref.sessionsPerMonth };
+    return {
+      sessionsPerMonth: pref.sessionsPerMonth,
+      inactivityPause: await currentPause(guildId, discordAccount.userId, pref),
+    };
   },
   'Something went wrong fetching your preferences.',
 );
@@ -146,6 +105,9 @@ export const setMyPreference = asResult(
       displayName: session.user.name || 'Unknown User',
       notify: true,
     });
+    revalidatePath(`/g/${guildId}`);
+    revalidatePath(`/g/${guildId}/preferences`);
+    revalidatePath(`/g/${guildId}/availability`);
   },
   'Something went wrong saving your preferences.',
 );
@@ -167,10 +129,13 @@ export const getAdminMemberPreference = asResult(
 
     const pref = prefs[0];
     if (!pref) {
-      return { sessionsPerMonth: null };
+      return { sessionsPerMonth: null, inactivityPause: null };
     }
 
-    return { sessionsPerMonth: pref.sessionsPerMonth };
+    return {
+      sessionsPerMonth: pref.sessionsPerMonth,
+      inactivityPause: await currentPause(guildId, discordUserId, pref),
+    };
   },
   'Something went wrong fetching member preference.',
 );
@@ -208,6 +173,15 @@ export const getAdminMemberPreferences = asResult(
       .where(eq(memberPreference.guildId, guildId));
 
     const dbPrefsMap = new Map(dbPrefs.map((p) => [p.discordUserId, p]));
+    // Historical explanations remain available even with preview/automation off.
+    const pauses = await db
+      .select()
+      .from(inactivityPause)
+      .where(eq(inactivityPause.guildId, guildId))
+      .orderBy(desc(inactivityPause.pausedAt));
+    const lastPauses = new Map<string, typeof inactivityPause.$inferSelect>();
+    for (const pause of pauses)
+      if (!lastPauses.has(pause.discordUserId)) lastPauses.set(pause.discordUserId, pause);
 
     // Fetch all accounts for these discord user IDs to see who has logged in
     const discordUserIds = members.map((m) => m.user.id);
@@ -244,6 +218,18 @@ export const getAdminMemberPreferences = asResult(
 
         const pref = dbPrefsMap.get(m.user.id);
         const lastLoginAt = loggedInUsersMap.get(m.user.id);
+        const pause = lastPauses.get(m.user.id);
+        const pauseDetails: AdminInactivityPause | null = pause
+          ? {
+              pausedAt: pause.pausedAt.toISOString(),
+              previousSessionsPerMonth: pause.previousSessionsPerMonth,
+              threshold: pause.threshold,
+              checkedMonths: checkedPauseMonths(pause.evidence),
+              dmStatus: pause.dmStatus,
+              current:
+                pref?.sessionsPerMonth === 0 && pref.inactivityPauseMonth === pause.targetMonth,
+            }
+          : null;
         const activity = preview?.members.find((p) => p.discordUserId === m.user.id);
 
         return {
@@ -254,6 +240,7 @@ export const getAdminMemberPreferences = asResult(
           hasLoggedIn: loggedInUsersMap.has(m.user.id),
           lastLoginAt: lastLoginAt?.toISOString() ?? null,
           sessionsPerMonth: activity ? activity.sessionsPerMonth : (pref?.sessionsPerMonth ?? null),
+          lastInactivityPause: pauseDetails,
           inactivity:
             activity && preview
               ? ({
@@ -316,6 +303,9 @@ export const setAdminMemberPreference = asResult(
     });
 
     revalidatePath(`/g/${guildId}/admin`);
+    revalidatePath(`/g/${guildId}`);
+    revalidatePath(`/g/${guildId}/preferences`);
+    revalidatePath(`/g/${guildId}/availability`);
   },
   'Something went wrong saving member preference.',
 );

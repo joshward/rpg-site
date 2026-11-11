@@ -18,7 +18,7 @@ A transaction locks the guild row, serializing settings/census updates and same-
 
 ## Provenance and message delivery
 
-Additive migration `0027_inactivity_pauses.sql` creates a record keyed by `(guild_id, discord_user_id, target_month)`. It records actual pause time, previous preference, threshold, checked months/cutoff and membership evidence. Voluntary zero creates no such record. Guild-scoped authorized return/history presentation remains part of #192; this slice persists its evidence and sends the explanatory DM. Audit data must not be exposed through unauthenticated reads.
+Additive migration `0027_inactivity_pauses.sql` creates a record keyed by `(guild_id, discord_user_id, target_month)`. It records actual pause time, previous preference, threshold, checked months/cutoff and membership evidence. Voluntary zero creates no such record. Guild-scoped authorized return/history presentation is described in `inactivity-return.md` (#192); this processor persists its evidence and sends the explanatory DM. Audit data must not be exposed through unauthenticated reads.
 
 The mutation transaction also reserves **one explanatory DM attempt**, replacing—not preceding or accompanying—the ordinary T−4 reminder. The message uses the existing blue Discord card format, friendly first-person copy, and link buttons for preferences and availability. It explains an action already taken, does not assert exactly two missed months/delivered reminders, and includes a small note that returning requires updating both desired sessions and availability. Checked response months remain in the audit record, not in the player-facing card. It uses the existing DM development-recipient restrictions.
 
