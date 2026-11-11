@@ -1,6 +1,7 @@
 export * from './admin-notifications';
 export * from './utils';
 export * from './messages';
+export * from './inactivity-message';
 export * from './dm';
 export * from './dm-actions';
 export * from './global-actions';

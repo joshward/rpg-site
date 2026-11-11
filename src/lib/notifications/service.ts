@@ -21,6 +21,7 @@ import {
   sendT2AdminReportAction,
 } from './global-actions';
 import { getPlayerCohorts } from './cohorts';
+import { processGuildInactivity } from '@/lib/inactivity-processing';
 
 const NOTIFICATION_DAYS = [10, 7, 4, 3, 2];
 
@@ -60,6 +61,12 @@ export async function processNotifications(dateOverride?: Date) {
         `Processing notifications for ${guildName} (T-${daysUntilEnd}). Target: ${context.targetMonthName} ${target.year}`,
       );
 
+      // Run before loading cohorts: freshly zeroed players must not receive
+      // the ordinary T-4 reminder. Also suppress restored same-cycle pauses.
+      const paused =
+        daysUntilEnd === 4
+          ? await processGuildInactivity(guildData.id, now, guildWebappLink, guildName)
+          : new Set<string>();
       const cohorts = await getPlayerCohorts({
         guildId: guildData.id,
         allowedRoles: guildData.allowedRoles,
@@ -92,10 +99,11 @@ export async function processNotifications(dateOverride?: Date) {
           `[T-4] Sending DMs to ${missingCore.length} missing core and ${missingOptional.length} missing optional players for ${guildName}`,
         );
         for (const p of missingCore) {
-          await sendT4CoreReminder(p.user.id, p.user.username, context);
+          if (!paused.has(p.user.id)) await sendT4CoreReminder(p.user.id, p.user.username, context);
         }
         for (const p of missingOptional) {
-          await sendT4OptionalReminder(p.user.id, p.user.username, context);
+          if (!paused.has(p.user.id))
+            await sendT4OptionalReminder(p.user.id, p.user.username, context);
         }
       }
 

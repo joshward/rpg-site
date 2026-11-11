@@ -96,6 +96,8 @@ export function generateStandardDM({
   color = COLORS.INFO,
   prefix = '',
   includeInteractiveButtons = false,
+  title,
+  includePreferencesButton = false,
 }: {
   guildId: string;
   target: YearMonth;
@@ -107,9 +109,11 @@ export function generateStandardDM({
   color?: number;
   prefix?: string;
   includeInteractiveButtons?: boolean;
+  title?: string;
+  includePreferencesButton?: boolean;
 }): DiscordMessage {
   const header1 = `${prefix}Roleplaying in ${guildName}`;
-  const header2 = `${targetMonthName} Availability`;
+  const header2 = title ?? `${targetMonthName} Availability`;
   const homeLink = joinUrl(config.siteUrl, `/g/${guildId}`);
   const monthStr = `${target.year}-${target.month.toString().padStart(2, '0')}`;
 
@@ -121,6 +125,16 @@ export function generateStandardDM({
   const actionRow: MessageComponentModel = {
     type: ComponentType.ACTION_ROW,
     components: [
+      ...(includePreferencesButton
+        ? [
+            {
+              type: ComponentType.BUTTON,
+              style: ButtonStyle.LINK,
+              label: 'Update preferences',
+              url: joinUrl(config.siteUrl, `/g/${guildId}/preferences`),
+            },
+          ]
+        : []),
       {
         type: ComponentType.BUTTON,
         style: ButtonStyle.LINK,

@@ -1,5 +1,7 @@
 # Inactivity preview (#190)
 
+For the subsequent default-off mutation processor and rollout safeguards, see `inactivity-processing.md` (#191). The preview-only implementation notes below describe #190; enabling its guild flag alone still does not activate mutations.
+
 ## Updated human-approved rollout policy
 
 The guild owner reviewed the initial manual-evidence preview and explicitly replaced it with automatic membership tracking and a one-time schedule-date fallback. This supersedes the manual historical-review requirement and unknown-legacy-row behavior in the earlier `inactivity-policy.md` handoff. **No automated preference zeroing or replacement DM is enabled.**
