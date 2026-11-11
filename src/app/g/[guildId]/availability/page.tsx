@@ -160,6 +160,7 @@ export default async function AvailabilityPage({ params, searchParams }: Availab
           guildId={guildId}
           games={gamesResult.data}
           sessionsPerMonth={prefResult.data.sessionsPerMonth}
+          inactivityPause={prefResult.data.inactivityPause}
           supportChannelId={guildData?.supportChannelId}
           supportChannelName={guildData?.supportChannelName}
           adminContactInfo={guildData?.adminContactInfo}

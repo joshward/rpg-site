@@ -47,7 +47,10 @@ export default async function PreferencesPage({ params }: GuildRouteProps) {
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-bold">My Preferences</h2>
-      <PreferencesForm initialSessionsPerMonth={sessionsPerMonth} />
+      <PreferencesForm
+        initialSessionsPerMonth={sessionsPerMonth}
+        inactivityPause={result.data.inactivityPause}
+      />
       {checklist && (
         <ChecklistSection>
           {isFailure(checklist) ? (

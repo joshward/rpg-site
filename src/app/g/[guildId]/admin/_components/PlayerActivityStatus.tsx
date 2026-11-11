@@ -3,6 +3,9 @@
 import { Popover } from '@base-ui/react/popover';
 import { Cross2Icon, InfoCircledIcon } from '@radix-ui/react-icons';
 import type { AdminMemberInactivity } from '@/actions/preferences';
+import type { AdminInactivityPause } from '@/lib/inactivity-explanation';
+import { NO_LIMIT } from '@/lib/preferences';
+import LocalDate from '@/components/LocalDate';
 
 const states: Record<string, { label: string; color: string; explanation: string }> = {
   active: {
@@ -59,15 +62,31 @@ function formatDate(value: string) {
 export default function PlayerActivityStatus({
   activity,
   displayName,
+  pause,
 }: {
-  activity: AdminMemberInactivity;
+  activity?: AdminMemberInactivity | null;
   displayName: string;
+  pause?: AdminInactivityPause | null;
 }) {
-  const state = states[activity.classification] ?? states.uncertain;
-  const details = activity.details;
+  const state = pause?.current
+    ? {
+        ...states.excluded,
+        label: 'Automatically paused',
+        explanation:
+          'Desired sessions were set to zero after unanswered availability cycles. Availability reminders are paused; games and scheduled sessions were not changed.',
+      }
+    : activity
+      ? (states[activity.classification] ?? states.uncertain)
+      : {
+          ...states.excluded,
+          label: 'Previous automatic pause',
+          explanation:
+            'This is a historical automatic change, not the reason for the current preference.',
+        };
+  const details = activity?.details;
   return (
     <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-sage-11">
-      <span>Last schedule {formatMonth(activity.lastScheduleMonth)} -</span>
+      {activity && <span>Last schedule {formatMonth(activity.lastScheduleMonth)} -</span>}
       <Popover.Root>
         <Popover.Trigger
           type="button"
@@ -95,6 +114,42 @@ export default function PlayerActivityStatus({
               <Popover.Description className="mt-2 text-sage-11">
                 {state.explanation}
               </Popover.Description>
+              {pause && (
+                <div className="mt-3 space-y-2 border-b border-sage-6 pb-3">
+                  <p>
+                    {pause.current ? 'Automatically paused' : 'Last automatic pause'}:{' '}
+                    <LocalDate value={pause.pausedAt} />
+                  </p>
+                  <p>
+                    Desired sessions:{' '}
+                    {pause.previousSessionsPerMonth === NO_LIMIT
+                      ? 'No Limit'
+                      : pause.previousSessionsPerMonth}{' '}
+                    → 0
+                  </p>
+                  <p>
+                    No completed availability in the checked response months:{' '}
+                    {pause.checkedMonths.map(formatMonth).join(', ') || 'Not recorded'}.
+                  </p>
+                  <p>Threshold at change: {pause.threshold} unanswered cycles</p>
+                  <p>
+                    Explanation DM:{' '}
+                    {
+                      {
+                        reserved: 'Delivery unknown (attempt reserved; no automatic retry)',
+                        sent: 'Sent',
+                        failed: 'Failed (preference still changed)',
+                        blocked: 'Blocked by development recipient restrictions',
+                      }[pause.dmStatus]
+                    }
+                  </p>
+                  <p className="text-sage-11">
+                    Use the Sessions / Month selector to correct this. Restoring a preference does
+                    not submit availability or reset inactivity history; another pause is possible
+                    in a later cycle without a qualifying submission.
+                  </p>
+                </div>
+              )}
               {details && (
                 <div className="mt-3 space-y-2">
                   <p>Threshold: {details.threshold} unanswered cycles</p>

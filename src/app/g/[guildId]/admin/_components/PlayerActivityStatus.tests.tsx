@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PlayerActivityStatus from './PlayerActivityStatus';
 import type { AdminMemberInactivity } from '@/actions/preferences';
+import { NO_LIMIT } from '@/lib/preferences';
 
 const activity: AdminMemberInactivity = {
   classification: 'inactive',
@@ -23,6 +24,58 @@ const activity: AdminMemberInactivity = {
     reasons: [],
   },
 };
+describe('automatic pause history', () => {
+  it('shows actual change details independently of live preview and distinguishes unknown delivery', async () => {
+    render(
+      <PlayerActivityStatus
+        displayName="Player"
+        activity={null}
+        pause={{
+          current: true,
+          pausedAt: '2026-04-26T18:00:00Z',
+          previousSessionsPerMonth: NO_LIMIT,
+          threshold: 3,
+          checkedMonths: ['2026-03', '2026-04', '2026-05'],
+          dmStatus: 'reserved',
+        }}
+      />,
+    );
+    await userEvent
+      .setup()
+      .click(
+        screen.getByRole('button', { name: 'Automatically paused status details for Player' }),
+      );
+    expect(await screen.findByText('Desired sessions: No Limit → 0')).toBeInTheDocument();
+    expect(screen.getByText(/Delivery unknown/)).toBeInTheDocument();
+    expect(screen.getByText(/Mar, 26, Apr, 26, May, 26/)).toBeInTheDocument();
+    expect(screen.getByText(/another pause is possible in a later cycle/)).toBeInTheDocument();
+  });
+  it('labels a past pause as historical rather than attributing a later voluntary preference to automation', async () => {
+    render(
+      <PlayerActivityStatus
+        displayName="Player"
+        pause={{
+          current: false,
+          pausedAt: '2026-04-26T18:00:00Z',
+          previousSessionsPerMonth: 2,
+          threshold: 3,
+          checkedMonths: [],
+          dmStatus: 'failed',
+        }}
+      />,
+    );
+    await userEvent
+      .setup()
+      .click(
+        screen.getByRole('button', { name: 'Previous automatic pause status details for Player' }),
+      );
+    expect(
+      await screen.findByText(/not the reason for the current preference/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Failed \(preference still changed\)/)).toBeInTheDocument();
+  });
+});
+
 describe('colored player activity details', () => {
   it.each([
     ['active', 'Active', 'text-jade-11'],

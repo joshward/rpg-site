@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useForm } from '@tanstack/react-form';
 import { FormComboBox } from '@/components/FormComboBox';
 import { ComboboxOption } from '@/components/Combobox';
@@ -13,15 +13,24 @@ import { SESSIONS_PER_MONTH_OPTIONS } from '@/lib/preferences';
 import { isFailure } from '@/actions/result';
 import { useNotification } from '@/components/Notification';
 import type { PlausibleEvents } from '@/lib/plausible-events';
+import Link from '@/components/Link';
+import InactivityPauseExplanation from '../../_components/InactivityPauseExplanation';
+import type { PlayerInactivityPause } from '@/lib/inactivity-explanation';
 
 const options: ComboboxOption[] = SESSIONS_PER_MONTH_OPTIONS;
 
 interface PreferencesFormProps {
   initialSessionsPerMonth: number | null;
+  inactivityPause?: PlayerInactivityPause | null;
 }
 
-export default function PreferencesForm({ initialSessionsPerMonth }: PreferencesFormProps) {
+export default function PreferencesForm({
+  initialSessionsPerMonth,
+  inactivityPause,
+}: PreferencesFormProps) {
   const { guildId } = useParams<{ guildId: string }>();
+  const router = useRouter();
+  const [saved, setSaved] = React.useState(false);
   const notification = useNotification();
   const plausible = usePlausible<PlausibleEvents>();
 
@@ -46,11 +55,22 @@ export default function PreferencesForm({ initialSessionsPerMonth }: Preferences
         plausible('update_preferences', {
           props: { guildId, sessionsPerMonth: value.sessionsPerMonth!.id as number },
         });
+        setSaved(true);
         notification.add({
           type: 'success',
           title: 'Success',
-          description: 'Preferences saved successfully.',
+          description:
+            value.sessionsPerMonth.id !== 0 ? (
+              <>
+                Preferences saved.{' '}
+                <Link href={`/g/${guildId}/availability`}>Fill out your availability</Link> when
+                you’re ready to play.
+              </>
+            ) : (
+              'Preferences saved successfully.'
+            ),
         });
+        router.refresh();
       }
     },
   });
@@ -65,6 +85,13 @@ export default function PreferencesForm({ initialSessionsPerMonth }: Preferences
         }}
         className="flex flex-col gap-6"
       >
+        {!saved && initialSessionsPerMonth === 0 && inactivityPause && (
+          <InactivityPauseExplanation
+            guildId={guildId}
+            pause={inactivityPause}
+            showPreferencesLink={false}
+          />
+        )}
         <form.Field
           name="sessionsPerMonth"
           validators={{

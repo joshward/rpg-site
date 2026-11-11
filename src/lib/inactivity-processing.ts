@@ -132,7 +132,7 @@ export async function processGuildInactivity(
       });
       await tx
         .update(memberPreference)
-        .set({ sessionsPerMonth: 0 })
+        .set({ sessionsPerMonth: 0, inactivityPauseMonth: targetMonth })
         .where(eq(memberPreference.id, preference.id));
       return {
         already: false as const,

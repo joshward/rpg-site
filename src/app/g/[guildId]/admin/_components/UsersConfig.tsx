@@ -26,6 +26,7 @@ import { useNotification } from '@/components/Notification';
 import { useRouter } from 'next/navigation';
 import type { PlausibleEvents } from '@/lib/plausible-events';
 import PlayerActivityStatus from './PlayerActivityStatus';
+import type { AdminInactivityPause } from '@/lib/inactivity-explanation';
 
 interface MemberPreference {
   discordUserId: string;
@@ -36,6 +37,7 @@ interface MemberPreference {
   lastLoginAt: string | null;
   sessionsPerMonth: number | null;
   inactivity?: AdminMemberInactivity | null;
+  lastInactivityPause?: AdminInactivityPause | null;
 }
 
 export default function UsersConfig({
@@ -109,7 +111,7 @@ export default function UsersConfig({
           m.discordUserId === discordUserId ? { ...m, sessionsPerMonth: option.id as number } : m,
         ),
       );
-      if (inactivityEnabled) await fetchMembers();
+      await fetchMembers();
     }
   };
 
@@ -234,9 +236,11 @@ export default function UsersConfig({
                           }
                           placeholder="Unset"
                         />
-                        {inactivityEnabled && member.inactivity && (
+                        {((inactivityEnabled && member.inactivity) ||
+                          member.lastInactivityPause) && (
                           <PlayerActivityStatus
-                            activity={member.inactivity}
+                            activity={inactivityEnabled ? member.inactivity : null}
+                            pause={member.lastInactivityPause}
                             displayName={member.displayName}
                           />
                         )}

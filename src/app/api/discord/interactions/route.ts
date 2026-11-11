@@ -11,7 +11,7 @@ import { guild as guildTable } from '@/db/schema/guild';
 import { eq } from 'drizzle-orm';
 import { getGuildMember } from '@/lib/discord/api';
 import { resolveRoleForGuild } from '@/lib/authn';
-import { saveMemberPreference } from '@/actions/preferences';
+import { saveMemberPreference } from '@/lib/save-member-preference';
 import { saveAvailability } from '@/lib/save-availability';
 import { getEditableMonths, isSameMonth, getDaysInMonth } from '@/lib/availability';
 import { config } from '@/lib/config';

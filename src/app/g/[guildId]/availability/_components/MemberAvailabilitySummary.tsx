@@ -1,6 +1,8 @@
 import Link from '@/components/Link';
 import { NO_LIMIT } from '@/lib/preferences';
 import { getContactInfo } from '../../helpers';
+import type { PlayerInactivityPause } from '@/lib/inactivity-explanation';
+import LocalDate from '@/components/LocalDate';
 
 interface GameInfo {
   id: string;
@@ -18,6 +20,7 @@ interface MemberAvailabilitySummaryProps {
   supportChannelName?: string | null;
   adminContactInfo?: string | null;
   isReadOnly?: boolean;
+  inactivityPause?: PlayerInactivityPause | null;
 }
 
 export default function MemberAvailabilitySummary({
@@ -28,6 +31,7 @@ export default function MemberAvailabilitySummary({
   supportChannelName,
   adminContactInfo,
   isReadOnly,
+  inactivityPause,
 }: MemberAvailabilitySummaryProps) {
   const activeGames = games.filter((g) => g.status === 'active');
   const coreGames = activeGames.filter((g) => g.isRequired);
@@ -55,6 +59,8 @@ export default function MemberAvailabilitySummary({
         ? 'an unset number of'
         : `${sessionsPerMonth}`;
 
+  const hasAutomaticPause = sessionsPerMonth === 0 && !!inactivityPause;
+
   const isOverScheduled =
     sessionsPerMonth !== null && sessionsPerMonth !== NO_LIMIT && coreSessions > sessionsPerMonth;
 
@@ -67,6 +73,28 @@ export default function MemberAvailabilitySummary({
 
   return (
     <div className="flex flex-col gap-2 text-sm text-muted-foreground border-l-4 border-muted pl-4 py-1 mb-2">
+      {sessionsPerMonth === 0 &&
+        inactivityPause &&
+        (isReadOnly ? (
+          <p>
+            This member’s desired sessions were automatically set to 0 on{' '}
+            <LocalDate value={inactivityPause.pausedAt} /> after unanswered availability cycles.{' '}
+            <Link href={`/g/${guildId}/admin`}>Update preferences in Users Config</Link>.
+            Availability submission does not restore desired sessions.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <p>
+              Your desired sessions were set to <strong>0</strong> on{' '}
+              <LocalDate value={inactivityPause.pausedAt} /> because you hadn’t submitted
+              availability for a while. Availability reminders are paused.
+            </p>
+            <p>
+              <Link href={`/g/${guildId}/preferences`}>Update your desired sessions</Link> when
+              you’re ready to play again. Saving availability won’t change them.
+            </p>
+          </div>
+        ))}
       {coreGames.length > 0 && (
         <p>
           You are a core member in {formatList(coreGames.map((g) => g.name))} for a total of{' '}
@@ -79,21 +107,23 @@ export default function MemberAvailabilitySummary({
           of {optionalSessions} {optionalSessions === 1 ? 'session' : 'sessions'} per month.
         </p>
       )}
-      <p>
-        Your preferences are to attend {prefText} games per month.{' '}
-        {!isReadOnly ? (
-          <Link
-            href={`/g/${guildId}/preferences`}
-            className="text-primary hover:underline font-medium"
-          >
-            Update your preferences
-          </Link>
-        ) : (
-          <Link href={`/g/${guildId}/admin`} className="text-primary hover:underline font-medium">
-            Update preferences in User Config
-          </Link>
-        )}
-      </p>
+      {!hasAutomaticPause && (
+        <p>
+          Your preferences are to attend {prefText} games per month.{' '}
+          {!isReadOnly ? (
+            <Link
+              href={`/g/${guildId}/preferences`}
+              className="text-primary hover:underline font-medium"
+            >
+              Update your preferences
+            </Link>
+          ) : (
+            <Link href={`/g/${guildId}/admin`} className="text-primary hover:underline font-medium">
+              Update preferences in User Config
+            </Link>
+          )}
+        </p>
+      )}
 
       {isOverScheduled && (
         <p className="text-ruby-11 font-bold">
@@ -116,8 +146,14 @@ export default function MemberAvailabilitySummary({
 
       {sessionsPerMonth === 0 && coreGames.length === 0 && (
         <p>
-          You can still fill out your schedule to attend optional games if you&apos;d like. Just let{' '}
-          {adminContactInfo || 'your guild admin'} know that you are interested.
+          {hasAutomaticPause ? (
+            <>Interested in optional games? Let {adminContactInfo || 'your guild admin'} know.</>
+          ) : (
+            <>
+              You can still fill out your schedule to attend optional games if you&apos;d like. Just
+              let {adminContactInfo || 'your guild admin'} know that you are interested.
+            </>
+          )}
         </p>
       )}
     </div>

@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   members: vi.fn(),
   role: vi.fn(),
 }));
+vi.mock('server-only', () => ({}));
 vi.mock('@/actions/auth-helpers', () => ({ ensureAdmin: mocks.admin, ensureAccess: mocks.access }));
 vi.mock('@/db/db', () => ({ db: { select: mocks.select } }));
 vi.mock('@/actions/inactivity', () => ({ getInactivityPreview: mocks.preview }));
@@ -65,6 +66,8 @@ beforeEach(() => {
   });
   mocks.select.mockReturnValue({
     from: (table: Parameters<typeof getTableName>[0]) => {
+      if (getTableName(table) === 'inactivity_pauses')
+        return { where: () => ({ orderBy: async () => [] }) };
       const where = async () =>
         getTableName(table) === 'member_preferences'
           ? [{ discordUserId: 'human', sessionsPerMonth: 2 }]
@@ -74,7 +77,7 @@ beforeEach(() => {
   });
 });
 describe('Users Config server boundary', () => {
-  it('does not read preview/history or return statuses while disabled', async () => {
+  it('does not read live preview or return candidate statuses while disabled', async () => {
     const result = await getAdminMemberPreferences('guild-1');
     if (result.type !== 'success') throw new Error('Expected users');
     expect(result.data[0].inactivity).toBe(null);

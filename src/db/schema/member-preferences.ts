@@ -14,6 +14,8 @@ export const memberPreference = pgTable(
     discordUserId: text().notNull(),
     userId: text().references(() => user.id, { onDelete: 'cascade' }),
     sessionsPerMonth: integer(),
+    // Current automatic-zero provenance only; deliberate writes clear it.
+    inactivityPauseMonth: text(),
     createdAt: timestamp().defaultNow().notNull(),
     updatedAt: timestamp()
       .defaultNow()
