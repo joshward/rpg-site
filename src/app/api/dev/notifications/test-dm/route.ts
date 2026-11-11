@@ -10,10 +10,13 @@ import {
   sendT2FinalCall,
   getNotificationContext,
   getPrefix,
+  sendDM,
+  generateInactivityPauseMessage,
 } from '@/lib/notifications';
 import { config } from '@/lib/config';
 import { getNow } from '@/lib/availability';
 import { joinUrl } from '@/lib/urls';
+import { monthIndex, monthLabel } from '@/lib/inactivity';
 
 export async function POST(request: Request) {
   if (process.env.NODE_ENV !== 'development') {
@@ -64,6 +67,27 @@ export async function POST(request: Request) {
       case 'T2':
         success = !!(await sendT2FinalCall(userId, username, context, force));
         break;
+      case 'INACTIVITY': {
+        // Synthetic response cycles only. Do not load this player's history,
+        // invoke the processor, change preferences or create an audit record.
+        const target = monthIndex(now) + 1;
+        const checkedMonths = Array.from({ length: guildData.inactivityThreshold }, (_, i) =>
+          monthLabel(target - guildData.inactivityThreshold + 1 + i),
+        );
+        const availabilityUrl = joinUrl(
+          config.siteUrl,
+          `/g/${guildId}/availability?year=${context.target.year}&month=${context.target.month}`,
+        );
+        const message = generateInactivityPauseMessage({
+          guildId,
+          guildName,
+          checkedMonths,
+          availabilityUrl,
+          preview: true,
+        });
+        success = !!(await sendDM(userId, username, message, 'Inactivity pause preview', force));
+        break;
+      }
       default:
         return NextResponse.json({ error: `Invalid notification type: ${type}` }, { status: 400 });
     }

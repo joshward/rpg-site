@@ -8,7 +8,8 @@ async function main() {
 
   if (!userId || !guildId || !type) {
     console.error('Usage: npx tsx scripts/test-dm.ts <userId> <guildId> <type> [--force]');
-    console.error('Type can be: T7, T4C, T4O, T2');
+    console.error('Type can be: T7, T4C, T4O, T2, INACTIVITY');
+    console.error('INACTIVITY sends an illustrative preview only; it never changes preferences.');
     process.exit(1);
   }
 
